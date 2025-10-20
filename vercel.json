@@ -1,7 +1,8 @@
 {
-  "rewrites": [
-    { "source": "/", "destination": "/index.html" },
-    { "source": "/api/generate-html", "destination": "/api/generate_html.py" },
-    { "source": "/api/generate-html/(.*)", "destination": "/api/generate_html.py/$1" }
+  "builds": [
+    { "src": "app.py", "use": "@vercel/python" }
+  ],
+  "routes": [
+    { "src": "/(.*)", "dest": "app.py" }
   ]
 }

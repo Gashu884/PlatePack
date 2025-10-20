@@ -1,4 +1,4 @@
-"\"\"\"Serverless entrypoint for generating HTML plates reports via API.\"\"\"
+"""Core data models and HTML generation helpers for PlatePack."""
 
 from __future__ import annotations
 
@@ -7,14 +7,7 @@ from html import escape
 import re
 from typing import Dict, List, Optional, Set
 
-from fastapi import FastAPI, HTTPException, Response
 from pydantic import BaseModel, Field, validator
-
-app = FastAPI(
-    title="PlatePack HTML API",
-    version="1.0.0",
-    description="Creates printable HTML reports for plate packing plans.",
-)
 
 _WELL_RE = re.compile(r"^([A-Za-z]+)(\d+)$")
 
@@ -209,9 +202,7 @@ def build_html_report(payload: ReportRequest) -> str:
             assert info is not None
             assignments[(info["row"], info["col"])] = assignment
 
-        header_cells = "".join(
-            f"<th scope=\"col\">{col + 1}</th>" for col in range(plate.cols)
-        )
+        header_cells = "".join(f"<th scope=\"col\">{col + 1}</th>" for col in range(plate.cols))
 
         body_rows = []
         for row_idx in range(plate.rows):
@@ -230,12 +221,8 @@ def build_html_report(payload: ReportRequest) -> str:
                         text = escape(f"{assignment.source_plate} · {assignment.source_well}")
                     elif assignment.source_plate:
                         text = escape(assignment.source_plate)
-                cells.append(
-                    f"<td style=\"background:{cell_color};\">{text}</td>"
-                )
-            body_rows.append(
-                f"<tr><th scope=\"row\">{row_label}</th>{''.join(cells)}</tr>"
-            )
+                cells.append(f"<td style=\"background:{cell_color};\">{text}</td>")
+            body_rows.append(f"<tr><th scope=\"row\">{row_label}</th>{''.join(cells)}</tr>")
 
         return f"""
             <section class="plate">
@@ -460,18 +447,8 @@ def build_html_report(payload: ReportRequest) -> str:
 </html>"""
 
 
-@app.post("/", response_class=Response)
-def generate_html(payload: ReportRequest) -> Response:
-    try:
-        html = build_html_report(payload)
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-    return Response(content=html, media_type="text/html; charset=utf-8")
-
-
-@app.get("/sample", response_model=ReportRequest)
 def sample_payload() -> ReportRequest:
-    """Handy sample data for quick testing."""
+    """Return a handy sample request for quick testing."""
     return ReportRequest(
         title="QC Packing Run",
         analyst="A. Analyst",

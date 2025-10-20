@@ -21,12 +21,12 @@
 python -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-uvicorn api.generate_html:app --reload
+uvicorn app:app --reload
 ```
 
-- API: `http://localhost:8000/api/generate_html`
-- サンプル: `http://localhost:8000/api/generate_html/sample`
-- ローカルで `index.html` を開くとブラウザから API を試せます（同一オリジンが必要な場合は `python -m http.server` 等でホストしてください）。
+- API: `http://localhost:8000/generate-html`
+- サンプル: `http://localhost:8000/generate-html/sample`
+- ブラウザで `http://localhost:8000/` を開くと API コンソールが表示され、同一オリジンで呼び出しをテストできます。
 
 ### Vercel にデプロイする場合
 
@@ -34,13 +34,13 @@ uvicorn api.generate_html:app --reload
 2. Build Command / Output Directory は空欄で OK
 3. デプロイすると以下が利用できます
    - `https://{your-project}.vercel.app/` → API コンソール
-   - `https://{your-project}.vercel.app/api/generate-html` → HTML 生成エンドポイント (POST)
-   - `https://{your-project}.vercel.app/api/generate-html/sample` → サンプル JSON
+   - `https://{your-project}.vercel.app/generate-html` → HTML 生成エンドポイント (POST)
+   - `https://{your-project}.vercel.app/generate-html/sample` → サンプル JSON
 
 ## API 仕様
 
 - **HTTP Method:** `POST`
-- **Endpoint:** `/api/generate-html`
+- **Endpoint:** `/generate-html`
 - **Headers:** `Content-Type: application/json`
 - **Body:** 下記 `ReportRequest` 構造
 - **Response:** `text/html; charset=utf-8`
