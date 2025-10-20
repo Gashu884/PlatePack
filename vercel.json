@@ -1,0 +1,13 @@
+{
+  "functions": {
+    "api/*.py": {
+      "runtime": "vercel-python@3.9"
+    }
+  },
+  "routes": [
+    { "src": "/pack",       "dest": "/api/pack.py" },
+    { "src": "/pack/tsv",   "dest": "/api/pack.py" },
+    { "src": "/render.png", "dest": "/api/pack.py" },
+    { "src": "/health",     "dest": "/api/pack.py" }
+  ]
+}
