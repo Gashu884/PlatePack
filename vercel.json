@@ -1,14 +1,3 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "routes": [
-    { "src": "/pack",       "dest": "/api/pack.py" },
-    { "src": "/pack/tsv",   "dest": "/api/pack.py" },
-    { "src": "/render.png", "dest": "/api/pack.py" },
-    { "src": "/health",     "dest": "/api/pack.py" }
-  ],
-  "functions": {
-    "api/**/*.py": {
-      "excludeFiles": "{tests/**,__tests__/**,**/*.test.py,**/test_*.py,fixtures/**,__fixtures__/**,testdata/**,sample-data/**,static/**,assets/**}"
-    }
-  }
+  "$schema": "https://openapi.vercel.sh/vercel.json"
 }
