@@ -1,9 +1,7 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
-    { "source": "/pack",       "destination": "/api/pack.py" },
-    { "source": "/pack/tsv",   "destination": "/api/pack.py" },
-    { "source": "/render.png", "destination": "/api/pack.py" },
-    { "source": "/health",     "destination": "/api/pack.py" }
+    { "source": "/", "destination": "/index.html" },
+    { "source": "/api/generate-html", "destination": "/api/generate_html.py" },
+    { "source": "/api/generate-html/(.*)", "destination": "/api/generate_html.py/$1" }
   ]
 }
