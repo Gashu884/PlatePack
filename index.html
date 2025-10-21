@@ -41,8 +41,7 @@
       .toolbar {
         display: flex;
         flex-wrap: wrap;
-        gap: 0.8rem;
-        justify-content: space-between;
+        gap: 1rem;
         align-items: center;
       }
       .controls {
@@ -51,16 +50,24 @@
         gap: 0.65rem;
         align-items: center;
       }
+      .controls:first-of-type {
+        margin-right: 1.25rem;
+      }
+      .toolbar .controls:nth-of-type(2) {
+        margin-left: 0.5rem;
+      }
       label {
         font-weight: 600;
         margin-right: 0.4rem;
       }
       select {
-        border-radius: 12px;
-        border: 1px solid #d4d4d8;
-        padding: 0.55rem 0.9rem;
+        border-radius: 16px;
+        border: 1px solid #cbd5f5;
+        padding: 0.7rem 1.4rem;
         font-family: inherit;
-        background: #f9fafb;
+        background: #f0f9ff;
+        font-size: 1.15rem;
+        min-width: 200px;
       }
       button {
         border: none;
@@ -188,30 +195,38 @@
       }
       .packed-grid {
         overflow-x: auto;
+        max-width: 580px;
       }
       .packed-table {
         border-collapse: collapse;
-        min-width: 700px;
-        width: 100%;
         background: #fff;
         box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
         border-radius: 16px;
         overflow: hidden;
       }
+      .packed-table thead th:first-child {
+        width: 38px;
+      }
       .packed-table th,
       .packed-table td {
         border: 1px solid #d1d5db;
-        padding: 0.55rem;
+        width: 40px;
+        height: 40px;
         text-align: center;
-        font-size: 0.86rem;
+        font-size: 0.78rem;
+        padding: 0;
       }
       .packed-table th {
         background: #e0f2fe;
         font-weight: 600;
       }
+      .packed-table th.row-header {
+        background: #f1f5f9;
+        color: #475569;
+      }
       .packed-cell {
-        min-width: 46px;
-        min-height: 46px;
+        width: 40px;
+        height: 40px;
       }
       .packed-cell.active {
         background: #22c55e;
@@ -239,6 +254,13 @@
               <option value="2">2</option>
               <option value="3">3</option>
               <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+              <option value="7">7</option>
+              <option value="8">8</option>
+              <option value="9">9</option>
+              <option value="10">10</option>
+              <option value="custom">Custom…</option>
             </select>
           </div>
           <div class="controls">
@@ -334,6 +356,17 @@
           currentPlateIndex = Math.min(currentPlateIndex, plates.length - 1);
         }
         renderPlate();
+      }
+
+      function ensurePlateOption(value) {
+        const valueStr = String(value);
+        const options = Array.from(plateCountSelect.options);
+        if (options.some((option) => option.value === valueStr)) return;
+        const option = document.createElement("option");
+        option.value = valueStr;
+        option.textContent = valueStr;
+        const customOption = plateCountSelect.querySelector('option[value="custom"]');
+        plateCountSelect.insertBefore(option, customOption);
       }
 
       function renderGridStructure() {
@@ -460,7 +493,7 @@
               : parsedA.row.localeCompare(parsedB.row);
           });
           return {
-            plate_id: `SRC-${String(index + 1).padStart(3, "0")}`,
+            plate_id: `${String(index + 1).padStart(1, "0")}`,
             wells: wellsArray,
           };
         });
@@ -581,6 +614,7 @@
         ROWS.forEach((rowLabel, rowIndex) => {
           const tr = document.createElement("tr");
           const rowHeader = document.createElement("th");
+          rowHeader.className = "row-header";
           rowHeader.textContent = rowLabel;
           tr.appendChild(rowHeader);
           COLS.forEach((_, colIndex) => {
@@ -615,9 +649,27 @@
       }
 
       // Event bindings
-      plateCountSelect.addEventListener("change", (e) =>
-        resizePlateCount(Number(e.target.value))
-      );
+      plateCountSelect.addEventListener("change", (e) => {
+        const value = e.target.value;
+        if (value === "custom") {
+          const input = prompt("Enter number of plates (1-999):", plates.length);
+          if (input === null) {
+            plateCountSelect.value = String(plates.length);
+            return;
+          }
+          const num = Number(input);
+          if (!Number.isInteger(num) || num < 1) {
+            alert("Please enter a positive integer.");
+            plateCountSelect.value = String(plates.length);
+            return;
+          }
+          ensurePlateOption(num);
+          plateCountSelect.value = String(num);
+          resizePlateCount(num);
+        } else {
+          resizePlateCount(Number(value));
+        }
+      });
       prevPlateBtn.addEventListener("click", () => {
         if (currentPlateIndex === 0) return;
         currentPlateIndex -= 1;
