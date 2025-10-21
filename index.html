@@ -65,7 +65,7 @@
       button {
         border: none;
         border-radius: 12px;
-        padding: 0.01rem 0.12rem;
+        padding: 0.7rem 1.2rem;
         font-weight: 600;
         font-size: 0.94rem;
         cursor: pointer;
@@ -99,31 +99,45 @@
       .well-grid {
         margin-top: 1.2rem;
         display: grid;
-        gap: 0.75rem;
+        gap: 0.36rem;
+        max-width: 580px;
       }
       .column-header,
       .well-row {
         display: grid;
-        grid-template-columns: auto repeat(12, minmax(30px, 1fr));
-        gap: 0.1rem;
+        grid-template-columns: 38px repeat(12, minmax(24px, 1fr));
+        gap: 0.22rem;
         align-items: center;
       }
-      .column-header span,
-      .row-label {
-        font-weight: 600;
-        text-align: center;
-        color: #64748b;
+      .corner-cell {
+        width: 38px;
+        height: 38px;
       }
-      .row-label {
-        text-align: left;
-        padding-left: 0.2rem;
+      .header-btn {
+        border-radius: 8px;
+        border: 1px solid #cbd5f5;
+        background: #e0f2fe;
+        font-weight: 600;
+        color: #1e3a8a;
+        font-size: 0.78rem;
+        padding: 0.3rem 0.4rem;
+        cursor: pointer;
+        transition: background 0.12s ease, box-shadow 0.12s ease;
+      }
+      .header-btn.row {
+        background: #f1f5f9;
+        color: #475569;
+      }
+      .header-btn:hover {
+        box-shadow: 0 8px 18px rgba(14, 116, 144, 0.2);
+        background: #bae6fd;
       }
       .well-btn {
-        border-radius: 11px;
+        border-radius: 9px;
         border: 1px solid #cbd5f5;
         background: #fff;
-        font-size: 0.75rem;
-        padding: 0.35rem;
+        font-size: 0.72rem;
+        padding: 0.22rem;
         aspect-ratio: 1 / 1;
         display: flex;
         align-items: center;
@@ -139,11 +153,6 @@
         color: #fff;
         border-color: #15803d;
         box-shadow: 0 10px 18px rgba(34, 197, 94, 0.35);
-      }
-      .toggle-bar {
-        display: flex;
-        gap: 0.6rem;
-        margin-top: 1rem;
       }
       .pack-buttons {
         display: flex;
@@ -217,7 +226,7 @@
   <body>
     <header>
       <h1>Plates Packer</h1>
-      <p class="muted">96 ウェルプレートのスロットをクリックし、パッキング結果を新しいプレートとして表示します。</p>
+      <p class="muted">96wellプレートの該当wellをクリックし、パッキング結果を新しいプレートとして表示します。</p>
     </header>
 
     <div class="layout">
@@ -243,27 +252,8 @@
         <h2 id="plateTitle" style="margin:0.9rem 0 1.1rem;">Plate 1</h2>
 
         <div class="well-grid">
-          <div class="column-header">
-            <span></span>
-            <span>1</span>
-            <span>2</span>
-            <span>3</span>
-            <span>4</span>
-            <span>5</span>
-            <span>6</span>
-            <span>7</span>
-            <span>8</span>
-            <span>9</span>
-            <span>10</span>
-            <span>11</span>
-            <span>12</span>
-          </div>
+          <div class="column-header" id="columnHeader"></div>
           <div id="wellGrid"></div>
-        </div>
-
-        <div class="toggle-bar">
-          <button type="button" class="ghost" id="toggleRowBtn">Toggle Row</button>
-          <button type="button" class="ghost" id="toggleColumnBtn">Toggle Column</button>
         </div>
 
         <div class="pack-buttons">
@@ -305,12 +295,11 @@
       const plateCountSelect = document.getElementById("plateCount");
       const plateSummary = document.getElementById("plateSummary");
       const plateTitle = document.getElementById("plateTitle");
+      const columnHeader = document.getElementById("columnHeader");
       const wellGrid = document.getElementById("wellGrid");
       const prevPlateBtn = document.getElementById("prevPlateBtn");
       const nextPlateBtn = document.getElementById("nextPlateBtn");
       const clearPlateBtn = document.getElementById("clearPlateBtn");
-      const toggleRowBtn = document.getElementById("toggleRowBtn");
-      const toggleColumnBtn = document.getElementById("toggleColumnBtn");
       const packColumnBtn = document.getElementById("packColumnBtn");
       const packRowBtn = document.getElementById("packRowBtn");
       const statusEl = document.getElementById("status");
@@ -348,14 +337,29 @@
       }
 
       function renderGridStructure() {
+        columnHeader.innerHTML = "";
+        const corner = document.createElement("div");
+        corner.className = "corner-cell";
+        columnHeader.appendChild(corner);
+        COLS.forEach((col) => {
+          const colBtn = document.createElement("button");
+          colBtn.type = "button";
+          colBtn.className = "header-btn";
+          colBtn.textContent = col;
+          colBtn.addEventListener("click", () => toggleColumn(col));
+          columnHeader.appendChild(colBtn);
+        });
+
         wellGrid.innerHTML = "";
         ROWS.forEach((row) => {
           const rowDiv = document.createElement("div");
           rowDiv.className = "well-row";
-          const label = document.createElement("div");
-          label.className = "row-label";
-          label.textContent = row;
-          rowDiv.appendChild(label);
+          const rowBtn = document.createElement("button");
+          rowBtn.type = "button";
+          rowBtn.className = "header-btn row";
+          rowBtn.textContent = row;
+          rowBtn.addEventListener("click", () => toggleRow(row));
+          rowDiv.appendChild(rowBtn);
 
           COLS.forEach((col) => {
             const wellId = `${row}${col}`;
@@ -408,16 +412,11 @@
         renderPlate();
       }
 
-      function toggleRow() {
-        const row = prompt("Row letter to toggle (A-H):");
-        if (!row) return;
-        const letter = row.trim().toUpperCase();
-        if (!ROWS.includes(letter)) {
-          alert("Invalid row.");
-          return;
-        }
+      function toggleRow(letter) {
+        const upper = String(letter).trim().toUpperCase();
+        if (!ROWS.includes(upper)) return;
         const plate = getCurrentPlate();
-        const wells = COLS.map((col) => `${letter}${col}`);
+        const wells = COLS.map((col) => `${upper}${col}`);
         const allSelected = wells.every((well) => plate.wells.has(well));
         wells.forEach((well) => {
           if (allSelected) plate.wells.delete(well);
@@ -426,14 +425,9 @@
         renderPlate();
       }
 
-      function toggleColumn() {
-        const col = prompt("Column number to toggle (1-12):");
-        if (!col) return;
-        const num = Number(col);
-        if (!Number.isInteger(num) || num < 1 || num > 12) {
-          alert("Invalid column.");
-          return;
-        }
+      function toggleColumn(colValue) {
+        const num = Number(colValue);
+        if (!Number.isInteger(num) || num < 1 || num > 12) return;
         const plate = getCurrentPlate();
         const wells = ROWS.map((row) => `${row}${num}`);
         const allSelected = wells.every((well) => plate.wells.has(well));
@@ -635,8 +629,6 @@
         renderPlate();
       });
       clearPlateBtn.addEventListener("click", clearPlate);
-      toggleRowBtn.addEventListener("click", toggleRow);
-      toggleColumnBtn.addEventListener("click", toggleColumn);
       packColumnBtn.addEventListener("click", () => pack("column"));
       packRowBtn.addEventListener("click", () => pack("row"));
       prevPackedBtn.addEventListener("click", () => {
