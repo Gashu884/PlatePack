@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Plates Packer – Interactive Frontend</title>
+    <title>Plates Packer</title>
     <style>
       :root {
         color-scheme: light;
@@ -12,61 +12,61 @@
       }
       body {
         margin: 0;
-        padding: clamp(1.5rem, 3vw, 2.5rem);
+        padding: clamp(1.5rem, 4vw, 3rem);
         color: #111827;
       }
       header {
-        margin-bottom: 1.5rem;
         display: grid;
-        gap: 0.5rem;
+        gap: 0.35rem;
+        margin-bottom: 1.5rem;
       }
       h1 {
         margin: 0;
-        font-size: clamp(1.8rem, 3vw, 2.4rem);
+        font-size: clamp(1.9rem, 3vw, 2.35rem);
       }
       .muted {
         color: #6b7280;
         font-size: 0.95rem;
       }
-      main {
+      .layout {
         display: grid;
         gap: 1.5rem;
       }
-      .card {
+      .panel {
         background: #fff;
-        border-radius: 18px;
-        box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
-        padding: clamp(1.25rem, 2vw, 1.75rem);
+        border-radius: 20px;
+        box-shadow: 0 24px 48px rgba(15, 23, 42, 0.08);
+        padding: clamp(1.4rem, 3vw, 2rem);
       }
-      .grid-header {
+      .toolbar {
         display: flex;
         flex-wrap: wrap;
+        gap: 0.75rem;
+        align-items: center;
         justify-content: space-between;
+        margin-bottom: 1.2rem;
+      }
+      .plate-info {
+        display: flex;
+        flex-wrap: wrap;
         gap: 1rem;
         align-items: center;
       }
       label {
         font-weight: 600;
-        margin-right: 0.75rem;
+        margin-right: 0.6rem;
       }
-      select,
-      input,
-      textarea {
-        border-radius: 10px;
+      select {
+        border-radius: 12px;
         border: 1px solid #d1d5db;
-        padding: 0.55rem 0.75rem;
-        font-size: 0.95rem;
+        padding: 0.55rem 0.9rem;
         font-family: inherit;
         background: #f9fafb;
-      }
-      textarea {
-        min-height: 140px;
-        resize: vertical;
       }
       button {
         border: none;
         border-radius: 12px;
-        padding: 0.65rem 1.2rem;
+        padding: 0.65rem 1.25rem;
         font-weight: 600;
         font-size: 0.95rem;
         cursor: pointer;
@@ -74,13 +74,10 @@
         align-items: center;
         justify-content: center;
         gap: 0.5rem;
+        transition: transform 0.12s ease, box-shadow 0.12s ease;
       }
       button.primary {
         background: linear-gradient(135deg, #2563eb, #4338ca);
-        color: #fff;
-      }
-      button.secondary {
-        background: #10b981;
         color: #fff;
       }
       button.ghost {
@@ -91,16 +88,15 @@
         opacity: 0.55;
         cursor: not-allowed;
       }
-      .well-wrapper {
-        margin-top: 1rem;
+      .well-grid {
         display: grid;
-        gap: 0.75rem;
+        gap: 0.8rem;
       }
       .column-header,
       .well-row {
         display: grid;
-        grid-template-columns: auto repeat(12, 1fr);
-        gap: 0.4rem;
+        grid-template-columns: auto repeat(12, minmax(36px, 1fr));
+        gap: 0.45rem;
         align-items: center;
       }
       .column-header span,
@@ -111,61 +107,52 @@
       }
       .row-label {
         text-align: left;
-        padding-left: 0.25rem;
+        padding-left: 0.3rem;
       }
       .well-btn {
-        border-radius: 10px;
+        border-radius: 11px;
         border: 1px solid #d1d5db;
         background: #fff;
-        font-size: 0.85rem;
+        font-size: 0.83rem;
         padding: 0.55rem;
-        transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+        transition: background 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
       }
       .well-btn:hover {
         transform: translateY(-1px);
-        box-shadow: 0 8px 16px rgba(37, 99, 235, 0.18);
+        box-shadow: 0 12px 20px rgba(37, 99, 235, 0.15);
       }
       .well-btn.selected {
         background: #22c55e;
         color: #fff;
         border-color: #15803d;
-        box-shadow: 0 8px 16px rgba(34, 197, 94, 0.35);
+        box-shadow: 0 10px 16px rgba(34, 197, 94, 0.35);
       }
-      .plate-toolbar {
+      .status {
+        margin-top: 1rem;
+        color: #6b7280;
+        font-size: 0.92rem;
+      }
+      .canvas-container {
+        margin-top: 1.5rem;
+        display: grid;
+        gap: 1rem;
+      }
+      canvas {
+        width: min(620px, 100%);
+        max-width: 100%;
+        border-radius: 18px;
+        background: #ffffff;
+        box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.08);
+      }
+      .controls {
         display: flex;
         flex-wrap: wrap;
         gap: 0.75rem;
-        margin-top: 1rem;
+        margin-top: 0.8rem;
       }
-      .metadata {
-        display: grid;
-        gap: 1rem;
-        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      }
-      .preview-layout {
-        display: grid;
-        gap: 1.25rem;
-        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-      }
-      iframe {
-        width: 100%;
-        min-height: 360px;
-        border: 1px solid #d1d5db;
-        border-radius: 16px;
-        background: #fff;
-      }
-      pre {
-        background: #111827;
-        color: #f9fafb;
-        padding: 1rem;
-        border-radius: 14px;
-        font-size: 0.85rem;
-        max-height: 360px;
-        overflow: auto;
-      }
-      .stats {
-        color: #6b7280;
-        font-size: 0.9rem;
+      .summary {
+        font-size: 0.95rem;
+        color: #374151;
       }
     </style>
   </head>
@@ -173,33 +160,35 @@
     <header>
       <h1>Plates Packer</h1>
       <p class="muted">
-        96 ウェルプレートのスロットをインタラクティブに選択し、FastAPI 経由で HTML レポートを生成します。ウェルをクリックすると緑色にハイライトされます。
+        96 ウェルプレートのスロットをクリックして選択し、バックエンドで整列したレイアウトを HTML として生成・表示します。結果のコードは画面に表示されません。
       </p>
     </header>
 
-    <main>
-      <section class="card">
-        <div class="grid-header">
-          <div>
-            <label for="plateCount">Number of Plates:</label>
-            <select id="plateCount">
-              <option value="1" selected>1</option>
-              <option value="2">2</option>
-              <option value="3">3</option>
-              <option value="4">4</option>
-              <option value="5">5</option>
-            </select>
+    <div class="layout">
+      <section class="panel">
+        <div class="toolbar">
+          <div class="plate-info">
+            <div>
+              <label for="plateCount">Number of Plates</label>
+              <select id="plateCount">
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+              </select>
+            </div>
+            <div class="summary" id="plateSummary">Plate 1 of 1 — 0 wells selected</div>
           </div>
-          <div class="stats" id="selectionStats">0 wells selected (Plate 1 of 1)</div>
           <div>
-            <button type="button" class="ghost" id="prevPlateBtn">Previous Plate</button>
-            <button type="button" class="ghost" id="nextPlateBtn">Next Plate</button>
+            <button type="button" class="ghost" id="prevPlateBtn">Previous</button>
+            <button type="button" class="ghost" id="nextPlateBtn">Next</button>
+            <button type="button" class="ghost" id="clearPlateBtn">Clear</button>
           </div>
         </div>
 
-        <h2 id="plateTitle" style="margin-top:1.25rem;">Plate 1</h2>
+        <h2 id="plateTitle" style="margin:0 0 1rem;">Plate 1</h2>
 
-        <div class="well-wrapper">
+        <div class="well-grid">
           <div class="column-header">
             <span></span>
             <span>1</span>
@@ -218,45 +207,27 @@
           <div id="wellGrid"></div>
         </div>
 
-        <div class="plate-toolbar">
-          <button type="button" class="ghost" id="clearPlateBtn">Clear Plate</button>
-          <button type="button" class="ghost" id="fillRowBtn">Toggle Row</button>
-          <button type="button" class="ghost" id="fillColumnBtn">Toggle Column</button>
+        <div class="controls">
+          <button type="button" class="ghost" id="toggleRowBtn">Toggle Row</button>
+          <button type="button" class="ghost" id="toggleColumnBtn">Toggle Column</button>
         </div>
       </section>
 
-      <section class="card">
-        <h2>Report Metadata</h2>
-        <div class="metadata">
+      <section class="panel">
+        <div class="toolbar">
+          <div class="summary">バックエンド整列結果</div>
           <div>
-            <label for="titleInput">Report title</label>
-            <input id="titleInput" value="QC Packing Run" />
-          </div>
-          <div>
-            <label for="analystInput">Analyst (optional)</label>
-            <input id="analystInput" placeholder="Analyst name" />
+            <button type="button" class="primary" id="generateBtn">レイアウトを生成</button>
+            <button type="button" class="ghost" id="downloadBtn" disabled>Download HTML</button>
           </div>
         </div>
-        <div style="margin-top:1rem;">
-          <label for="notesInput">Notes</label>
-          <textarea id="notesInput" placeholder="Experiment notes, protocol references, etc."></textarea>
-        </div>
+        <p class="status" id="status">ウェルを選択して「レイアウトを生成」を押してください。</p>
 
-        <div class="plate-toolbar" style="margin-top:1.25rem;">
-          <button type="button" class="primary" id="generateBtn">Generate HTML via API</button>
-          <button type="button" class="secondary" id="downloadBtn" disabled>Download HTML</button>
-        </div>
-        <p class="stats" id="status"></p>
-      </section>
-
-      <section class="card">
-        <h2>Preview & Response</h2>
-        <div class="preview-layout">
-          <iframe id="previewFrame" title="HTML preview"></iframe>
-          <pre id="responseLog">HTML レスポンスの先頭が表示されます。</pre>
+        <div class="canvas-container">
+          <canvas id="layoutCanvas" width="720" height="520"></canvas>
         </div>
       </section>
-    </main>
+    </div>
 
     <script>
       const ROWS = ["A", "B", "C", "D", "E", "F", "G", "H"];
@@ -267,27 +238,24 @@
       let lastHtml = "";
 
       const plateCountSelect = document.getElementById("plateCount");
+      const plateSummary = document.getElementById("plateSummary");
       const plateTitle = document.getElementById("plateTitle");
-      const selectionStats = document.getElementById("selectionStats");
       const wellGrid = document.getElementById("wellGrid");
       const prevPlateBtn = document.getElementById("prevPlateBtn");
       const nextPlateBtn = document.getElementById("nextPlateBtn");
       const clearPlateBtn = document.getElementById("clearPlateBtn");
-      const fillRowBtn = document.getElementById("fillRowBtn");
-      const fillColumnBtn = document.getElementById("fillColumnBtn");
-      const titleInput = document.getElementById("titleInput");
-      const analystInput = document.getElementById("analystInput");
-      const notesInput = document.getElementById("notesInput");
+      const toggleRowBtn = document.getElementById("toggleRowBtn");
+      const toggleColumnBtn = document.getElementById("toggleColumnBtn");
       const generateBtn = document.getElementById("generateBtn");
       const downloadBtn = document.getElementById("downloadBtn");
       const statusEl = document.getElementById("status");
-      const previewFrame = document.getElementById("previewFrame");
-      const responseLog = document.getElementById("responseLog");
+      const layoutCanvas = document.getElementById("layoutCanvas");
+      const ctx = layoutCanvas.getContext("2d");
 
       const API_ENDPOINT = "/generate-html";
 
       function createPlate(index) {
-        return { id: `Plate ${index}`, wells: new Set() };
+        return { label: `Plate ${index}`, wells: new Set() };
       }
 
       function getCurrentPlate() {
@@ -309,49 +277,48 @@
 
       function renderGridStructure() {
         wellGrid.innerHTML = "";
-        ROWS.forEach((rowLabel) => {
-          const rowEl = document.createElement("div");
-          rowEl.className = "well-row";
+        ROWS.forEach((row) => {
+          const rowDiv = document.createElement("div");
+          rowDiv.className = "well-row";
 
           const label = document.createElement("div");
           label.className = "row-label";
-          label.textContent = rowLabel;
-          rowEl.appendChild(label);
+          label.textContent = row;
+          rowDiv.appendChild(label);
 
           COLS.forEach((col) => {
-            const wellId = `${col}${rowLabel}`;
+            const wellId = `${col}${row}`;
             const btn = document.createElement("button");
             btn.type = "button";
             btn.className = "well-btn";
-            btn.textContent = `${col}${rowLabel}`;
             btn.dataset.well = wellId;
+            btn.textContent = wellId;
             btn.addEventListener("click", () => toggleWell(wellId));
-            rowEl.appendChild(btn);
+            rowDiv.appendChild(btn);
           });
-          wellGrid.appendChild(rowEl);
+
+          wellGrid.appendChild(rowDiv);
         });
       }
 
       function updateWellButtons() {
         const plate = getCurrentPlate();
-        document
-          .querySelectorAll(".well-btn")
-          .forEach((btn) => {
-            const well = btn.dataset.well;
-            if (plate.wells.has(well)) {
-              btn.classList.add("selected");
-            } else {
-              btn.classList.remove("selected");
-            }
-          });
+        document.querySelectorAll(".well-btn").forEach((btn) => {
+          const well = btn.dataset.well;
+          if (plate.wells.has(well)) {
+            btn.classList.add("selected");
+          } else {
+            btn.classList.remove("selected");
+          }
+        });
       }
 
       function renderPlate() {
         const plate = getCurrentPlate();
-        plateTitle.textContent = plate.id;
-        selectionStats.textContent = `${plate.wells.size} wells selected (Plate ${
+        plateTitle.textContent = plate.label;
+        plateSummary.textContent = `${plate.label} — ${plate.wells.size} wells selected · Plate ${
           currentPlateIndex + 1
-        } of ${plates.length})`;
+        } of ${plates.length}`;
         updateWellButtons();
       }
 
@@ -420,12 +387,7 @@
       function buildPayload() {
         const sources = plates.map((plate, index) => ({
           plate_id: `SRC-${String(index + 1).padStart(3, "0")}`,
-          wells: Array.from(plate.wells).sort((a, b) => {
-            const [aNum, aRow] = [parseInt(a, 10), a.replace(/\d+/g, "")];
-            const [bNum, bRow] = [parseInt(b, 10), b.replace(/\d+/g, "")];
-            return aNum === bNum ? aRow.localeCompare(bRow) : aNum - bNum;
-          }),
-          description: plates.length > 1 ? `Selection from ${plate.id}` : "Selected wells",
+          wells: Array.from(plate.wells),
         }));
 
         const destinations = plates.map((plate, index) => ({
@@ -439,7 +401,7 @@
           })),
         }));
 
-        const plan = destinations.flatMap((dest, destIndex) =>
+        const plan = destinations.flatMap((dest) =>
           dest.assignments.map((assignment) => ({
             source_plate: assignment.source_plate,
             source_well: assignment.source_well,
@@ -449,18 +411,16 @@
         );
 
         return {
-          title: titleInput.value.trim() || "Plates Packing Report",
-          analyst: analystInput.value.trim() || undefined,
-          notes: notesInput.value.trim() || undefined,
+          title: "Plates Packing Report",
           sources,
           destinations,
           plan,
         };
       }
 
-      async function generateHtml() {
+      async function generateLayout() {
         try {
-          setStatus("Generating HTML via API…");
+          setStatus("バックエンドで整列中…");
           const payload = buildPayload();
           const res = await fetch(API_ENDPOINT, {
             method: "POST",
@@ -468,21 +428,90 @@
             body: JSON.stringify(payload),
           });
           const text = await res.text();
-          responseLog.textContent =
-            text.slice(0, 2000) + (text.length > 2000 ? "\n… (truncated) ..." : "");
           if (!res.ok) {
-            previewFrame.srcdoc = `<pre style="padding:16px;color:#dc2626;">${text}</pre>`;
-            throw new Error(`API error (${res.status})`);
+            setStatus(`API error (${res.status})`, true);
+            return;
           }
           lastHtml = text;
-          const blob = new Blob([text], { type: "text/html" });
-          const url = URL.createObjectURL(blob);
-          previewFrame.src = url;
           downloadBtn.disabled = false;
-          setStatus("HTML 生成に成功しました。");
+          drawLayout(text);
+          setStatus("整列完了。プレビューを更新しました。");
         } catch (error) {
           setStatus(error.message, true);
         }
+      }
+
+      function drawLayout(htmlString) {
+        // 簡易パーサ: 行を取得してプレートの先頭マッピングを描画
+        // 実運用では HTML をサーバー側で別 API として返すか、JSON で配置座標を返すなどを推奨。
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(htmlString, "text/html");
+        const table = doc.querySelector("table");
+        if (!table) {
+          ctx.clearRect(0, 0, layoutCanvas.width, layoutCanvas.height);
+          setStatus("HTML 内にレイアウトが見つかりませんでした。", true);
+          return;
+        }
+
+        const rows = Array.from(table.querySelectorAll("tbody tr"));
+        const cellWidth = 46;
+        const cellHeight = 46;
+        const offsetX = 80;
+        const offsetY = 80;
+
+        ctx.clearRect(0, 0, layoutCanvas.width, layoutCanvas.height);
+        ctx.fillStyle = "#1f2937";
+        ctx.font = "20px Inter";
+        ctx.fillText("Destination Plate preview", offsetX, offsetY - 20);
+
+        // columns label
+        ctx.font = "14px Inter";
+        ctx.fillStyle = "#6b7280";
+        COLS.forEach((col, index) => {
+          ctx.fillText(
+            String(col),
+            offsetX + 20 + index * (cellWidth + 6),
+            offsetY - 8
+          );
+        });
+
+        ROWS.forEach((rowLabel, rowIndex) => {
+          ctx.fillText(rowLabel, offsetX - 30, offsetY + 30 + rowIndex * (cellHeight + 6));
+          COLS.forEach((_, colIndex) => {
+            const x = offsetX + colIndex * (cellWidth + 6);
+            const y = offsetY + rowIndex * (cellHeight + 6);
+            ctx.fillStyle = "#ffffff";
+            ctx.strokeStyle = "#d1d5db";
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.roundRect(x, y, cellWidth, cellHeight, 8);
+            ctx.fill();
+            ctx.stroke();
+          });
+        });
+
+        rows.forEach((row, rowIndex) => {
+          const cells = Array.from(row.querySelectorAll("td"));
+          cells.forEach((cell, colIndex) => {
+            const x = offsetX + colIndex * (cellWidth + 6);
+            const y = offsetY + rowIndex * (cellHeight + 6);
+            const text = cell.textContent.trim();
+            if (text) {
+              ctx.fillStyle = "#22c55e";
+              ctx.beginPath();
+              ctx.roundRect(x, y, cellWidth, cellHeight, 8);
+              ctx.fill();
+
+              ctx.fillStyle = "#ffffff";
+              ctx.font = "12px Inter";
+              ctx.textAlign = "center";
+              ctx.textBaseline = "middle";
+              ctx.fillText(text, x + cellWidth / 2, y + cellHeight / 2);
+            }
+          });
+        });
+        ctx.textAlign = "left";
+        ctx.textBaseline = "alphabetic";
       }
 
       function downloadHtml() {
@@ -497,26 +526,22 @@
       }
 
       plateCountSelect.addEventListener("change", (event) => {
-        const count = Number(event.target.value);
-        resizePlateCount(count);
+        resizePlateCount(Number(event.target.value));
       });
-
       prevPlateBtn.addEventListener("click", () => {
         if (currentPlateIndex === 0) return;
         currentPlateIndex -= 1;
         renderPlate();
       });
-
       nextPlateBtn.addEventListener("click", () => {
         if (currentPlateIndex >= plates.length - 1) return;
         currentPlateIndex += 1;
         renderPlate();
       });
-
       clearPlateBtn.addEventListener("click", clearCurrentPlate);
-      fillRowBtn.addEventListener("click", promptRowToggle);
-      fillColumnBtn.addEventListener("click", promptColumnToggle);
-      generateBtn.addEventListener("click", generateHtml);
+      toggleRowBtn.addEventListener("click", promptRowToggle);
+      toggleColumnBtn.addEventListener("click", promptColumnToggle);
+      generateBtn.addEventListener("click", generateLayout);
       downloadBtn.addEventListener("click", downloadHtml);
 
       renderGridStructure();
