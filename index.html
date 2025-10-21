@@ -13,52 +13,51 @@
       body {
         margin: 0;
         padding: clamp(1.5rem, 4vw, 3rem);
-        color: #111827;
+        color: #0f172a;
       }
       header {
+        margin-bottom: 1.75rem;
         display: grid;
-        gap: 0.35rem;
-        margin-bottom: 1.5rem;
+        gap: 0.4rem;
       }
       h1 {
         margin: 0;
-        font-size: clamp(1.9rem, 3vw, 2.35rem);
+        font-size: clamp(1.9rem, 3vw, 2.4rem);
       }
       .muted {
-        color: #6b7280;
+        color: #64748b;
         font-size: 0.95rem;
       }
       .layout {
         display: grid;
-        gap: 1.5rem;
+        gap: 1.8rem;
       }
       .panel {
         background: #fff;
-        border-radius: 20px;
-        box-shadow: 0 24px 48px rgba(15, 23, 42, 0.08);
-        padding: clamp(1.4rem, 3vw, 2rem);
+        border-radius: 22px;
+        box-shadow: 0 28px 60px rgba(15, 23, 42, 0.1);
+        padding: clamp(1.4rem, 3vw, 2.1rem);
       }
       .toolbar {
         display: flex;
         flex-wrap: wrap;
-        gap: 0.75rem;
-        align-items: center;
+        gap: 0.8rem;
         justify-content: space-between;
-        margin-bottom: 1.2rem;
+        align-items: center;
       }
-      .plate-info {
+      .controls {
         display: flex;
         flex-wrap: wrap;
-        gap: 1rem;
+        gap: 0.65rem;
         align-items: center;
       }
       label {
         font-weight: 600;
-        margin-right: 0.6rem;
+        margin-right: 0.4rem;
       }
       select {
         border-radius: 12px;
-        border: 1px solid #d1d5db;
+        border: 1px solid #d4d4d8;
         padding: 0.55rem 0.9rem;
         font-family: inherit;
         background: #f9fafb;
@@ -66,9 +65,9 @@
       button {
         border: none;
         border-radius: 12px;
-        padding: 0.65rem 1.25rem;
+        padding: 0.6rem 1.2rem;
         font-weight: 600;
-        font-size: 0.95rem;
+        font-size: 0.94rem;
         cursor: pointer;
         display: inline-flex;
         align-items: center;
@@ -81,112 +80,167 @@
         color: #fff;
       }
       button.ghost {
-        background: #e5e7eb;
-        color: #374151;
+        background: #e2e8f0;
+        color: #1e293b;
+      }
+      button.success {
+        background: #10b981;
+        color: #fff;
       }
       button:disabled {
         opacity: 0.55;
         cursor: not-allowed;
       }
+      .plate-summary {
+        font-size: 0.95rem;
+        color: #1e293b;
+        margin-top: 0.5rem;
+      }
       .well-grid {
+        margin-top: 1.2rem;
         display: grid;
-        gap: 0.8rem;
+        gap: 0.75rem;
       }
       .column-header,
       .well-row {
         display: grid;
-        grid-template-columns: auto repeat(12, minmax(36px, 1fr));
-        gap: 0.45rem;
+        grid-template-columns: auto repeat(12, minmax(42px, 1fr));
+        gap: 0.5rem;
         align-items: center;
       }
       .column-header span,
       .row-label {
         font-weight: 600;
         text-align: center;
-        color: #6b7280;
+        color: #64748b;
       }
       .row-label {
         text-align: left;
-        padding-left: 0.3rem;
+        padding-left: 0.2rem;
       }
       .well-btn {
-        border-radius: 11px;
-        border: 1px solid #d1d5db;
+        border-radius: 16px;
+        border: 1px solid #cbd5f5;
         background: #fff;
-        font-size: 0.83rem;
-        padding: 0.55rem;
+        font-size: 0.82rem;
+        padding: 0.45rem;
+        aspect-ratio: 1 / 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         transition: background 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
       }
       .well-btn:hover {
         transform: translateY(-1px);
-        box-shadow: 0 12px 20px rgba(37, 99, 235, 0.15);
+        box-shadow: 0 12px 22px rgba(37, 99, 235, 0.22);
       }
       .well-btn.selected {
         background: #22c55e;
         color: #fff;
         border-color: #15803d;
-        box-shadow: 0 10px 16px rgba(34, 197, 94, 0.35);
+        box-shadow: 0 10px 18px rgba(34, 197, 94, 0.35);
+      }
+      .toggle-bar {
+        display: flex;
+        gap: 0.6rem;
+        margin-top: 1rem;
+      }
+      .pack-buttons {
+        display: flex;
+        gap: 0.75rem;
+        margin-top: 1.25rem;
       }
       .status {
         margin-top: 1rem;
-        color: #6b7280;
-        font-size: 0.92rem;
+        color: #64748b;
+        font-size: 0.9rem;
+        min-height: 1.2rem;
       }
-      .canvas-container {
-        margin-top: 1.5rem;
+      .packed-section {
         display: grid;
-        gap: 1rem;
+        gap: 1.25rem;
       }
-      canvas {
-        width: min(620px, 100%);
-        max-width: 100%;
-        border-radius: 18px;
-        background: #ffffff;
-        box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.08);
+      .packed-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.75rem;
       }
-      .controls {
+      .packed-info {
+        font-size: 0.95rem;
+        color: #1e293b;
+        font-weight: 600;
+      }
+      .packed-controls {
         display: flex;
         flex-wrap: wrap;
         gap: 0.75rem;
-        margin-top: 0.8rem;
       }
-      .summary {
-        font-size: 0.95rem;
-        color: #374151;
+      .packed-grid {
+        overflow-x: auto;
+      }
+      .packed-table {
+        border-collapse: collapse;
+        min-width: 700px;
+        width: 100%;
+        background: #fff;
+        box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
+        border-radius: 16px;
+        overflow: hidden;
+      }
+      .packed-table th,
+      .packed-table td {
+        border: 1px solid #d1d5db;
+        padding: 0.55rem;
+        text-align: center;
+        font-size: 0.86rem;
+      }
+      .packed-table th {
+        background: #e0f2fe;
+        font-weight: 600;
+      }
+      .packed-cell {
+        min-width: 64px;
+        min-height: 46px;
+      }
+      .packed-cell.active {
+        background: #22c55e;
+        color: #fff;
+        font-weight: 600;
+      }
+      .error {
+        color: #dc2626;
       }
     </style>
   </head>
   <body>
     <header>
       <h1>Plates Packer</h1>
-      <p class="muted">
-        96 ウェルプレートのスロットをクリックして選択し、バックエンドで整列したレイアウトを HTML として生成・表示します。結果のコードは画面に表示されません。
-      </p>
+      <p class="muted">96 ウェルプレートのスロットをクリックし、パッキング結果を新しいプレートとして表示します。</p>
     </header>
 
     <div class="layout">
       <section class="panel">
         <div class="toolbar">
-          <div class="plate-info">
-            <div>
-              <label for="plateCount">Number of Plates</label>
-              <select id="plateCount">
-                <option value="1">1</option>
-                <option value="2">2</option>
-                <option value="3">3</option>
-                <option value="4">4</option>
-              </select>
-            </div>
-            <div class="summary" id="plateSummary">Plate 1 of 1 — 0 wells selected</div>
+          <div class="controls">
+            <label for="plateCount">Number of Plates</label>
+            <select id="plateCount">
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+            </select>
           </div>
-          <div>
+          <div class="controls">
             <button type="button" class="ghost" id="prevPlateBtn">Previous</button>
             <button type="button" class="ghost" id="nextPlateBtn">Next</button>
             <button type="button" class="ghost" id="clearPlateBtn">Clear</button>
           </div>
         </div>
 
-        <h2 id="plateTitle" style="margin:0 0 1rem;">Plate 1</h2>
+        <div class="plate-summary" id="plateSummary">Plate 1 — 0 wells selected · Plate 1 of 1</div>
+        <h2 id="plateTitle" style="margin:0.9rem 0 1.1rem;">Plate 1</h2>
 
         <div class="well-grid">
           <div class="column-header">
@@ -207,24 +261,32 @@
           <div id="wellGrid"></div>
         </div>
 
-        <div class="controls">
+        <div class="toggle-bar">
           <button type="button" class="ghost" id="toggleRowBtn">Toggle Row</button>
           <button type="button" class="ghost" id="toggleColumnBtn">Toggle Column</button>
         </div>
+
+        <div class="pack-buttons">
+          <button type="button" class="primary" id="packColumnBtn">Packing! (by Column)</button>
+          <button type="button" class="primary" id="packRowBtn">Packing! (by Row)</button>
+        </div>
+
+        <div class="status" id="status"></div>
       </section>
 
       <section class="panel">
-        <div class="toolbar">
-          <div class="summary">バックエンド整列結果</div>
-          <div>
-            <button type="button" class="primary" id="generateBtn">レイアウトを生成</button>
-            <button type="button" class="ghost" id="downloadBtn" disabled>Download HTML</button>
+        <div class="packed-section">
+          <div class="packed-header">
+            <div class="packed-info" id="packedSummary">Packed Plate 0 of 0</div>
+            <div class="packed-controls">
+              <button type="button" class="ghost" id="prevPackedBtn" disabled>Previous</button>
+              <button type="button" class="ghost" id="nextPackedBtn" disabled>Next</button>
+              <button type="button" class="success" id="downloadBtn" disabled>Download HTML</button>
+            </div>
           </div>
-        </div>
-        <p class="status" id="status">ウェルを選択して「レイアウトを生成」を押してください。</p>
-
-        <div class="canvas-container">
-          <canvas id="layoutCanvas" width="720" height="520"></canvas>
+          <div class="packed-grid" id="packedGrid">
+            <p class="muted">まだパッキング結果はありません。</p>
+          </div>
         </div>
       </section>
     </div>
@@ -232,9 +294,12 @@
     <script>
       const ROWS = ["A", "B", "C", "D", "E", "F", "G", "H"];
       const COLS = Array.from({ length: 12 }, (_, i) => i + 1);
+      const API_ENDPOINT = "/generate-html";
 
       let plates = [createPlate(1)];
       let currentPlateIndex = 0;
+      let packedPlates = [];
+      let currentPackedIndex = 0;
       let lastHtml = "";
 
       const plateCountSelect = document.getElementById("plateCount");
@@ -246,13 +311,14 @@
       const clearPlateBtn = document.getElementById("clearPlateBtn");
       const toggleRowBtn = document.getElementById("toggleRowBtn");
       const toggleColumnBtn = document.getElementById("toggleColumnBtn");
-      const generateBtn = document.getElementById("generateBtn");
-      const downloadBtn = document.getElementById("downloadBtn");
+      const packColumnBtn = document.getElementById("packColumnBtn");
+      const packRowBtn = document.getElementById("packRowBtn");
       const statusEl = document.getElementById("status");
-      const layoutCanvas = document.getElementById("layoutCanvas");
-      const ctx = layoutCanvas.getContext("2d");
-
-      const API_ENDPOINT = "/generate-html";
+      const packedSummary = document.getElementById("packedSummary");
+      const packedGrid = document.getElementById("packedGrid");
+      const prevPackedBtn = document.getElementById("prevPackedBtn");
+      const nextPackedBtn = document.getElementById("nextPackedBtn");
+      const downloadBtn = document.getElementById("downloadBtn");
 
       function createPlate(index) {
         return { label: `Plate ${index}`, wells: new Set() };
@@ -260,6 +326,12 @@
 
       function getCurrentPlate() {
         return plates[currentPlateIndex];
+      }
+
+      function parseWell(well) {
+        const match = well.match(/^([A-H])(\d{1,2})$/);
+        if (!match) return null;
+        return { row: match[1], col: Number(match[2]) };
       }
 
       function resizePlateCount(count) {
@@ -280,19 +352,18 @@
         ROWS.forEach((row) => {
           const rowDiv = document.createElement("div");
           rowDiv.className = "well-row";
-
           const label = document.createElement("div");
           label.className = "row-label";
           label.textContent = row;
           rowDiv.appendChild(label);
 
           COLS.forEach((col) => {
-            const wellId = `${col}${row}`;
+            const wellId = `${row}${col}`;
             const btn = document.createElement("button");
             btn.type = "button";
             btn.className = "well-btn";
             btn.dataset.well = wellId;
-            btn.textContent = wellId;
+            btn.textContent = `${col}${row}`;
             btn.addEventListener("click", () => toggleWell(wellId));
             rowDiv.appendChild(btn);
           });
@@ -332,12 +403,12 @@
         renderPlate();
       }
 
-      function clearCurrentPlate() {
+      function clearPlate() {
         getCurrentPlate().wells.clear();
         renderPlate();
       }
 
-      function promptRowToggle() {
+      function toggleRow() {
         const row = prompt("Row letter to toggle (A-H):");
         if (!row) return;
         const letter = row.trim().toUpperCase();
@@ -346,19 +417,16 @@
           return;
         }
         const plate = getCurrentPlate();
-        const wells = COLS.map((col) => `${col}${letter}`);
+        const wells = COLS.map((col) => `${letter}${col}`);
         const allSelected = wells.every((well) => plate.wells.has(well));
         wells.forEach((well) => {
-          if (allSelected) {
-            plate.wells.delete(well);
-          } else {
-            plate.wells.add(well);
-          }
+          if (allSelected) plate.wells.delete(well);
+          else plate.wells.add(well);
         });
         renderPlate();
       }
 
-      function promptColumnToggle() {
+      function toggleColumn() {
         const col = prompt("Column number to toggle (1-12):");
         if (!col) return;
         const num = Number(col);
@@ -367,61 +435,102 @@
           return;
         }
         const plate = getCurrentPlate();
-        const wells = ROWS.map((row) => `${num}${row}`);
+        const wells = ROWS.map((row) => `${row}${num}`);
         const allSelected = wells.every((well) => plate.wells.has(well));
         wells.forEach((well) => {
-          if (allSelected) {
-            plate.wells.delete(well);
-          } else {
-            plate.wells.add(well);
-          }
+          if (allSelected) plate.wells.delete(well);
+          else plate.wells.add(well);
         });
         renderPlate();
       }
 
       function setStatus(message, isError = false) {
         statusEl.textContent = message;
-        statusEl.style.color = isError ? "#dc2626" : "#6b7280";
+        statusEl.className = `status${isError ? " error" : ""}`;
       }
 
-      function buildPayload() {
-        const sources = plates.map((plate, index) => ({
-          plate_id: `SRC-${String(index + 1).padStart(3, "0")}`,
-          wells: Array.from(plate.wells),
-        }));
+      function buildPayload(order) {
+        const sortedSources = plates.map((plate, index) => {
+          const wellsArray = Array.from(plate.wells);
+          wellsArray.sort((a, b) => {
+            const parsedA = parseWell(a);
+            const parsedB = parseWell(b);
+            if (!parsedA || !parsedB) return 0;
+            if (order === "column") {
+              return parsedA.col === parsedB.col
+                ? parsedA.row.localeCompare(parsedB.row)
+                : parsedA.col - parsedB.col;
+            }
+            return parsedA.row === parsedB.row
+              ? parsedA.col - parsedB.col
+              : parsedA.row.localeCompare(parsedB.row);
+          });
+          return {
+            plate_id: `SRC-${String(index + 1).padStart(3, "0")}`,
+            wells: wellsArray,
+          };
+        });
 
-        const destinations = plates.map((plate, index) => ({
-          plate_id: `DEST-${String(index + 1).padStart(3, "0")}`,
-          rows: ROWS.length,
-          cols: COLS.length,
-          assignments: Array.from(plate.wells).map((well) => ({
-            well,
-            source_plate: sources[index].plate_id,
-            source_well: well,
-          })),
-        }));
-
-        const plan = destinations.flatMap((dest) =>
-          dest.assignments.map((assignment) => ({
-            source_plate: assignment.source_plate,
-            source_well: assignment.source_well,
-            destination_plate: dest.plate_id,
-            destination_well: assignment.well,
-          }))
+        const flattened = sortedSources.flatMap((src) =>
+          src.wells.map((well) => ({ source_plate: src.plate_id, source_well: well }))
         );
+
+        const wellsPerPlate = ROWS.length * COLS.length;
+        const destinations = [];
+        const orderedAssignments = [];
+
+        flattened.forEach((item, index) => {
+          const destPlateIndex = Math.floor(index / wellsPerPlate);
+          const pos = index % wellsPerPlate;
+          const destRowIndex =
+            order === "column" ? pos % ROWS.length : Math.floor(pos / COLS.length);
+          const destColIndex =
+            order === "column" ? Math.floor(pos / ROWS.length) : pos % COLS.length;
+          const destPlateId = `DEST-${String(destPlateIndex + 1).padStart(3, "0")}`;
+          const destWell = `${ROWS[destRowIndex]}${COLS[destColIndex]}`;
+
+          orderedAssignments.push({
+            source_plate: item.source_plate,
+            source_well: item.source_well,
+            destination_plate: destPlateId,
+            destination_well: destWell,
+          });
+        });
+
+        const totalDest = Math.max(1, Math.ceil(flattened.length / wellsPerPlate));
+        for (let i = 0; i < totalDest; i += 1) {
+          const plateId = `DEST-${String(i + 1).padStart(3, "0")}`;
+          destinations.push({
+            plate_id: plateId,
+            rows: ROWS.length,
+            cols: COLS.length,
+            assignments: orderedAssignments
+              .filter((assign) => assign.destination_plate === plateId)
+              .map((assign) => ({
+                well: assign.destination_well,
+                source_plate: assign.source_plate,
+                source_well: assign.source_well,
+              })),
+          });
+        }
 
         return {
           title: "Plates Packing Report",
-          sources,
+          sources: sortedSources,
           destinations,
-          plan,
+          plan: orderedAssignments,
         };
       }
 
-      async function generateLayout() {
+      async function pack(order) {
         try {
-          setStatus("バックエンドで整列中…");
-          const payload = buildPayload();
+          setStatus("");
+          const payload = buildPayload(order);
+          const selectionCount = payload.plan.length;
+          if (selectionCount === 0) {
+            setStatus("ウェルを選択してください。", true);
+            return;
+          }
           const res = await fetch(API_ENDPOINT, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -434,84 +543,70 @@
           }
           lastHtml = text;
           downloadBtn.disabled = false;
-          drawLayout(text);
-          setStatus("整列完了。プレビューを更新しました。");
+
+          packedPlates = payload.destinations.map((plate) => {
+            const grid = Array.from({ length: ROWS.length }, () =>
+              Array.from({ length: COLS.length }, () => "")
+            );
+            plate.assignments.forEach((assignment) => {
+              const parsed = parseWell(assignment.well);
+              if (!parsed) return;
+              const rowIdx = ROWS.indexOf(parsed.row);
+              const colIdx = COLS.indexOf(parsed.col);
+              grid[rowIdx][colIdx] = `${assignment.source_plate}-${assignment.source_well}`;
+            });
+            return { id: plate.plate_id, grid };
+          });
+          currentPackedIndex = 0;
+          renderPacked();
         } catch (error) {
           setStatus(error.message, true);
         }
       }
 
-      function drawLayout(htmlString) {
-        // 簡易パーサ: 行を取得してプレートの先頭マッピングを描画
-        // 実運用では HTML をサーバー側で別 API として返すか、JSON で配置座標を返すなどを推奨。
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(htmlString, "text/html");
-        const table = doc.querySelector("table");
-        if (!table) {
-          ctx.clearRect(0, 0, layoutCanvas.width, layoutCanvas.height);
-          setStatus("HTML 内にレイアウトが見つかりませんでした。", true);
+      function renderPacked() {
+        if (packedPlates.length === 0) {
+          packedSummary.textContent = "Packed Plate 0 of 0";
+          packedGrid.innerHTML = "<p class='muted'>まだパッキング結果はありません。</p>";
+          prevPackedBtn.disabled = true;
+          nextPackedBtn.disabled = true;
           return;
         }
+        const plate = packedPlates[currentPackedIndex];
+        packedSummary.textContent = `${plate.id} · Packed Plate ${currentPackedIndex + 1} of ${packedPlates.length}`;
 
-        const rows = Array.from(table.querySelectorAll("tbody tr"));
-        const cellWidth = 46;
-        const cellHeight = 46;
-        const offsetX = 80;
-        const offsetY = 80;
+        const table = document.createElement("table");
+        table.className = "packed-table";
+        const thead = document.createElement("thead");
+        const headerRow = document.createElement("tr");
+        headerRow.innerHTML = "<th></th>" + COLS.map((col) => `<th>${col}</th>`).join("");
+        thead.appendChild(headerRow);
+        table.appendChild(thead);
 
-        ctx.clearRect(0, 0, layoutCanvas.width, layoutCanvas.height);
-        ctx.fillStyle = "#1f2937";
-        ctx.font = "20px Inter";
-        ctx.fillText("Destination Plate preview", offsetX, offsetY - 20);
-
-        // columns label
-        ctx.font = "14px Inter";
-        ctx.fillStyle = "#6b7280";
-        COLS.forEach((col, index) => {
-          ctx.fillText(
-            String(col),
-            offsetX + 20 + index * (cellWidth + 6),
-            offsetY - 8
-          );
-        });
-
+        const tbody = document.createElement("tbody");
         ROWS.forEach((rowLabel, rowIndex) => {
-          ctx.fillText(rowLabel, offsetX - 30, offsetY + 30 + rowIndex * (cellHeight + 6));
+          const tr = document.createElement("tr");
+          const rowHeader = document.createElement("th");
+          rowHeader.textContent = rowLabel;
+          tr.appendChild(rowHeader);
           COLS.forEach((_, colIndex) => {
-            const x = offsetX + colIndex * (cellWidth + 6);
-            const y = offsetY + rowIndex * (cellHeight + 6);
-            ctx.fillStyle = "#ffffff";
-            ctx.strokeStyle = "#d1d5db";
-            ctx.lineWidth = 1.2;
-            ctx.beginPath();
-            ctx.roundRect(x, y, cellWidth, cellHeight, 8);
-            ctx.fill();
-            ctx.stroke();
-          });
-        });
-
-        rows.forEach((row, rowIndex) => {
-          const cells = Array.from(row.querySelectorAll("td"));
-          cells.forEach((cell, colIndex) => {
-            const x = offsetX + colIndex * (cellWidth + 6);
-            const y = offsetY + rowIndex * (cellHeight + 6);
-            const text = cell.textContent.trim();
+            const td = document.createElement("td");
+            td.className = "packed-cell";
+            const text = plate.grid[rowIndex][colIndex];
             if (text) {
-              ctx.fillStyle = "#22c55e";
-              ctx.beginPath();
-              ctx.roundRect(x, y, cellWidth, cellHeight, 8);
-              ctx.fill();
-
-              ctx.fillStyle = "#ffffff";
-              ctx.font = "12px Inter";
-              ctx.textAlign = "center";
-              ctx.textBaseline = "middle";
-              ctx.fillText(text, x + cellWidth / 2, y + cellHeight / 2);
+              td.classList.add("active");
+              td.textContent = text;
             }
+            tr.appendChild(td);
           });
+          tbody.appendChild(tr);
         });
-        ctx.textAlign = "left";
-        ctx.textBaseline = "alphabetic";
+        table.appendChild(tbody);
+        packedGrid.innerHTML = "";
+        packedGrid.appendChild(table);
+
+        prevPackedBtn.disabled = currentPackedIndex === 0;
+        nextPackedBtn.disabled = currentPackedIndex >= packedPlates.length - 1;
       }
 
       function downloadHtml() {
@@ -525,9 +620,10 @@
         setTimeout(() => URL.revokeObjectURL(url), 1000);
       }
 
-      plateCountSelect.addEventListener("change", (event) => {
-        resizePlateCount(Number(event.target.value));
-      });
+      // Event bindings
+      plateCountSelect.addEventListener("change", (e) =>
+        resizePlateCount(Number(e.target.value))
+      );
       prevPlateBtn.addEventListener("click", () => {
         if (currentPlateIndex === 0) return;
         currentPlateIndex -= 1;
@@ -538,12 +634,24 @@
         currentPlateIndex += 1;
         renderPlate();
       });
-      clearPlateBtn.addEventListener("click", clearCurrentPlate);
-      toggleRowBtn.addEventListener("click", promptRowToggle);
-      toggleColumnBtn.addEventListener("click", promptColumnToggle);
-      generateBtn.addEventListener("click", generateLayout);
+      clearPlateBtn.addEventListener("click", clearPlate);
+      toggleRowBtn.addEventListener("click", toggleRow);
+      toggleColumnBtn.addEventListener("click", toggleColumn);
+      packColumnBtn.addEventListener("click", () => pack("column"));
+      packRowBtn.addEventListener("click", () => pack("row"));
+      prevPackedBtn.addEventListener("click", () => {
+        if (currentPackedIndex === 0) return;
+        currentPackedIndex -= 1;
+        renderPacked();
+      });
+      nextPackedBtn.addEventListener("click", () => {
+        if (currentPackedIndex >= packedPlates.length - 1) return;
+        currentPackedIndex += 1;
+        renderPacked();
+      });
       downloadBtn.addEventListener("click", downloadHtml);
 
+      // Initial render
       renderGridStructure();
       renderPlate();
     </script>
