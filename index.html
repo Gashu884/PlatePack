@@ -79,7 +79,7 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        gap: 0.5rem;
+        gap: 1rem;
         transition: transform 0.12s ease, box-shadow 0.12s ease;
       }
       button.primary {
@@ -104,21 +104,22 @@
         margin-top: 0.5rem;
       }
       .well-grid {
-        margin-top: 1.2rem;
+        margin-top: 0.0rem;
         display: grid;
-        gap: 0.36rem;
-        max-width: 580px;
+        row-gap: 0.0000rem;
+        column-gap: 0.0rem;
+        width: fit-content;
       }
       .column-header,
       .well-row {
         display: grid;
-        grid-template-columns: 38px repeat(12, minmax(24px, 1fr));
-        gap: 0.22rem;
+        grid-template-columns: 25px repeat(12, 50px);
+        column-gap: 0.225rem;
         align-items: center;
       }
       .corner-cell {
-        width: 38px;
-        height: 38px;
+        width: 25px;
+        height: 50px;
       }
       .header-btn {
         border-radius: 0;
@@ -126,34 +127,41 @@
         background: #e0f2fe;
         font-weight: 600;
         color: #1e3a8a;
-        font-size: 0.78rem;
-        padding: 0.3rem 0.4rem;
+        font-size: 0.8rem;
+        padding: 0.18rem 0.25rem;
         cursor: pointer;
         transition: background 0.12s ease, box-shadow 0.12s ease;
+        width: 100%;
+        height: 25px;
       }
       .header-btn.row {
         background: #f1f5f9;
         color: #475569;
+        width: 25px;
+        height: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
       .header-btn:hover {
         box-shadow: 0 8px 18px rgba(14, 116, 144, 0.2);
         background: #bae6fd;
       }
+      #wellGrid {
+        display: grid;
+        row-gap: 0.225rem;
+      }
       .well-btn {
         border-radius: 0;
         border: 1px solid #cbd5f5;
         background: #fff;
-        font-size: 0.72rem;
-        padding: 0.22rem;
-        aspect-ratio: 1 / 1;
+        font-size: 0.9rem;
+        width: 50px;
+        height: 50px;
         display: flex;
         align-items: center;
         justify-content: center;
-        transition: background 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
-      }
-      .well-btn:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 12px 22px rgba(37, 99, 235, 0.22);
+        transition: background 0.12s ease, box-shadow 0.12s ease;
       }
       .well-btn.selected {
         background: #22c55e;
@@ -195,7 +203,8 @@
       }
       .packed-grid {
         overflow-x: auto;
-        max-width: 580px;
+        max-width: calc(25px + 12 * 50px + 11 * 0.225rem);
+        margin: 0 auto;
       }
       .packed-table {
         border-collapse: collapse;
@@ -207,15 +216,15 @@
         border: none;
       }
       .packed-table thead th:first-child {
-        width: 34px;
+        width: 25px;
       }
       .packed-table th,
       .packed-table td {
         border: 1.5px solid #d5deff;
-        width: 38px;
-        height: 38px;
+        width: 50px;
+        height: 50px;
         text-align: center;
-        font-size: 0.72rem;
+        font-size: 0.85rem;
         padding: 0;
       }
       .packed-table th {
@@ -225,10 +234,11 @@
       }
       .packed-table th.row-header {
         background: #eef2ff;
+        width: 25px;
       }
       .packed-cell {
-        width: 38px;
-        height: 38px;
+        width: 50px;
+        height: 50px;
         position: relative;
         overflow: hidden;
       }
@@ -253,7 +263,7 @@
   <body>
     <header>
       <h1>Plates Packer</h1>
-      <p class="muted">96wellプレートの該当wellをクリックし、パッキング結果を新しいプレートとして表示します。</p>
+      <p class="muted">抽出するwellをクリックし、パッキング結果を新しいプレートとして表示します。</p>
     </header>
 
     <div class="layout">
@@ -795,22 +805,25 @@
           return;
         }
         const htmlContent = packedGrid.innerHTML;
-        const printWindow = window.open("", "packedPdf", "width=900,height=700");
+        const printWindow = window.open("", "packedPdf", "width=1100,height=780");
         if (!printWindow) {
           setStatus("ポップアップがブロックされました。", true);
           return;
         }
         printWindow.document.write(`<!DOCTYPE html><html><head><title>Packed Plate</title>
           <style>
-            body { font-family: "Inter", system-ui, sans-serif; margin: 0; padding: 24px; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            @page { size: A4 landscape; margin: 10mm; }
+            html, body { margin: 0; padding: 0; background: #fff; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            body { font-family: "Inter", system-ui, sans-serif; padding: 12mm; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             .print-wrapper { display: inline-block; }
             table { border-collapse: collapse; border-spacing: 0; }
-            th, td { width: 38px; height: 38px; text-align: center; font-size: 0.72rem; padding: 0; border: 1px solid #d5deff; }
+            th, td { border: 1px solid #d5deff; width: 50px; height: 50px; text-align: center; font-size: 0.85rem; padding: 0; }
             th { background: #e8f1ff; color: #475569; font-weight: 600; }
-            th.row-header { background: #eef2ff; }
+            th.row-header { background: #eef2ff; width: 25px; }
             td.packed-cell { position: relative; }
             td.packed-cell span { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 600; color: #1f2937; }
+            td.packed-cell { border: 1px solid #d5deff; }
           </style>
         </head><body><div class="print-wrapper">${htmlContent}</div></body></html>`);
         printWindow.document.close();
