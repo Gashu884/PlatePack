@@ -121,7 +121,7 @@
         height: 38px;
       }
       .header-btn {
-        border-radius: 8px;
+        border-radius: 0;
         border: 1px solid #cbd5f5;
         background: #e0f2fe;
         font-weight: 600;
@@ -140,7 +140,7 @@
         background: #bae6fd;
       }
       .well-btn {
-        border-radius: 9px;
+        border-radius: 0;
         border: 1px solid #cbd5f5;
         background: #fff;
         font-size: 0.72rem;
@@ -202,16 +202,16 @@
         border-spacing: 0;
         background: #fff;
         box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
-        border-radius: 12px;
+        border-radius: 0;
         overflow: hidden;
-        border: 1px solid #d1d5db;
+        border: none;
       }
       .packed-table thead th:first-child {
         width: 34px;
       }
       .packed-table th,
       .packed-table td {
-        border: 1px solid #d5deff;
+        border: 1.5px solid #d5deff;
         width: 38px;
         height: 38px;
         text-align: center;
@@ -244,15 +244,6 @@
       }
       .packed-cell.active {
         background: transparent;
-      }
-      .packed-table-wrapper {
-        position: relative;
-        display: inline-block;
-      }
-      .plate-outline {
-        position: absolute;
-        pointer-events: none;
-        mix-blend-mode: multiply;
       }
       .error {
         color: #dc2626;
@@ -313,8 +304,8 @@
             <div class="packed-info" id="packedSummary">Packed Plate 0 of 0</div>
             <div class="packed-controls">
               <button type="button" class="ghost" id="prevPackedBtn" disabled>Previous</button>
-              <button type="button" class="ghost" id="nextPackedBtn" disabled>Next</button>
-              <button type="button" class="success" id="downloadBtn" disabled>Download HTML</button>
+            <button type="button" class="ghost" id="nextPackedBtn" disabled>Next</button>
+            <button type="button" class="success" id="pdfBtn" disabled>Save as PDF</button>
             </div>
           </div>
           <div class="packed-grid" id="packedGrid">
@@ -351,7 +342,7 @@
       const packedGrid = document.getElementById("packedGrid");
       const prevPackedBtn = document.getElementById("prevPackedBtn");
       const nextPackedBtn = document.getElementById("nextPackedBtn");
-      const downloadBtn = document.getElementById("downloadBtn");
+      const pdfBtn = document.getElementById("pdfBtn");
 
       function createPlate(index) {
         return { label: `Plate ${index}`, wells: new Set() };
@@ -573,6 +564,7 @@
 
       async function pack(order) {
         try {
+          pdfBtn.disabled = true;
           setStatus("");
       const payload = buildPayload(order);
       const selectionCount = payload.plan.length;
@@ -607,10 +599,9 @@
             return;
           }
           lastHtml = text;
-      downloadBtn.disabled = false;
+          pdfBtn.disabled = false;
 
       packedPlates = payload.destinations.map((plate) => {
-        const regions = new Map();
         const grid = Array.from({ length: ROWS.length }, () =>
           Array.from({ length: COLS.length }, () => null)
         );
@@ -624,25 +615,8 @@
             sourceWell: assignment.source_well,
             color: sourceColorMap.get(assignment.source_plate)
           };
-          const key = assignment.source_plate;
-          if (!regions.has(key)) {
-            regions.set(key, {
-              sourcePlate: key,
-              color: sourceColorMap.get(key),
-              minRow: rowIdx,
-              maxRow: rowIdx,
-              minCol: colIdx,
-              maxCol: colIdx
-            });
-          } else {
-            const region = regions.get(key);
-            region.minRow = Math.min(region.minRow, rowIdx);
-            region.maxRow = Math.max(region.maxRow, rowIdx);
-            region.minCol = Math.min(region.minCol, colIdx);
-            region.maxCol = Math.max(region.maxCol, colIdx);
-          }
         });
-        return { id: plate.plate_id, grid, regions: Array.from(regions.values()) };
+        return { id: plate.plate_id, grid };
       });
       currentPackedIndex = 0;
         renderPacked();
@@ -678,8 +652,6 @@
         const plate = packedPlates[currentPackedIndex];
         packedSummary.textContent = `Packed Plate ${currentPackedIndex + 1} of ${packedPlates.length}`;
 
-        const wrapper = document.createElement("div");
-        wrapper.className = "packed-table-wrapper";
         const table = document.createElement("table");
         table.className = "packed-table";
         const thead = document.createElement("thead");
@@ -689,12 +661,17 @@
         table.appendChild(thead);
 
         const tbody = document.createElement("tbody");
+        const cellMatrix = Array.from({ length: ROWS.length }, () =>
+          Array.from({ length: COLS.length }, () => null)
+        );
+        const rowHeaderCells = [];
         ROWS.forEach((rowLabel, rowIndex) => {
           const tr = document.createElement("tr");
           const rowHeader = document.createElement("th");
           rowHeader.className = "row-header";
           rowHeader.textContent = rowLabel;
           tr.appendChild(rowHeader);
+          rowHeaderCells.push(rowHeader);
           COLS.forEach((_, colIndex) => {
             const td = document.createElement("td");
             td.className = "packed-cell";
@@ -707,69 +684,141 @@
               label.textContent = `${cellData.sourcePlate}-${formatWellDisplay(cellData.sourceWell)}`;
               label.style.background = color;
               label.style.boxShadow = shadowForColor(color);
-              label.style.border = `2px solid rgba(0,0,0,0.25)`;
               td.appendChild(label);
-              td.dataset.sourcePlate = cellData.sourcePlate;
-              td.dataset.rowIndex = String(rowIndex);
-              td.dataset.colIndex = String(colIndex);
-            } else {
-              td.dataset.rowIndex = String(rowIndex);
-              td.dataset.colIndex = String(colIndex);
             }
             tr.appendChild(td);
+            cellMatrix[rowIndex][colIndex] = td;
           });
           tbody.appendChild(tr);
         });
         table.appendChild(tbody);
-        wrapper.appendChild(table);
         packedGrid.innerHTML = "";
-        packedGrid.appendChild(wrapper);
+        packedGrid.appendChild(table);
 
-        requestAnimationFrame(() => drawSourceOutlines(wrapper, plate.regions));
+        const columnHeaderCells = Array.from(headerRow.children).slice(1);
+        applyBordersForRegion(cellMatrix, rowHeaderCells, columnHeaderCells, plate.grid);
 
         prevPackedBtn.disabled = currentPackedIndex === 0;
         nextPackedBtn.disabled = currentPackedIndex >= packedPlates.length - 1;
       }
 
-      function drawSourceOutlines(wrapper, regions) {
-        wrapper.querySelectorAll('.plate-outline').forEach((el) => el.remove());
-        const tableRect = wrapper.getBoundingClientRect();
-        regions.forEach((region) => {
-          const cells = Array.from(wrapper.querySelectorAll(`td[data-source-plate="${region.sourcePlate}"]`));
-          if (!cells.length) return;
-          let minLeft = Infinity;
-          let minTop = Infinity;
-          let maxRight = -Infinity;
-          let maxBottom = -Infinity;
-          cells.forEach((cell) => {
-            const rect = cell.getBoundingClientRect();
-            minLeft = Math.min(minLeft, rect.left);
-            minTop = Math.min(minTop, rect.top);
-            maxRight = Math.max(maxRight, rect.right);
-            maxBottom = Math.max(maxBottom, rect.bottom);
-          });
-          const outline = document.createElement('div');
-          outline.className = 'plate-outline';
-          outline.style.left = `${minLeft - tableRect.left - 3}px`;
-          outline.style.top = `${minTop - tableRect.top - 3}px`;
-          outline.style.width = `${maxRight - minLeft + 6}px`;
-          outline.style.height = `${maxBottom - minTop + 6}px`;
-          outline.style.border = '3px solid #0f172a';
-          outline.style.borderRadius = '12px';
-          outline.style.background = 'rgba(15,23,42,0.02)';
-          wrapper.appendChild(outline);
+      function applyBordersForRegion(matrix, rowHeaders, columnHeaders, gridData) {
+        const baseColor = "#d5deff";
+        const borderColor = "#0f172a";
+        const thickWidth = 3;
+
+        matrix.forEach((row) => row.forEach((cell) => {
+          if (cell) cell.style.border = `1px solid ${baseColor}`;
+        }));
+        rowHeaders.forEach((th) => {
+          th.style.borderTop = `1px solid ${baseColor}`;
+          th.style.borderBottom = `1px solid ${baseColor}`;
+          th.style.borderLeft = `1px solid ${baseColor}`;
+          th.style.borderRight = `1px solid ${baseColor}`;
         });
+        columnHeaders.forEach((th) => {
+          th.style.borderTop = `1px solid ${baseColor}`;
+          th.style.borderBottom = `1px solid ${baseColor}`;
+          th.style.borderLeft = `1px solid ${baseColor}`;
+          th.style.borderRight = `1px solid ${baseColor}`;
+        });
+
+        const maxRow = ROWS.length - 1;
+        const maxCol = COLS.length - 1;
+
+        const getPlateId = (r, c) => (gridData[r]?.[c]?.sourcePlate || null);
+
+        for (let row = 0; row <= maxRow; row += 1) {
+          for (let col = 0; col <= maxCol; col += 1) {
+            const cellInfo = gridData[row][col];
+            if (!cellInfo) continue;
+            const cell = matrix[row][col];
+            const plateId = cellInfo.sourcePlate;
+
+            const topPlate = row > 0 ? getPlateId(row - 1, col) : null;
+            if ((plateId || topPlate) && plateId !== topPlate) {
+              cell.style.borderTop = `${thickWidth}px solid ${borderColor}`;
+              if (row > 0) {
+                const topCell = matrix[row - 1][col];
+                if (topCell && getPlateId(row - 1, col)) {
+                  topCell.style.borderBottom = `${thickWidth}px solid ${borderColor}`;
+                }
+              }
+            }
+
+            const leftPlate = col > 0 ? getPlateId(row, col - 1) : null;
+            if ((plateId || leftPlate) && plateId !== leftPlate) {
+              cell.style.borderLeft = `${thickWidth}px solid ${borderColor}`;
+              if (col > 0) {
+                const leftCell = matrix[row][col - 1];
+                if (leftCell && getPlateId(row, col - 1)) {
+                  leftCell.style.borderRight = `${thickWidth}px solid ${borderColor}`;
+                }
+              }
+            }
+
+            const rightPlate = col < maxCol ? getPlateId(row, col + 1) : null;
+            if ((plateId || rightPlate) && plateId !== rightPlate) {
+              cell.style.borderRight = `${thickWidth}px solid ${borderColor}`;
+              if (col < maxCol) {
+                const rightCell = matrix[row][col + 1];
+                if (rightCell && getPlateId(row, col + 1)) {
+                  rightCell.style.borderLeft = `${thickWidth}px solid ${borderColor}`;
+                }
+              }
+            }
+
+            const bottomPlate = row < maxRow ? getPlateId(row + 1, col) : null;
+            if ((plateId || bottomPlate) && plateId !== bottomPlate) {
+              cell.style.borderBottom = `${thickWidth}px solid ${borderColor}`;
+              if (row < maxRow) {
+                const bottomCell = matrix[row + 1][col];
+                if (bottomCell && getPlateId(row + 1, col)) {
+                  bottomCell.style.borderTop = `${thickWidth}px solid ${borderColor}`;
+                }
+              }
+            }
+
+            if (plateId && col === maxCol) {
+              cell.style.borderRight = `${thickWidth}px solid ${borderColor}`;
+            }
+            if (plateId && row === maxRow) {
+              cell.style.borderBottom = `${thickWidth}px solid ${borderColor}`;
+            }
+          }
+        }
       }
 
-      function downloadHtml() {
-        if (!lastHtml) return;
-        const blob = new Blob([lastHtml], { type: "text/html" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "plates-report.html";
-        a.click();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      function exportPackedPdf() {
+        if (!packedGrid.children.length) {
+          setStatus("パックされたプレートがありません。", true);
+          return;
+        }
+        const htmlContent = packedGrid.innerHTML;
+        const printWindow = window.open("", "packedPdf", "width=900,height=700");
+        if (!printWindow) {
+          setStatus("ポップアップがブロックされました。", true);
+          return;
+        }
+        printWindow.document.write(`<!DOCTYPE html><html><head><title>Packed Plate</title>
+          <style>
+            body { font-family: "Inter", system-ui, sans-serif; margin: 0; padding: 24px; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .print-wrapper { display: inline-block; }
+            table { border-collapse: collapse; border-spacing: 0; }
+            th, td { width: 38px; height: 38px; text-align: center; font-size: 0.72rem; padding: 0; border: 1px solid #d5deff; }
+            th { background: #e8f1ff; color: #475569; font-weight: 600; }
+            th.row-header { background: #eef2ff; }
+            td.packed-cell { position: relative; }
+            td.packed-cell span { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 600; color: #1f2937; }
+          </style>
+        </head><body><div class="print-wrapper">${htmlContent}</div></body></html>`);
+        printWindow.document.close();
+        printWindow.onload = () => {
+          printWindow.focus();
+          printWindow.print();
+          printWindow.close();
+        };
       }
 
       // Event bindings
@@ -817,7 +866,7 @@
         currentPackedIndex += 1;
         renderPacked();
       });
-      downloadBtn.addEventListener("click", downloadHtml);
+      pdfBtn.addEventListener("click", exportPackedPdf);
 
       // Initial render
       renderGridStructure();
