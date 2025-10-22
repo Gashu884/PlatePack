@@ -104,21 +104,24 @@
         margin-top: 0.5rem;
       }
       .well-grid {
-        margin-top: 0.0rem;
+        margin-top: 0.2rem;
         display: grid;
-        row-gap: 0.0000rem;
-        column-gap: 0.0rem;
+        row-gap: 0.225rem;
+        column-gap: 0.225rem;
         width: fit-content;
       }
       .column-header,
       .well-row {
         display: grid;
-        grid-template-columns: 25px repeat(12, 50px);
+        grid-template-columns: 22px repeat(12, 50px);
         column-gap: 0.225rem;
         align-items: center;
       }
+      .column-header {
+        margin-bottom: -0.32rem;
+      }
       .corner-cell {
-        width: 25px;
+        width: 22px;
         height: 50px;
       }
       .header-btn {
@@ -137,7 +140,7 @@
       .header-btn.row {
         background: #f1f5f9;
         color: #475569;
-        width: 25px;
+        width: 22px;
         height: 50px;
         display: flex;
         align-items: center;
@@ -203,7 +206,7 @@
       }
       .packed-grid {
         overflow-x: auto;
-        max-width: calc(25px + 12 * 50px + 11 * 0.225rem);
+        max-width: calc(22px + 12 * 50px + 11 * 0.225rem);
         margin: 0 auto;
       }
       .packed-table {
@@ -216,7 +219,7 @@
         border: none;
       }
       .packed-table thead th:first-child {
-        width: 25px;
+        width: 22px;
       }
       .packed-table th,
       .packed-table td {
@@ -234,7 +237,7 @@
       }
       .packed-table th.row-header {
         background: #eef2ff;
-        width: 25px;
+        width: 22px;
       }
       .packed-cell {
         width: 50px;
@@ -820,7 +823,7 @@
             table { border-collapse: collapse; border-spacing: 0; }
             th, td { border: 1px solid #d5deff; width: 50px; height: 50px; text-align: center; font-size: 0.85rem; padding: 0; }
             th { background: #e8f1ff; color: #475569; font-weight: 600; }
-            th.row-header { background: #eef2ff; width: 25px; }
+            th.row-header { background: #eef2ff; width: 22px; }
             td.packed-cell { position: relative; }
             td.packed-cell span { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 600; color: #1f2937; }
             td.packed-cell { border: 1px solid #d5deff; }
