@@ -1,9 +1,8 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "rewrites": [
-    { "source": "/pack",       "destination": "/api/pack.py" },
-    { "source": "/pack/tsv",   "destination": "/api/pack.py" },
-    { "source": "/render.png", "destination": "/api/pack.py" },
-    { "source": "/health",     "destination": "/api/pack.py" }
+  "builds": [
+    { "src": "app.py", "use": "@vercel/python" }
+  ],
+  "routes": [
+    { "src": "/(.*)", "dest": "app.py" }
   ]
 }
