@@ -110,6 +110,25 @@
         column-gap: 0.225rem;
         width: fit-content;
       }
+      .memo-field {
+        margin: 0.9rem 0 0.5rem;
+        display: grid;
+        gap: 0.35rem;
+      }
+      .memo-field textarea {
+        width: 100%;
+        min-height: 80px;
+        border: 1px solid #cbd5f5;
+        border-radius: 12px;
+        padding: 0.75rem 0.9rem;
+        font-family: inherit;
+        background: #f8fafc;
+        resize: vertical;
+      }
+      .memo-hint {
+        color: #94a3b8;
+        font-size: 0.85rem;
+      }
       .column-header,
       .well-row {
         display: grid;
@@ -205,9 +224,7 @@
         gap: 0.75rem;
       }
       .packed-grid {
-        overflow-x: auto;
-        max-width: calc(22px + 12 * 50px + 11 * 0.225rem);
-        margin: 0 auto;
+        width: 100%;
       }
       .packed-table {
         border-collapse: collapse;
@@ -258,6 +275,41 @@
       .packed-cell.active {
         background: transparent;
       }
+      .packed-layout {
+        display: grid;
+        gap: 1rem;
+        align-items: start;
+      }
+      @media (min-width: 960px) {
+        .packed-layout {
+          grid-template-columns: auto minmax(230px, 280px);
+        }
+      }
+      .packed-table-wrap {
+        overflow-x: auto;
+        max-width: 100%;
+      }
+      .memo-panel {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 0.9rem 1rem;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+      }
+      .memo-panel h3 {
+        margin: 0 0 0.5rem;
+        font-size: 1rem;
+      }
+      .memo-panel ul {
+        margin: 0;
+        padding-left: 1.1rem;
+        display: grid;
+        gap: 0.35rem;
+        color: #334155;
+      }
+      .memo-panel li {
+        line-height: 1.35;
+      }
       .error {
         color: #dc2626;
       }
@@ -305,6 +357,12 @@
         <div class="plate-summary" id="plateSummary">Plate 1 — 0 wells selected · Plate 1 of 1</div>
         <h2 id="plateTitle" style="margin:0.9rem 0 1.1rem;">Plate 1</h2>
 
+        <div class="memo-field">
+          <label for="plateMemo">メモ</label>
+          <textarea id="plateMemo" placeholder="この入力プレートに関するメモを入力してください。"></textarea>
+          <div class="memo-hint">各入力プレートごとに保存されます。</div>
+        </div>
+
         <div class="well-grid">
           <div class="column-header" id="columnHeader"></div>
           <div id="wellGrid"></div>
@@ -325,7 +383,7 @@
             <div class="packed-controls">
               <button type="button" class="ghost" id="prevPackedBtn" disabled>Previous</button>
             <button type="button" class="ghost" id="nextPackedBtn" disabled>Next</button>
-            <button type="button" class="success" id="pdfBtn" disabled>Save as PDF</button>
+            <button type="button" class="success" id="tsvBtn" disabled>Download TSV</button>
             </div>
           </div>
           <div class="packed-grid" id="packedGrid">
@@ -339,13 +397,15 @@
       const ROWS = ["A", "B", "C", "D", "E", "F", "G", "H"];
       const COLS = Array.from({ length: 12 }, (_, i) => i + 1);
       const API_ENDPOINT = "/generate-html";
+      const DEST_COLS_48 = COLS.slice(0, 6);
 
       let plates = [createPlate(1)];
       let currentPlateIndex = 0;
       let packedPlates = [];
       let currentPackedIndex = 0;
-      let lastHtml = "";
       let sourceColorMap = new Map();
+      let currentPackingMode = "96";
+      let lastPackingOrder = "column";
 
       const plateCountSelect = document.getElementById("plateCount");
       const plateSummary = document.getElementById("plateSummary");
@@ -363,10 +423,15 @@
       const packedGrid = document.getElementById("packedGrid");
       const prevPackedBtn = document.getElementById("prevPackedBtn");
       const nextPackedBtn = document.getElementById("nextPackedBtn");
-      const pdfBtn = document.getElementById("pdfBtn");
+      const tsvBtn = document.getElementById("tsvBtn");
+      const plateMemoInput = document.getElementById("plateMemo");
+
+      function getDestinationColumns(mode) {
+        return mode === "48" ? DEST_COLS_48 : COLS;
+      }
 
       function createPlate(index) {
-        return { label: `Plate ${index}`, wells: new Set() };
+        return { label: `Plate ${index}`, wells: new Set(), memo: "" };
       }
 
       function getCurrentPlate() {
@@ -461,6 +526,9 @@
         plateSummary.textContent = `${plate.label} — ${plate.wells.size} wells selected · Plate ${
           currentPlateIndex + 1
         } of ${plates.length}`;
+        if (plateMemoInput) {
+          plateMemoInput.value = plate.memo || "";
+        }
         updateWellButtons();
       }
 
@@ -513,51 +581,23 @@
       function buildPlacementOrder(order, mode) {
         const placements = [];
         const normalizedMode = mode === "48" ? "48" : "96";
-
-        if (normalizedMode === "48") {
-          if (order === "row") {
-            const columnBlocks = [
-              [0, 6],
-              [6, 12],
-            ];
-            columnBlocks.forEach(([start, end]) => {
-              ROWS.forEach((_, rowIndex) => {
-                for (let col = start; col < end; col += 1) {
-                  placements.push({ rowIndex, colIndex: col });
-                }
-              });
-            });
-          } else {
-            const rowBlocks = [
-              [0, 4],
-              [4, 8],
-            ];
-            rowBlocks.forEach(([start, end]) => {
-              for (let col = 0; col < COLS.length; col += 1) {
-                for (let row = start; row < end; row += 1) {
-                  placements.push({ rowIndex: row, colIndex: col });
-                }
-              }
-            });
-          }
-          return placements;
-        }
+        const destColumns = getDestinationColumns(normalizedMode);
 
         if (order === "column") {
-          for (let col = 0; col < COLS.length; col += 1) {
-            ROWS.forEach((_, rowIndex) => placements.push({ rowIndex, colIndex: col }));
-          }
+          destColumns.forEach((_, colIndex) => {
+            ROWS.forEach((_, rowIndex) => placements.push({ rowIndex, colIndex }));
+          });
         } else {
           ROWS.forEach((_, rowIndex) => {
-            for (let col = 0; col < COLS.length; col += 1) {
-              placements.push({ rowIndex, colIndex: col });
-            }
+            destColumns.forEach((_, colIndex) => placements.push({ rowIndex, colIndex }));
           });
         }
         return placements;
       }
 
       function buildPayload(order, mode) {
+        const normalizedMode = mode === "48" ? "48" : "96";
+        const destColumns = getDestinationColumns(normalizedMode);
         const sortedSources = plates.map((plate, index) => {
           const wellsArray = Array.from(plate.wells);
           wellsArray.sort((a, b) => {
@@ -583,8 +623,8 @@
           src.wells.map((well) => ({ source_plate: src.plate_id, source_well: well }))
         );
 
-        const placementOrder = buildPlacementOrder(order, mode);
-        const wellsPerPlate = placementOrder.length || ROWS.length * COLS.length;
+        const placementOrder = buildPlacementOrder(order, normalizedMode);
+        const wellsPerPlate = placementOrder.length || ROWS.length * destColumns.length;
         const destinations = [];
         const orderedAssignments = [];
 
@@ -595,7 +635,7 @@
           const destRowIndex = placement?.rowIndex ?? 0;
           const destColIndex = placement?.colIndex ?? 0;
           const destPlateId = `DEST-${String(destPlateIndex + 1).padStart(3, "0")}`;
-          const destWell = `${ROWS[destRowIndex]}${COLS[destColIndex]}`;
+          const destWell = `${ROWS[destRowIndex]}${destColumns[destColIndex]}`;
 
           orderedAssignments.push({
             source_plate: item.source_plate,
@@ -611,7 +651,7 @@
           destinations.push({
             plate_id: plateId,
             rows: ROWS.length,
-            cols: COLS.length,
+            cols: destColumns.length,
             assignments: orderedAssignments
               .filter((assign) => assign.destination_plate === plateId)
               .map((assign) => ({
@@ -632,13 +672,16 @@
 
       async function pack(order) {
         try {
-          pdfBtn.disabled = true;
+          tsvBtn.disabled = true;
           setStatus("");
           const mode = packingModeSelect.value || "96";
-          const payload = buildPayload(order, mode);
+          lastPackingOrder = order;
+          currentPackingMode = mode === "48" ? "48" : "96";
+          const payload = buildPayload(order, currentPackingMode);
           const selectionCount = payload.plan.length;
           if (selectionCount === 0) {
             setStatus("ウェルを選択してください。", true);
+            tsvBtn.disabled = packedPlates.length === 0;
             return;
           }
           sourceColorMap = new Map();
@@ -662,35 +705,38 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
           });
-          const text = await res.text();
+          await res.text();
           if (!res.ok) {
             setStatus(`API error (${res.status})`, true);
+            tsvBtn.disabled = packedPlates.length === 0;
             return;
           }
-          lastHtml = text;
-          pdfBtn.disabled = false;
+          tsvBtn.disabled = false;
 
           packedPlates = payload.destinations.map((plate) => {
+            const destColumns = Array.from({ length: plate.cols }, (_, i) => i + 1);
             const grid = Array.from({ length: ROWS.length }, () =>
-              Array.from({ length: COLS.length }, () => null)
+              Array.from({ length: destColumns.length }, () => null)
             );
             plate.assignments.forEach((assignment) => {
               const parsed = parseWell(assignment.well);
               if (!parsed) return;
               const rowIdx = ROWS.indexOf(parsed.row);
-              const colIdx = COLS.indexOf(parsed.col);
+              const colIdx = destColumns.indexOf(parsed.col);
+              if (rowIdx < 0 || colIdx < 0) return;
               grid[rowIdx][colIdx] = {
                 sourcePlate: assignment.source_plate,
                 sourceWell: assignment.source_well,
                 color: sourceColorMap.get(assignment.source_plate),
               };
             });
-            return { id: plate.plate_id, grid };
+            return { id: plate.plate_id, grid, columns: destColumns };
           });
           currentPackedIndex = 0;
           renderPacked();
         } catch (error) {
           setStatus(error.message, true);
+          tsvBtn.disabled = packedPlates.length === 0;
         }
       }
 
@@ -709,28 +755,78 @@
         if (!parsed) return well;
         return `${parsed.col}${parsed.row}`;
       }
+      function buildMemoPanel() {
+        const wrapper = document.createElement("div");
+        wrapper.className = "memo-panel";
+        const title = document.createElement("h3");
+        title.textContent = "入力プレートのメモ";
+        wrapper.appendChild(title);
+
+        const list = document.createElement("ul");
+        if (plates.length === 0) {
+          const li = document.createElement("li");
+          li.textContent = "メモがありません。";
+          list.appendChild(li);
+        } else {
+          plates.forEach((plate) => {
+            const memoText = plate.memo && plate.memo.trim() ? plate.memo.trim() : "メモなし";
+            const li = document.createElement("li");
+            li.textContent = `${plate.label}: ${memoText}`;
+            list.appendChild(li);
+          });
+        }
+        wrapper.appendChild(list);
+        return wrapper;
+      }
+
+      function refreshMemoPanel() {
+        const panel = document.querySelector(".memo-panel");
+        if (!panel) return;
+        const fresh = buildMemoPanel();
+        panel.replaceWith(fresh);
+      }
+
+      function buildWellOrder(mode, order) {
+        const normalizedMode = mode === "48" ? "48" : "96";
+        const destColumns = getDestinationColumns(normalizedMode);
+        const wells = [];
+        if (order === "column") {
+          destColumns.forEach((col) => {
+            ROWS.forEach((row) => wells.push(`${row}${col}`));
+          });
+        } else {
+          ROWS.forEach((row) => {
+            destColumns.forEach((col) => wells.push(`${row}${col}`));
+          });
+        }
+        return wells;
+      }
+
       function renderPacked() {
         if (packedPlates.length === 0) {
           packedSummary.textContent = "Packed Plate 0 of 0";
           packedGrid.innerHTML = "<p class='muted'>まだパッキング結果はありません。</p>";
           prevPackedBtn.disabled = true;
           nextPackedBtn.disabled = true;
+          tsvBtn.disabled = true;
           return;
         }
         const plate = packedPlates[currentPackedIndex];
+        const destColumns =
+          plate.columns && plate.columns.length ? plate.columns : getDestinationColumns(currentPackingMode);
         packedSummary.textContent = `Packed Plate ${currentPackedIndex + 1} of ${packedPlates.length}`;
 
         const table = document.createElement("table");
         table.className = "packed-table";
         const thead = document.createElement("thead");
         const headerRow = document.createElement("tr");
-        headerRow.innerHTML = "<th></th>" + COLS.map((col) => `<th>${col}</th>`).join("");
+        headerRow.innerHTML = "<th></th>" + destColumns.map((col) => `<th>${col}</th>`).join("");
         thead.appendChild(headerRow);
         table.appendChild(thead);
 
         const tbody = document.createElement("tbody");
         const cellMatrix = Array.from({ length: ROWS.length }, () =>
-          Array.from({ length: COLS.length }, () => null)
+          Array.from({ length: destColumns.length }, () => null)
         );
         const rowHeaderCells = [];
         ROWS.forEach((rowLabel, rowIndex) => {
@@ -740,10 +836,10 @@
           rowHeader.textContent = rowLabel;
           tr.appendChild(rowHeader);
           rowHeaderCells.push(rowHeader);
-          COLS.forEach((_, colIndex) => {
+          destColumns.forEach((colNumber, colIndex) => {
             const td = document.createElement("td");
             td.className = "packed-cell";
-            const well = `${rowLabel}${COLS[colIndex]}`;
+            const well = `${rowLabel}${colNumber}`;
             const cellData = plate.grid[rowIndex][colIndex];
             if (cellData) {
               td.classList.add("active");
@@ -760,24 +856,34 @@
           tbody.appendChild(tr);
         });
         table.appendChild(tbody);
+        const layout = document.createElement("div");
+        layout.className = "packed-layout";
+        const tableWrap = document.createElement("div");
+        tableWrap.className = "packed-table-wrap";
+        tableWrap.appendChild(table);
+        layout.appendChild(tableWrap);
+        layout.appendChild(buildMemoPanel());
         packedGrid.innerHTML = "";
-        packedGrid.appendChild(table);
+        packedGrid.appendChild(layout);
 
         const columnHeaderCells = Array.from(headerRow.children).slice(1);
-        applyBordersForRegion(cellMatrix, rowHeaderCells, columnHeaderCells, plate.grid);
+        const borderWidth = currentPackingMode === "96" ? 6 : 3;
+        applyBordersForRegion(cellMatrix, rowHeaderCells, columnHeaderCells, plate.grid, borderWidth);
 
         prevPackedBtn.disabled = currentPackedIndex === 0;
         nextPackedBtn.disabled = currentPackedIndex >= packedPlates.length - 1;
+        tsvBtn.disabled = false;
       }
 
-      function applyBordersForRegion(matrix, rowHeaders, columnHeaders, gridData) {
+      function applyBordersForRegion(matrix, rowHeaders, columnHeaders, gridData, thickWidth = 3) {
         const baseColor = "#d5deff";
         const borderColor = "#0f172a";
-        const thickWidth = 3;
 
-        matrix.forEach((row) => row.forEach((cell) => {
-          if (cell) cell.style.border = `1px solid ${baseColor}`;
-        }));
+        matrix.forEach((row) =>
+          row.forEach((cell) => {
+            if (cell) cell.style.border = `1px solid ${baseColor}`;
+          })
+        );
         rowHeaders.forEach((th) => {
           th.style.borderTop = `1px solid ${baseColor}`;
           th.style.borderBottom = `1px solid ${baseColor}`;
@@ -792,9 +898,10 @@
         });
 
         const maxRow = ROWS.length - 1;
-        const maxCol = COLS.length - 1;
+        const maxCol = (matrix[0]?.length ?? 0) - 1;
+        if (maxCol < 0) return;
 
-        const getPlateId = (r, c) => (gridData[r]?.[c]?.sourcePlate || null);
+        const getPlateId = (r, c) => (gridData?.[r]?.[c]?.sourcePlate || null);
 
         for (let row = 0; row <= maxRow; row += 1) {
           for (let col = 0; col <= maxCol; col += 1) {
@@ -857,39 +964,42 @@
         }
       }
 
-      function exportPackedPdf() {
-        if (!packedGrid.children.length) {
+      function exportPackedTsv() {
+        if (!packedPlates.length) {
           setStatus("パックされたプレートがありません。", true);
           return;
         }
-        const htmlContent = packedGrid.innerHTML;
-        const printWindow = window.open("", "packedPdf", "width=1100,height=780");
-        if (!printWindow) {
-          setStatus("ポップアップがブロックされました。", true);
-          return;
-        }
-        printWindow.document.write(`<!DOCTYPE html><html><head><title>Packed Plate</title>
-          <style>
-            @page { size: A4 landscape; margin: 10mm; }
-            html, body { margin: 0; padding: 0; background: #fff; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-            body { font-family: "Inter", system-ui, sans-serif; padding: 12mm; }
-            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-            .print-wrapper { display: inline-block; }
-            table { border-collapse: collapse; border-spacing: 0; }
-            th, td { border: 1px solid #d5deff; width: 50px; height: 50px; text-align: center; font-size: 0.85rem; padding: 0; }
-            th { background: #e8f1ff; color: #475569; font-weight: 600; }
-            th.row-header { background: #eef2ff; width: 22px; }
-            td.packed-cell { position: relative; }
-            td.packed-cell span { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 600; color: #1f2937; }
-            td.packed-cell { border: 1px solid #d5deff; }
-          </style>
-        </head><body><div class="print-wrapper">${htmlContent}</div></body></html>`);
-        printWindow.document.close();
-        printWindow.onload = () => {
-          printWindow.focus();
-          printWindow.print();
-          printWindow.close();
-        };
+        const mode = currentPackingMode || "96";
+        const order = lastPackingOrder || "column";
+        const wellOrder = buildWellOrder(mode, order);
+        const header = ["well_position", ...packedPlates.map((plate, idx) => plate.id || `Output ${idx + 1}`)];
+        const lines = [header.join("\t")];
+
+        wellOrder.forEach((wellId) => {
+          const parsed = parseWell(wellId);
+          if (!parsed) return;
+          const rowIdx = ROWS.indexOf(parsed.row);
+          const rowLabel = order === "column" ? formatWellDisplay(wellId) : wellId;
+          const rowValues = packedPlates.map((plate) => {
+            const columns = plate.columns && plate.columns.length ? plate.columns : getDestinationColumns(mode);
+            const colIdx = columns.indexOf(parsed.col);
+            if (rowIdx === -1 || colIdx === -1) return "";
+            const cellData = plate.grid[rowIdx]?.[colIdx];
+            if (!cellData) return "";
+            return `${cellData.sourcePlate}-${formatWellDisplay(cellData.sourceWell)}`;
+          });
+          lines.push([rowLabel, ...rowValues].join("\t"));
+        });
+
+        const blob = new Blob([lines.join("\n")], { type: "text/tab-separated-values" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `packed_plates_${mode}.tsv`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
       }
 
       // Event bindings
@@ -937,7 +1047,12 @@
         currentPackedIndex += 1;
         renderPacked();
       });
-      pdfBtn.addEventListener("click", exportPackedPdf);
+      tsvBtn.addEventListener("click", exportPackedTsv);
+      plateMemoInput.addEventListener("input", (e) => {
+        const plate = getCurrentPlate();
+        plate.memo = e.target.value;
+        refreshMemoPanel();
+      });
 
       // Initial render
       renderGridStructure();
