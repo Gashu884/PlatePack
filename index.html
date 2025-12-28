@@ -397,7 +397,6 @@
       const ROWS = ["A", "B", "C", "D", "E", "F", "G", "H"];
       const COLS = Array.from({ length: 12 }, (_, i) => i + 1);
       const API_ENDPOINT = "/generate-html";
-      const DEST_COLS_48 = COLS.slice(0, 6);
 
       let plates = [createPlate(1)];
       let currentPlateIndex = 0;
@@ -425,10 +424,6 @@
       const nextPackedBtn = document.getElementById("nextPackedBtn");
       const tsvBtn = document.getElementById("tsvBtn");
       const plateMemoInput = document.getElementById("plateMemo");
-
-      function getDestinationColumns(mode) {
-        return mode === "48" ? DEST_COLS_48 : COLS;
-      }
 
       function createPlate(index) {
         return { label: `Plate ${index}`, wells: new Set(), memo: "" };
@@ -581,15 +576,45 @@
       function buildPlacementOrder(order, mode) {
         const placements = [];
         const normalizedMode = mode === "48" ? "48" : "96";
-        const destColumns = getDestinationColumns(normalizedMode);
+
+        if (normalizedMode === "48") {
+          if (order === "row") {
+            const columnBlocks = [
+              [0, 6],
+              [6, 12],
+            ];
+            columnBlocks.forEach(([start, end]) => {
+              ROWS.forEach((_, rowIndex) => {
+                for (let col = start; col < end; col += 1) {
+                  placements.push({ rowIndex, colIndex: col });
+                }
+              });
+            });
+          } else {
+            const rowBlocks = [
+              [0, 4],
+              [4, 8],
+            ];
+            rowBlocks.forEach(([start, end]) => {
+              for (let col = 0; col < COLS.length; col += 1) {
+                for (let row = start; row < end; row += 1) {
+                  placements.push({ rowIndex: row, colIndex: col });
+                }
+              }
+            });
+          }
+          return placements;
+        }
 
         if (order === "column") {
-          destColumns.forEach((_, colIndex) => {
-            ROWS.forEach((_, rowIndex) => placements.push({ rowIndex, colIndex }));
-          });
+          for (let col = 0; col < COLS.length; col += 1) {
+            ROWS.forEach((_, rowIndex) => placements.push({ rowIndex, colIndex: col }));
+          }
         } else {
           ROWS.forEach((_, rowIndex) => {
-            destColumns.forEach((_, colIndex) => placements.push({ rowIndex, colIndex }));
+            for (let col = 0; col < COLS.length; col += 1) {
+              placements.push({ rowIndex, colIndex: col });
+            }
           });
         }
         return placements;
@@ -597,7 +622,7 @@
 
       function buildPayload(order, mode) {
         const normalizedMode = mode === "48" ? "48" : "96";
-        const destColumns = getDestinationColumns(normalizedMode);
+        const destColumns = COLS;
         const sortedSources = plates.map((plate, index) => {
           const wellsArray = Array.from(plate.wells);
           wellsArray.sort((a, b) => {
@@ -787,8 +812,7 @@
       }
 
       function buildWellOrder(mode, order) {
-        const normalizedMode = mode === "48" ? "48" : "96";
-        const destColumns = getDestinationColumns(normalizedMode);
+        const destColumns = COLS;
         const wells = [];
         if (order === "column") {
           destColumns.forEach((col) => {
@@ -812,8 +836,7 @@
           return;
         }
         const plate = packedPlates[currentPackedIndex];
-        const destColumns =
-          plate.columns && plate.columns.length ? plate.columns : getDestinationColumns(currentPackingMode);
+        const destColumns = plate.columns && plate.columns.length ? plate.columns : COLS;
         packedSummary.textContent = `Packed Plate ${currentPackedIndex + 1} of ${packedPlates.length}`;
 
         const table = document.createElement("table");
@@ -869,6 +892,9 @@
         const columnHeaderCells = Array.from(headerRow.children).slice(1);
         const borderWidth = currentPackingMode === "96" ? 6 : 3;
         applyBordersForRegion(cellMatrix, rowHeaderCells, columnHeaderCells, plate.grid, borderWidth);
+        if (currentPackingMode === "48") {
+          apply48Divider(cellMatrix, rowHeaderCells, columnHeaderCells);
+        }
 
         prevPackedBtn.disabled = currentPackedIndex === 0;
         nextPackedBtn.disabled = currentPackedIndex >= packedPlates.length - 1;
@@ -964,6 +990,23 @@
         }
       }
 
+      function apply48Divider(matrix, rowHeaders, columnHeaders) {
+        const dividerColor = "#0f172a";
+        const dividerWidth = 3;
+        const dividerIndex = 5; // between col 6 and 7 (zero-based)
+        columnHeaders.forEach((th, idx) => {
+          if (idx === dividerIndex) th.style.borderRight = `${dividerWidth}px solid ${dividerColor}`;
+          if (idx === dividerIndex + 1) th.style.borderLeft = `${dividerWidth}px solid ${dividerColor}`;
+        });
+        matrix.forEach((row) => {
+          row.forEach((cell, idx) => {
+            if (!cell) return;
+            if (idx === dividerIndex) cell.style.borderRight = `${dividerWidth}px solid ${dividerColor}`;
+            if (idx === dividerIndex + 1) cell.style.borderLeft = `${dividerWidth}px solid ${dividerColor}`;
+          });
+        });
+      }
+
       function exportPackedTsv() {
         if (!packedPlates.length) {
           setStatus("パックされたプレートがありません。", true);
@@ -981,7 +1024,7 @@
           const rowIdx = ROWS.indexOf(parsed.row);
           const rowLabel = order === "column" ? formatWellDisplay(wellId) : wellId;
           const rowValues = packedPlates.map((plate) => {
-            const columns = plate.columns && plate.columns.length ? plate.columns : getDestinationColumns(mode);
+            const columns = plate.columns && plate.columns.length ? plate.columns : COLS;
             const colIdx = columns.indexOf(parsed.col);
             if (rowIdx === -1 || colIdx === -1) return "";
             const cellData = plate.grid[rowIdx]?.[colIdx];
