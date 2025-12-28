@@ -9,6 +9,9 @@
         color-scheme: light;
         font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
         background: #f3f4f6;
+        --cell-size: 75px;
+        --row-header: 33px;
+        --gap: 0.34rem;
       }
       body {
         margin: 0;
@@ -106,18 +109,18 @@
       .well-grid {
         margin-top: 0.2rem;
         display: grid;
-        row-gap: 0.225rem;
-        column-gap: 0.225rem;
+        row-gap: var(--gap);
+        column-gap: var(--gap);
         width: fit-content;
       }
       .memo-field {
-        margin: 0.9rem 0 0.5rem;
+        margin: 0;
         display: grid;
         gap: 0.35rem;
       }
       .memo-field textarea {
         width: 100%;
-        min-height: 80px;
+        min-height: 120px;
         border: 1px solid #cbd5f5;
         border-radius: 12px;
         padding: 0.75rem 0.9rem;
@@ -129,19 +132,32 @@
         color: #94a3b8;
         font-size: 0.85rem;
       }
+      .input-layout {
+        display: grid;
+        gap: 1rem;
+        align-items: start;
+      }
+      @media (min-width: 960px) {
+        .input-layout {
+          grid-template-columns: auto minmax(230px, 320px);
+        }
+      }
+      .input-grid {
+        width: fit-content;
+      }
       .column-header,
       .well-row {
         display: grid;
-        grid-template-columns: 22px repeat(12, 50px);
-        column-gap: 0.225rem;
+        grid-template-columns: var(--row-header) repeat(12, var(--cell-size));
+        column-gap: var(--gap);
         align-items: center;
       }
       .column-header {
         margin-bottom: -0.32rem;
       }
       .corner-cell {
-        width: 22px;
-        height: 50px;
+        width: var(--row-header);
+        height: var(--cell-size);
       }
       .header-btn {
         border-radius: 0;
@@ -154,13 +170,13 @@
         cursor: pointer;
         transition: background 0.12s ease, box-shadow 0.12s ease;
         width: 100%;
-        height: 25px;
+        height: calc(var(--cell-size) * 0.5);
       }
       .header-btn.row {
         background: #f1f5f9;
         color: #475569;
-        width: 22px;
-        height: 50px;
+        width: var(--row-header);
+        height: var(--cell-size);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -171,15 +187,15 @@
       }
       #wellGrid {
         display: grid;
-        row-gap: 0.225rem;
+        row-gap: var(--gap);
       }
       .well-btn {
         border-radius: 0;
         border: 1px solid #cbd5f5;
         background: #fff;
         font-size: 0.9rem;
-        width: 50px;
-        height: 50px;
+        width: var(--cell-size);
+        height: var(--cell-size);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -357,15 +373,16 @@
         <div class="plate-summary" id="plateSummary">Plate 1 — 0 wells selected · Plate 1 of 1</div>
         <h2 id="plateTitle" style="margin:0.9rem 0 1.1rem;">Plate 1</h2>
 
-        <div class="memo-field">
-          <label for="plateMemo">メモ</label>
-          <textarea id="plateMemo" placeholder="この入力プレートに関するメモを入力してください。"></textarea>
-          <div class="memo-hint">各入力プレートごとに保存されます。</div>
-        </div>
-
-        <div class="well-grid">
-          <div class="column-header" id="columnHeader"></div>
-          <div id="wellGrid"></div>
+        <div class="input-layout">
+          <div class="input-grid">
+            <div class="column-header" id="columnHeader"></div>
+            <div id="wellGrid"></div>
+          </div>
+          <div class="memo-field">
+            <label for="plateMemo">メモ</label>
+            <textarea id="plateMemo" placeholder="この入力プレートに関するメモを入力してください。"></textarea>
+            <div class="memo-hint">各入力プレートごとに保存されます。</div>
+          </div>
         </div>
 
         <div class="pack-buttons">
