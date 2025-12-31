@@ -12,6 +12,7 @@
         --cell-size: 42px;
         --row-header: 14px;
         --gap: 0.18rem;
+        --layout-scale: 0.5;
       }
       body {
         margin: 0;
@@ -120,25 +121,6 @@
         row-gap: var(--gap);
         column-gap: var(--gap);
         width: fit-content;
-      }
-      .memo-field {
-        margin: 0;
-        display: grid;
-        gap: 0.35rem;
-      }
-      .memo-field textarea {
-        width: 100%;
-        min-height: 110px;
-        border: none;
-        border-radius: 12px;
-        padding: 0.75rem 0.9rem;
-        font-family: inherit;
-        background: #eef1f5;
-        resize: vertical;
-      }
-      .memo-hint {
-        color: #94a3b8;
-        font-size: 0.85rem;
       }
       .input-layout {
         display: grid;
@@ -450,6 +432,31 @@
         gap: 0.6rem;
         align-items: start;
       }
+      .right-column {
+        display: grid;
+        gap: 0.6rem;
+        grid-template-rows: 1fr 2fr;
+        min-width: 260px;
+      }
+      .memo-field {
+        margin: 0;
+        display: grid;
+        gap: 0.35rem;
+      }
+      .memo-field textarea {
+        width: 100%;
+        min-height: 110px;
+        border: none;
+        border-radius: 12px;
+        padding: 0.75rem 0.9rem;
+        font-family: inherit;
+        background: #eef1f5;
+        resize: vertical;
+      }
+      .memo-hint {
+        color: #94a3b8;
+        font-size: 0.85rem;
+      }
       .error {
         color: #dc2626;
       }
@@ -500,22 +507,24 @@
               <div class="column-header" id="columnHeader"></div>
               <div id="wellGrid"></div>
             </div>
+          </div>
+          <div class="right-column">
             <div class="memo-field">
               <label for="plateMemo">メモ</label>
               <textarea id="plateMemo" placeholder="この入力プレートに関するメモを入力してください。"></textarea>
               <div class="memo-hint">各入力プレートごとに保存されます。</div>
             </div>
-          </div>
-          <div class="layout-side">
-            <div class="layout-controls">
-              <span class="label">出力レイアウト</span>
-              <button type="button" class="ghost" id="directionBtn">→ 横方向</button>
-              <button type="button" class="ghost" id="skipModeBtn">空きwellモード: OFF</button>
-              <button type="button" class="ghost" id="inputDirectionBtn">入力読み方向: 横(1A→12A)</button>
-              <span class="hint">棒をクリックして区切りを追加できます。</span>
-            </div>
-            <div class="layout-container" id="layoutContainer">
-              <div id="layoutGrid"></div>
+            <div class="layout-side">
+              <div class="layout-controls">
+                <span class="label">出力レイアウト</span>
+                <button type="button" class="ghost" id="directionBtn">→ 横方向</button>
+                <button type="button" class="ghost" id="skipModeBtn">空きwellモード: OFF</button>
+                <button type="button" class="ghost" id="inputDirectionBtn">入力読み方向: 横(1A→12A)</button>
+                <span class="hint">棒をクリックして区切りを追加できます。</span>
+              </div>
+              <div class="layout-container" id="layoutContainer">
+                <div id="layoutGrid"></div>
+              </div>
             </div>
           </div>
         </div>
@@ -694,9 +703,13 @@
 
       function layoutDimensions() {
         const root = getComputedStyle(document.documentElement);
-        const cell = parseFloat(root.getPropertyValue("--cell-size")) || 62;
-        const gap = parseFloat(root.getPropertyValue("--gap")) || 4;
-        const header = parseFloat(root.getPropertyValue("--row-header")) || 20;
+        const baseCell = parseFloat(root.getPropertyValue("--cell-size")) || 62;
+        const baseGap = parseFloat(root.getPropertyValue("--gap")) || 4;
+        const baseHeader = parseFloat(root.getPropertyValue("--row-header")) || 20;
+        const scale = parseFloat(root.getPropertyValue("--layout-scale")) || 0.5;
+        const cell = baseCell * scale;
+        const gap = baseGap * scale;
+        const header = baseHeader * scale;
         const width = header + 12 * cell + 11 * gap;
         const height = header + 8 * cell + 7 * gap;
         return { cell, gap, header, width, height };
