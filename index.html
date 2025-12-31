@@ -498,6 +498,7 @@
           <span class="label">出力レイアウト</span>
           <button type="button" class="ghost" id="directionBtn">→ 横方向</button>
           <button type="button" class="ghost" id="skipModeBtn">空きwellモード: OFF</button>
+          <button type="button" class="ghost" id="inputDirectionBtn">入力読み方向: 横(1A→12A)</button>
           <span class="hint">棒をクリックして区切りを追加できます。</span>
         </div>
         <div class="layout-container" id="layoutContainer">
@@ -535,6 +536,7 @@
       let currentPackedIndex = 0;
       let sourceColorMap = new Map();
       let layoutDirection = "row";
+      let inputReadDirection = "row";
       let skipMode = false;
       let blockedLayoutWells = new Set();
       let verticalDividers = new Set();
@@ -560,6 +562,7 @@
       const layoutGrid = document.getElementById("layoutGrid");
       const directionBtn = document.getElementById("directionBtn");
       const skipModeBtn = document.getElementById("skipModeBtn");
+      const inputDirectionBtn = document.getElementById("inputDirectionBtn");
 
       function createPlate(index) {
         return { label: `Plate ${index}`, wells: new Set(), memo: "" };
@@ -649,6 +652,11 @@
         updateLayoutButtons();
       }
 
+      function toggleInputDirection() {
+        inputReadDirection = inputReadDirection === "row" ? "column" : "row";
+        updateLayoutButtons();
+      }
+
       function updateLayoutButtons() {
         if (directionBtn) {
           directionBtn.textContent = layoutDirection === "row" ? "→ 横方向" : "↓ 縦方向";
@@ -656,6 +664,12 @@
         if (skipModeBtn) {
           skipModeBtn.textContent = `空きwellモード: ${skipMode ? "ON" : "OFF"}`;
           skipModeBtn.classList.toggle("active", skipMode);
+        }
+        if (inputDirectionBtn) {
+          inputDirectionBtn.textContent =
+            inputReadDirection === "row"
+              ? "入力読み方向: 横(1A→12A)"
+              : "入力読み方向: 縦(1A→1H)";
         }
       }
 
@@ -906,7 +920,7 @@
             const parsedA = parseWell(a);
             const parsedB = parseWell(b);
             if (!parsedA || !parsedB) return 0;
-            if (order === "column") {
+            if (inputReadDirection === "column") {
               return parsedA.col === parsedB.col
                 ? parsedA.row.localeCompare(parsedB.row)
                 : parsedA.col - parsedB.col;
@@ -1384,6 +1398,9 @@
       });
       skipModeBtn.addEventListener("click", () => {
         toggleSkipMode();
+      });
+      inputDirectionBtn.addEventListener("click", () => {
+        toggleInputDirection();
       });
 
       // Initial render
