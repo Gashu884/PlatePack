@@ -362,6 +362,23 @@
         pointer-events: none;
         z-index: 2;
       }
+      .col-dash {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background-image: repeating-linear-gradient(
+          0deg,
+          transparent 0,
+          transparent 8px,
+          rgba(15, 23, 42, 0.7) 8px,
+          rgba(15, 23, 42, 0.7) 16px
+        );
+        opacity: 0.9;
+        pointer-events: none;
+        z-index: 2;
+        right: -1px;
+      }
       .error {
         color: #dc2626;
       }
@@ -947,13 +964,13 @@
         packedGrid.appendChild(layout);
 
         const columnHeaderCells = Array.from(headerRow.children).slice(1);
-        const borderWidth = currentPackingMode === "96" ? 4 : 2;
+        const borderWidth = 2;
         applyBordersForRegion(cellMatrix, rowHeaderCells, columnHeaderCells, plate.grid, borderWidth);
         if (currentPackingMode === "48") {
           if (lastPackingOrder === "column") {
             apply48RowDashLine(cellMatrix);
           } else {
-            apply48ColumnDivider(cellMatrix, rowHeaderCells, columnHeaderCells);
+            apply48ColumnDivider(cellMatrix);
           }
         }
 
@@ -1051,20 +1068,14 @@
         }
       }
 
-      function apply48ColumnDivider(matrix, rowHeaders, columnHeaders) {
-        const dividerColor = "#0f172a";
-        const dividerWidth = 2;
+      function apply48ColumnDivider(matrix) {
         const dividerIndex = 5; // between col 6 and 7 (zero-based)
-        columnHeaders.forEach((th, idx) => {
-          if (idx === dividerIndex) th.style.borderRight = `${dividerWidth}px solid ${dividerColor}`;
-          if (idx === dividerIndex + 1) th.style.borderLeft = `${dividerWidth}px solid ${dividerColor}`;
-        });
         matrix.forEach((row) => {
-          row.forEach((cell, idx) => {
-            if (!cell) return;
-            if (idx === dividerIndex) cell.style.borderRight = `${dividerWidth}px solid ${dividerColor}`;
-            if (idx === dividerIndex + 1) cell.style.borderLeft = `${dividerWidth}px solid ${dividerColor}`;
-          });
+          const cell = row[dividerIndex];
+          if (!cell) return;
+          const dash = document.createElement("div");
+          dash.className = "col-dash";
+          cell.appendChild(dash);
         });
       }
 
