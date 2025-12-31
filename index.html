@@ -63,15 +63,6 @@
         font-weight: 600;
         margin-right: 0.4rem;
       }
-      select {
-        border-radius: 16px;
-        border: none;
-        padding: 0.7rem 1.4rem;
-        font-family: inherit;
-        background: #e9eff5;
-        font-size: 1.15rem;
-        min-width: 200px;
-      }
       button {
         border: none;
         border-radius: 12px;
@@ -355,8 +346,8 @@
           90deg,
           transparent 0,
           transparent 8px,
-          rgba(15, 23, 42, 0.7) 8px,
-          rgba(15, 23, 42, 0.7) 16px
+          #3b82f6 8px,
+          #3b82f6 16px
         );
         opacity: 0.9;
         pointer-events: none;
@@ -371,13 +362,77 @@
           0deg,
           transparent 0,
           transparent 8px,
-          rgba(15, 23, 42, 0.7) 8px,
-          rgba(15, 23, 42, 0.7) 16px
+          #ef4444 8px,
+          #ef4444 16px
         );
         opacity: 0.9;
         pointer-events: none;
         z-index: 2;
         right: -1px;
+      }
+      .layout-controls {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin: 1rem 0 0.4rem;
+      }
+      .layout-controls .label {
+        font-weight: 700;
+        color: #1e293b;
+      }
+      .layout-controls .hint {
+        color: #94a3b8;
+        font-size: 0.85rem;
+      }
+      .layout-container {
+        position: relative;
+        background: #f4f6fb;
+        border-radius: 16px;
+        padding: 0.6rem;
+        width: fit-content;
+      }
+      .layout-cell,
+      .layout-header {
+        position: absolute;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        color: #1e293b;
+        background: #eef1f5;
+        border-radius: 6px;
+        user-select: none;
+      }
+      .layout-header {
+        background: #dfe7f2;
+      }
+      .layout-cell.blocked {
+        background: #0f172a;
+        color: #fff;
+      }
+      .divider-btn {
+        position: absolute;
+        cursor: pointer;
+        opacity: 0.8;
+        transition: opacity 0.12s ease, transform 0.1s ease;
+      }
+      .divider-btn:hover {
+        opacity: 1;
+        transform: scale(1.02);
+      }
+      .divider-btn.vertical {
+        width: 8px;
+        background: #fecdd3;
+      }
+      .divider-btn.vertical.active {
+        background: #ef4444;
+      }
+      .divider-btn.horizontal {
+        height: 8px;
+        background: #dbeafe;
+      }
+      .divider-btn.horizontal.active {
+        background: #3b82f6;
       }
       .error {
         color: #dc2626;
@@ -410,13 +465,6 @@
           </select>
         </div>
         <div class="controls">
-          <label for="packingMode">Packing Mode</label>
-          <select id="packingMode">
-            <option value="96">96 well (連続)</option>
-            <option value="48">48 well 区切り</option>
-          </select>
-        </div>
-        <div class="controls">
           <button type="button" class="ghost" id="clearPlateBtn">Clear</button>
         </div>
         </div>
@@ -443,8 +491,17 @@
         </div>
 
         <div class="pack-buttons">
-          <button type="button" class="primary" id="packColumnBtn">Packing! (by Column)</button>
-          <button type="button" class="primary" id="packRowBtn">Packing! (by Row)</button>
+          <button type="button" class="primary" id="packLayoutBtn">Packing!</button>
+        </div>
+
+        <div class="layout-controls">
+          <span class="label">出力レイアウト</span>
+          <button type="button" class="ghost" id="directionBtn">→ 横方向</button>
+          <button type="button" class="ghost" id="skipModeBtn">空きwellモード: OFF</button>
+          <span class="hint">棒をクリックして区切りを追加できます。</span>
+        </div>
+        <div class="layout-container" id="layoutContainer">
+          <div id="layoutGrid"></div>
         </div>
 
         <div class="status" id="status"></div>
@@ -477,20 +534,21 @@
       let packedPlates = [];
       let currentPackedIndex = 0;
       let sourceColorMap = new Map();
-      let currentPackingMode = "96";
-      let lastPackingOrder = "column";
+      let layoutDirection = "row";
+      let skipMode = false;
+      let blockedLayoutWells = new Set();
+      let verticalDividers = new Set();
+      let horizontalDividers = new Set();
 
       const plateCountSelect = document.getElementById("plateCount");
       const plateSummary = document.getElementById("plateSummary");
       const plateTitle = document.getElementById("plateTitle");
       const columnHeader = document.getElementById("columnHeader");
       const wellGrid = document.getElementById("wellGrid");
-      const packingModeSelect = document.getElementById("packingMode");
       const prevPlateBtn = document.getElementById("prevPlateBtn");
       const nextPlateBtn = document.getElementById("nextPlateBtn");
       const clearPlateBtn = document.getElementById("clearPlateBtn");
-      const packColumnBtn = document.getElementById("packColumnBtn");
-      const packRowBtn = document.getElementById("packRowBtn");
+      const packLayoutBtn = document.getElementById("packLayoutBtn");
       const statusEl = document.getElementById("status");
       const packedSummary = document.getElementById("packedSummary");
       const packedGrid = document.getElementById("packedGrid");
@@ -498,6 +556,10 @@
       const nextPackedBtn = document.getElementById("nextPackedBtn");
       const tsvBtn = document.getElementById("tsvBtn");
       const plateMemoInput = document.getElementById("plateMemo");
+      const layoutContainer = document.getElementById("layoutContainer");
+      const layoutGrid = document.getElementById("layoutGrid");
+      const directionBtn = document.getElementById("directionBtn");
+      const skipModeBtn = document.getElementById("skipModeBtn");
 
       function createPlate(index) {
         return { label: `Plate ${index}`, wells: new Set(), memo: "" };
@@ -577,6 +639,154 @@
         });
       }
 
+      function toggleDirection() {
+        layoutDirection = layoutDirection === "row" ? "column" : "row";
+        updateLayoutButtons();
+      }
+
+      function toggleSkipMode() {
+        skipMode = !skipMode;
+        updateLayoutButtons();
+      }
+
+      function updateLayoutButtons() {
+        if (directionBtn) {
+          directionBtn.textContent = layoutDirection === "row" ? "→ 横方向" : "↓ 縦方向";
+        }
+        if (skipModeBtn) {
+          skipModeBtn.textContent = `空きwellモード: ${skipMode ? "ON" : "OFF"}`;
+          skipModeBtn.classList.toggle("active", skipMode);
+        }
+      }
+
+      function layoutDimensions() {
+        const root = getComputedStyle(document.documentElement);
+        const cell = parseFloat(root.getPropertyValue("--cell-size")) || 62;
+        const gap = parseFloat(root.getPropertyValue("--gap")) || 4;
+        const header = parseFloat(root.getPropertyValue("--row-header")) || 20;
+        const width = header + 12 * cell + 11 * gap;
+        const height = header + 8 * cell + 7 * gap;
+        return { cell, gap, header, width, height };
+      }
+
+      function wellPosition(rowIndex, colIndex, dims) {
+        const left = dims.header + colIndex * (dims.cell + dims.gap);
+        const top = dims.header + rowIndex * (dims.cell + dims.gap);
+        return { left, top };
+      }
+
+      function renderLayoutGrid() {
+        if (!layoutContainer || !layoutGrid) return;
+        layoutContainer.style.position = "relative";
+        layoutGrid.innerHTML = "";
+        verticalDividers = new Set(verticalDividers);
+        horizontalDividers = new Set(horizontalDividers);
+        const dims = layoutDimensions();
+        layoutContainer.style.width = `${dims.width + 12}px`;
+        layoutContainer.style.height = `${dims.height + 12}px`;
+        layoutGrid.style.position = "relative";
+        layoutGrid.style.width = "100%";
+        layoutGrid.style.height = "100%";
+
+        // headers and cells
+        const frag = document.createDocumentFragment();
+        // corner
+        const corner = document.createElement("div");
+        corner.className = "layout-header";
+        corner.style.width = `${dims.header}px`;
+        corner.style.height = `${dims.header}px`;
+        corner.style.left = "0px";
+        corner.style.top = "0px";
+        frag.appendChild(corner);
+
+        // column headers
+        COLS.forEach((col, colIndex) => {
+          const header = document.createElement("div");
+          header.className = "layout-header";
+          header.textContent = col;
+          header.style.width = `${dims.cell}px`;
+          header.style.height = `${dims.header}px`;
+          const { left } = wellPosition(0, colIndex, dims);
+          header.style.left = `${left}px`;
+          header.style.top = "0px";
+          frag.appendChild(header);
+        });
+
+        // row headers + cells
+        ROWS.forEach((row, rowIndex) => {
+          const rowHeader = document.createElement("div");
+          rowHeader.className = "layout-header";
+          rowHeader.textContent = row;
+          rowHeader.style.width = `${dims.header}px`;
+          rowHeader.style.height = `${dims.cell}px`;
+          const { top } = wellPosition(rowIndex, 0, dims);
+          rowHeader.style.left = "0px";
+          rowHeader.style.top = `${top}px`;
+          frag.appendChild(rowHeader);
+
+          COLS.forEach((col, colIndex) => {
+            const cell = document.createElement("div");
+            cell.className = "layout-cell";
+            const { left, top: cellTop } = wellPosition(rowIndex, colIndex, dims);
+            cell.style.width = `${dims.cell}px`;
+            cell.style.height = `${dims.cell}px`;
+            cell.style.left = `${left}px`;
+            cell.style.top = `${cellTop}px`;
+            const wellId = `${row}${col}`;
+            cell.dataset.well = wellId;
+            if (blockedLayoutWells.has(wellId)) {
+              cell.classList.add("blocked");
+            }
+            cell.addEventListener("click", () => {
+              if (!skipMode) return;
+              if (blockedLayoutWells.has(wellId)) blockedLayoutWells.delete(wellId);
+              else blockedLayoutWells.add(wellId);
+              renderLayoutGrid();
+            });
+            frag.appendChild(cell);
+          });
+        });
+
+        layoutGrid.appendChild(frag);
+        renderDividers(dims);
+      }
+
+      function renderDividers(dims) {
+        // remove previous divider buttons
+        Array.from(layoutGrid.querySelectorAll(".divider-btn")).forEach((el) => el.remove());
+        // vertical
+        for (let i = 1; i <= 11; i += 1) {
+          const btn = document.createElement("div");
+          btn.className = "divider-btn vertical";
+          if (verticalDividers.has(i)) btn.classList.add("active");
+          btn.style.height = `${dims.height}px`;
+          btn.style.left = `${dims.header + i * dims.cell + (i - 1) * dims.gap + dims.gap / 2 - 4}px`;
+          btn.style.top = "0px";
+          btn.title = `列 ${i}/${i + 1} の間`;
+          btn.addEventListener("click", () => {
+            if (verticalDividers.has(i)) verticalDividers.delete(i);
+            else verticalDividers.add(i);
+            renderLayoutGrid();
+          });
+          layoutGrid.appendChild(btn);
+        }
+        // horizontal
+        for (let j = 1; j <= 7; j += 1) {
+          const btn = document.createElement("div");
+          btn.className = "divider-btn horizontal";
+          if (horizontalDividers.has(j)) btn.classList.add("active");
+          btn.style.width = `${dims.width}px`;
+          btn.style.top = `${dims.header + j * dims.cell + (j - 1) * dims.gap + dims.gap / 2 - 4}px`;
+          btn.style.left = "0px";
+          btn.title = `行 ${ROWS[j - 1]}/${ROWS[j]} の間`;
+          btn.addEventListener("click", () => {
+            if (horizontalDividers.has(j)) horizontalDividers.delete(j);
+            else horizontalDividers.add(j);
+            renderLayoutGrid();
+          });
+          layoutGrid.appendChild(btn);
+        }
+      }
       function updateWellButtons() {
         const plate = getCurrentPlate();
         document.querySelectorAll(".well-btn").forEach((btn) => {
@@ -647,56 +857,49 @@
         statusEl.className = `status${isError ? " error" : ""}`;
       }
 
-      function buildPlacementOrder(order, mode) {
-        const placements = [];
-        const normalizedMode = mode === "48" ? "48" : "96";
-
-        if (normalizedMode === "48") {
-          if (order === "row") {
-            const columnBlocks = [
-              [0, 6],
-              [6, 12],
-            ];
-            columnBlocks.forEach(([start, end]) => {
-              ROWS.forEach((_, rowIndex) => {
-                for (let col = start; col < end; col += 1) {
-                  placements.push({ rowIndex, colIndex: col });
-                }
-              });
-            });
-          } else {
-            const rowBlocks = [
-              [0, 4],
-              [4, 8],
-            ];
-            rowBlocks.forEach(([start, end]) => {
-              for (let col = 0; col < COLS.length; col += 1) {
-                for (let row = start; row < end; row += 1) {
-                  placements.push({ rowIndex: row, colIndex: col });
-                }
-              }
-            });
-          }
-          return placements;
-        }
-
-        if (order === "column") {
-          for (let col = 0; col < COLS.length; col += 1) {
-            ROWS.forEach((_, rowIndex) => placements.push({ rowIndex, colIndex: col }));
-          }
-        } else {
-          ROWS.forEach((_, rowIndex) => {
-            for (let col = 0; col < COLS.length; col += 1) {
-              placements.push({ rowIndex, colIndex: col });
-            }
-          });
-        }
-        return placements;
+      function buildSegments(total, dividers) {
+        const sorted = Array.from(dividers).sort((a, b) => a - b);
+        const segments = [];
+        let start = 0;
+        sorted.forEach((pos) => {
+          const end = Math.max(start, Math.min(total - 1, pos - 1));
+          if (end >= start) segments.push([start, end]);
+          start = Math.min(total, pos);
+        });
+        if (start <= total - 1) segments.push([start, total - 1]);
+        return segments;
       }
 
-      function buildPayload(order, mode) {
-        const normalizedMode = mode === "48" ? "48" : "96";
-        const destColumns = COLS;
+      function buildDestinationOrder(direction) {
+        const colSegments = buildSegments(COLS.length, verticalDividers);
+        const rowSegments = buildSegments(ROWS.length, horizontalDividers);
+        const placements = [];
+        rowSegments.forEach(([rStart, rEnd]) => {
+          colSegments.forEach(([cStart, cEnd]) => {
+            if (direction === "column") {
+              for (let c = cStart; c <= cEnd; c += 1) {
+                for (let r = rStart; r <= rEnd; r += 1) {
+                  placements.push({ rowIndex: r, colIndex: c });
+                }
+              }
+            } else {
+              for (let r = rStart; r <= rEnd; r += 1) {
+                for (let c = cStart; c <= cEnd; c += 1) {
+                  placements.push({ rowIndex: r, colIndex: c });
+                }
+              }
+            }
+          });
+        });
+        // remove blocked wells
+        return placements.filter(({ rowIndex, colIndex }) => {
+          const wellId = `${ROWS[rowIndex]}${COLS[colIndex]}`;
+          return !blockedLayoutWells.has(wellId);
+        });
+      }
+
+      function buildPayload(direction) {
+        const order = direction === "column" ? "column" : "row";
         const sortedSources = plates.map((plate, index) => {
           const wellsArray = Array.from(plate.wells);
           wellsArray.sort((a, b) => {
@@ -722,8 +925,8 @@
           src.wells.map((well) => ({ source_plate: src.plate_id, source_well: well }))
         );
 
-        const placementOrder = buildPlacementOrder(order, normalizedMode);
-        const wellsPerPlate = placementOrder.length || ROWS.length * destColumns.length;
+        const placementOrder = buildDestinationOrder(order);
+        const wellsPerPlate = placementOrder.length;
         const destinations = [];
         const orderedAssignments = [];
 
@@ -734,7 +937,7 @@
           const destRowIndex = placement?.rowIndex ?? 0;
           const destColIndex = placement?.colIndex ?? 0;
           const destPlateId = `DEST-${String(destPlateIndex + 1).padStart(3, "0")}`;
-          const destWell = `${ROWS[destRowIndex]}${destColumns[destColIndex]}`;
+          const destWell = `${ROWS[destRowIndex]}${COLS[destColIndex]}`;
 
           orderedAssignments.push({
             source_plate: item.source_plate,
@@ -744,13 +947,16 @@
           });
         });
 
+        if (wellsPerPlate === 0) {
+          throw new Error("配置先のウェルがありません。");
+        }
         const totalDest = Math.max(1, Math.ceil(flattened.length / wellsPerPlate));
         for (let i = 0; i < totalDest; i += 1) {
           const plateId = `DEST-${String(i + 1).padStart(3, "0")}`;
           destinations.push({
             plate_id: plateId,
             rows: ROWS.length,
-            cols: destColumns.length,
+            cols: COLS.length,
             assignments: orderedAssignments
               .filter((assign) => assign.destination_plate === plateId)
               .map((assign) => ({
@@ -769,14 +975,17 @@
         };
       }
 
-      async function pack(order) {
+      async function pack() {
         try {
           tsvBtn.disabled = true;
           setStatus("");
-          const mode = packingModeSelect.value || "96";
-          lastPackingOrder = order;
-          currentPackingMode = mode === "48" ? "48" : "96";
-          const payload = buildPayload(order, currentPackingMode);
+          const order = layoutDirection;
+          const placements = buildDestinationOrder(order);
+          if (placements.length === 0) {
+            setStatus("配置できる出力ウェルがありません。区切りや空きwell設定を見直してください。", true);
+            return;
+          }
+          const payload = buildPayload(order);
           const selectionCount = payload.plan.length;
           if (selectionCount === 0) {
             setStatus("ウェルを選択してください。", true);
@@ -885,19 +1094,10 @@
         panel.replaceWith(fresh);
       }
 
-      function buildWellOrder(mode, order) {
-        const destColumns = COLS;
-        const wells = [];
-        if (order === "column") {
-          destColumns.forEach((col) => {
-            ROWS.forEach((row) => wells.push(`${row}${col}`));
-          });
-        } else {
-          ROWS.forEach((row) => {
-            destColumns.forEach((col) => wells.push(`${row}${col}`));
-          });
-        }
-        return wells;
+      function buildWellOrder() {
+        return buildDestinationOrder(layoutDirection).map(
+          ({ rowIndex, colIndex }) => `${ROWS[rowIndex]}${COLS[colIndex]}`
+        );
       }
 
       function renderPacked() {
@@ -966,13 +1166,7 @@
         const columnHeaderCells = Array.from(headerRow.children).slice(1);
         const borderWidth = 2;
         applyBordersForRegion(cellMatrix, rowHeaderCells, columnHeaderCells, plate.grid, borderWidth);
-        if (currentPackingMode === "48") {
-          if (lastPackingOrder === "column") {
-            apply48RowDashLine(cellMatrix);
-          } else {
-            apply48ColumnDivider(cellMatrix);
-          }
-        }
+        applyLayoutDividers(cellMatrix);
 
         prevPackedBtn.disabled = currentPackedIndex === 0;
         nextPackedBtn.disabled = currentPackedIndex >= packedPlates.length - 1;
@@ -1068,26 +1262,33 @@
         }
       }
 
-      function apply48ColumnDivider(matrix) {
-        const dividerIndex = 5; // between col 6 and 7 (zero-based)
-        matrix.forEach((row) => {
-          const cell = row[dividerIndex];
-          if (!cell) return;
-          const dash = document.createElement("div");
-          dash.className = "col-dash";
-          cell.appendChild(dash);
+      function applyLayoutDividers(matrix) {
+        const maxRow = matrix.length;
+        if (!maxRow) return;
+        const maxCol = matrix[0].length;
+        // vertical lines
+        verticalDividers.forEach((pos) => {
+          const idx = pos - 1;
+          if (idx < 0 || idx >= maxCol) return;
+          matrix.forEach((row) => {
+            const cell = row[idx];
+            if (!cell) return;
+            const dash = document.createElement("div");
+            dash.className = "col-dash";
+            cell.appendChild(dash);
+          });
         });
-      }
-
-      function apply48RowDashLine(matrix) {
-        const targetRow = 4; // row E (0-based)
-        const rowCells = matrix[targetRow];
-        if (!rowCells) return;
-        rowCells.forEach((cell) => {
-          if (!cell) return;
-          const dash = document.createElement("div");
-          dash.className = "row-dash";
-          cell.appendChild(dash);
+        // horizontal lines
+        horizontalDividers.forEach((pos) => {
+          const idx = pos;
+          if (idx < 0 || idx >= maxRow) return;
+          const rowCells = matrix[idx];
+          rowCells.forEach((cell) => {
+            if (!cell) return;
+            const dash = document.createElement("div");
+            dash.className = "row-dash";
+            cell.appendChild(dash);
+          });
         });
       }
 
@@ -1096,9 +1297,8 @@
           setStatus("パックされたプレートがありません。", true);
           return;
         }
-        const mode = currentPackingMode || "96";
-        const order = lastPackingOrder || "column";
-        const wellOrder = buildWellOrder(mode, order);
+        const order = layoutDirection || "row";
+        const wellOrder = buildWellOrder();
         const header = ["well_position", ...packedPlates.map((plate, idx) => plate.id || `Output ${idx + 1}`)];
         const lines = [header.join("\t")];
 
@@ -1122,7 +1322,7 @@
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
-        link.download = `packed_plates_${mode}.tsv`;
+        link.download = `packed_plates_${order}.tsv`;
         document.body.appendChild(link);
         link.click();
         link.remove();
@@ -1162,8 +1362,7 @@
         renderPlate();
       });
       clearPlateBtn.addEventListener("click", clearPlate);
-      packColumnBtn.addEventListener("click", () => pack("column"));
-      packRowBtn.addEventListener("click", () => pack("row"));
+      packLayoutBtn.addEventListener("click", () => pack());
       prevPackedBtn.addEventListener("click", () => {
         if (currentPackedIndex === 0) return;
         currentPackedIndex -= 1;
@@ -1180,10 +1379,18 @@
         plate.memo = e.target.value;
         refreshMemoPanel();
       });
+      directionBtn.addEventListener("click", () => {
+        toggleDirection();
+      });
+      skipModeBtn.addEventListener("click", () => {
+        toggleSkipMode();
+      });
 
       // Initial render
       renderGridStructure();
       renderPlate();
+      updateLayoutButtons();
+      renderLayoutGrid();
     </script>
   </body>
 </html>
