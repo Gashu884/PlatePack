@@ -9,9 +9,9 @@
         color-scheme: light;
         font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
         background: #f3f4f6;
-        --cell-size: 62px;
-        --row-header: 20px;
-        --gap: 0.28rem;
+        --cell-size: 42px;
+        --row-header: 14px;
+        --gap: 0.18rem;
       }
       body {
         margin: 0;
@@ -154,7 +154,7 @@
         width: fit-content;
         background: #f3f4f6;
         border-radius: 16px;
-        padding: 0.8rem;
+        padding: 0.55rem;
       }
       .column-header,
       .well-row {
@@ -373,8 +373,9 @@
       .layout-controls {
         display: flex;
         align-items: center;
-        gap: 0.75rem;
-        margin: 1rem 0 0.4rem;
+        gap: 0.5rem;
+        margin: 0 0 0.4rem;
+        flex-wrap: wrap;
       }
       .layout-controls .label {
         font-weight: 700;
@@ -388,7 +389,7 @@
         position: relative;
         background: #f4f6fb;
         border-radius: 16px;
-        padding: 0.6rem;
+        padding: 0.45rem;
         width: fit-content;
       }
       .layout-cell,
@@ -434,6 +435,21 @@
       .divider-btn.horizontal.active {
         background: #3b82f6;
       }
+      .io-layout {
+        display: grid;
+        gap: 1rem;
+        align-items: start;
+      }
+      @media (min-width: 1080px) {
+        .io-layout {
+          grid-template-columns: auto auto;
+        }
+      }
+      .layout-side {
+        display: grid;
+        gap: 0.6rem;
+        align-items: start;
+      }
       .error {
         color: #dc2626;
       }
@@ -478,31 +494,34 @@
           </div>
         </div>
 
-        <div class="input-layout">
-          <div class="input-grid">
-            <div class="column-header" id="columnHeader"></div>
-            <div id="wellGrid"></div>
+        <div class="io-layout">
+          <div class="input-layout">
+            <div class="input-grid">
+              <div class="column-header" id="columnHeader"></div>
+              <div id="wellGrid"></div>
+            </div>
+            <div class="memo-field">
+              <label for="plateMemo">メモ</label>
+              <textarea id="plateMemo" placeholder="この入力プレートに関するメモを入力してください。"></textarea>
+              <div class="memo-hint">各入力プレートごとに保存されます。</div>
+            </div>
           </div>
-          <div class="memo-field">
-            <label for="plateMemo">メモ</label>
-            <textarea id="plateMemo" placeholder="この入力プレートに関するメモを入力してください。"></textarea>
-            <div class="memo-hint">各入力プレートごとに保存されます。</div>
+          <div class="layout-side">
+            <div class="layout-controls">
+              <span class="label">出力レイアウト</span>
+              <button type="button" class="ghost" id="directionBtn">→ 横方向</button>
+              <button type="button" class="ghost" id="skipModeBtn">空きwellモード: OFF</button>
+              <button type="button" class="ghost" id="inputDirectionBtn">入力読み方向: 横(1A→12A)</button>
+              <span class="hint">棒をクリックして区切りを追加できます。</span>
+            </div>
+            <div class="layout-container" id="layoutContainer">
+              <div id="layoutGrid"></div>
+            </div>
           </div>
         </div>
 
         <div class="pack-buttons">
           <button type="button" class="primary" id="packLayoutBtn">Packing!</button>
-        </div>
-
-        <div class="layout-controls">
-          <span class="label">出力レイアウト</span>
-          <button type="button" class="ghost" id="directionBtn">→ 横方向</button>
-          <button type="button" class="ghost" id="skipModeBtn">空きwellモード: OFF</button>
-          <button type="button" class="ghost" id="inputDirectionBtn">入力読み方向: 横(1A→12A)</button>
-          <span class="hint">棒をクリックして区切りを追加できます。</span>
-        </div>
-        <div class="layout-container" id="layoutContainer">
-          <div id="layoutGrid"></div>
         </div>
 
         <div class="status" id="status"></div>
