@@ -9,9 +9,9 @@
         color-scheme: light;
         font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
         background: #f3f4f6;
-        --cell-size: 40px;
-        --row-header: 14px;
-        --gap: 0.16rem;
+        --cell-size: 48px;
+        --row-header: 17px;
+        --gap: 0.2rem;
         --layout-scale: 1; /* 入力と同倍率で描画 */
         --input-grid-width: calc(var(--row-header) + 12 * var(--cell-size) + 11 * var(--gap));
         --pack-bar-height: 48px;
@@ -175,9 +175,9 @@
 .input-grid {
   width: 100%;
   max-width: var(--input-grid-width);
-  background: #f3f4f6;
-  border-radius: 16px;
-  padding: 0.55rem;
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
   height: 100%;
 }
       .column-header,
