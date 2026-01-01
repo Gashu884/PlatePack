@@ -13,6 +13,7 @@
         --row-header: 17px;
         --gap: 0.22rem;
         --layout-scale: 0.91; /* outputプレートは入力の約1/1.1サイズ */
+        --input-grid-width: 820px;
       }
       body {
         margin: 0;
@@ -99,16 +100,20 @@
         color: #1e293b;
         margin-top: 0.5rem;
       }
-      .title-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        flex-wrap: wrap;
-        gap: 0.75rem;
-        margin: 0.6rem 0 1rem;
-      }
+.title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 0.6rem 0 1rem;
+}
 .title-row h2 {
   margin: 0;
+}
+.plate-highlight {
+  font-size: 1.5em;
+  font-weight: 700;
 }
 .title-actions {
   display: flex;
@@ -128,7 +133,7 @@
 }
 @media (min-width: 1080px) {
   .workspace {
-    grid-template-columns: 1.05fr 1fr;
+    grid-template-columns: 1.1fr 1fr;
   }
 }
 .left-pane,
@@ -142,28 +147,7 @@
 }
 .right-pane {
   grid-template-rows: auto auto 1fr auto;
-}
-.workspace {
-  display: grid;
-  gap: 1rem;
-  align-items: stretch;
-}
-@media (min-width: 1080px) {
-  .workspace {
-    grid-template-columns: 1.05fr 1fr;
-  }
-}
-.left-pane,
-.right-pane {
-  display: grid;
-  gap: 0.75rem;
-  height: 100%;
-}
-.left-pane {
-  grid-template-rows: auto auto 1fr;
-}
-.right-pane {
-  grid-template-rows: auto auto 1fr auto;
+  font-size: 0.91rem;
 }
       .well-grid {
         margin-top: 0.2rem;
@@ -183,13 +167,13 @@
           grid-template-columns: auto minmax(230px, 320px);
         }
       }
-      .input-grid {
-        width: fit-content;
-        background: #f3f4f6;
-        border-radius: 16px;
-        padding: 0.55rem;
-        height: 100%;
-      }
+.input-grid {
+  width: var(--input-grid-width);
+  background: #f3f4f6;
+  border-radius: 16px;
+  padding: 0.55rem;
+  height: 100%;
+}
       .column-header,
       .well-row {
         display: grid;
@@ -272,6 +256,9 @@
 .accent-btn {
   background: #fef9c3;
   color: #3b3b0a;
+}
+.layout-container {
+  font-size: 0.82rem;
 }
       .status {
         margin-top: 1rem;
@@ -386,31 +373,31 @@
       .memo-panel li {
         line-height: 1.35;
       }
-      .row-dash {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 2px;
-        background-image: repeating-linear-gradient(
-          90deg,
-          transparent 0,
-          transparent 8px,
-          #3b82f6 8px,
+.row-dash {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1.3px;
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0,
+    transparent 8px,
+    #3b82f6 8px,
           #3b82f6 16px
         );
         opacity: 0.9;
         pointer-events: none;
         z-index: 2;
       }
-      .col-dash {
-        position: absolute;
-        top: 0;
-        bottom: 0;
-        width: 2px;
-        background-image: repeating-linear-gradient(
-          0deg,
-          transparent 0,
+.col-dash {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1.3px;
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent 0,
           transparent 8px,
           #ef4444 8px,
           #ef4444 16px
@@ -487,27 +474,17 @@
       .divider-btn.horizontal.active {
         background: #3b82f6;
       }
-      .io-layout {
-        display: grid;
-        gap: 1rem;
-        align-items: stretch;
-      }
-      @media (min-width: 1080px) {
-        .io-layout {
-          grid-template-columns: minmax(520px, 3fr) minmax(360px, 2fr);
-        }
-      }
       .layout-side {
         display: grid;
         gap: 0.6rem;
         align-items: start;
         height: 100%;
-        grid-template-rows: 1fr auto;
+        grid-template-rows: 1fr;
       }
       .right-column {
         display: grid;
-        gap: 0.6rem;
-        grid-template-rows: 1fr auto 2fr;
+        gap: 0.75rem;
+        grid-template-rows: auto 1fr auto;
         min-width: 340px;
         height: 100%;
       }
@@ -563,27 +540,22 @@
         </div>
 
         <div class="plate-summary" id="plateSummary">Plate 1 — 0 wells selected · Plate 1 of 1</div>
-        <div class="title-row">
-          <h2 id="plateTitle">Plate 1</h2>
-          <div class="title-actions">
-            <button type="button" class="ghost" id="inputDirectionBtn">入力読み方向: 横方向</button>
-            <div class="title-nav">
-              <button type="button" class="ghost" id="prevPlateBtn">Previous</button>
-              <button type="button" class="ghost" id="nextPlateBtn">Next</button>
-            </div>
-          </div>
-        </div>
+        <span id="plateTitle" style="display:none;"></span>
+        <div class="title-row" style="margin-top:0;"></div>
 
         <div class="workspace">
           <div class="left-pane">
-            <div class="memo-field">
+            <div class="memo-field" style="width: var(--input-grid-width);">
               <label for="plateMemo">メモ</label>
               <textarea id="plateMemo" placeholder="メモ記入欄"></textarea>
               <div class="memo-hint">この入力プレートに関するメモを入力してください。</div>
             </div>
             <div class="layout-controls">
               <span class="label">ウェル入力</span>
-              <div style="flex:1 1 auto"></div>
+              <button type="button" class="ghost" id="inputDirectionBtn">入力読み方向: 横方向</button>
+              <button type="button" class="ghost" id="prevPlateBtn">Previous</button>
+              <button type="button" class="ghost" id="nextPlateBtn">Next</button>
+              <div style="width: 0.6rem;"></div>
               <button type="button" class="accent-btn" id="clearPlateBtn">Clear</button>
             </div>
             <div class="input-layout">
@@ -745,6 +717,13 @@
 
           wellGrid.appendChild(rowDiv);
         });
+
+        // set memo/input width
+        const dims = inputDimensions();
+        document.documentElement.style.setProperty(
+          "--input-grid-width",
+          `${dims.header + COLS.length * dims.cell + (COLS.length - 1) * dims.gap}px`
+        );
       }
 
       function toggleDirection() {
@@ -785,6 +764,16 @@
         const cell = baseCell * scale;
         const gap = baseGap * scale;
         const header = baseHeader * scale;
+        const width = header + 12 * cell + 11 * gap;
+        const height = header + 8 * cell + 7 * gap;
+        return { cell, gap, header, width, height };
+      }
+
+      function inputDimensions() {
+        const root = getComputedStyle(document.documentElement);
+        const cell = parseFloat(root.getPropertyValue("--cell-size")) || 62;
+        const gap = parseFloat(root.getPropertyValue("--gap")) || 4;
+        const header = parseFloat(root.getPropertyValue("--row-header")) || 20;
         const width = header + 12 * cell + 11 * gap;
         const height = header + 8 * cell + 7 * gap;
         return { cell, gap, header, width, height };
@@ -922,7 +911,7 @@
       function renderPlate() {
         const plate = getCurrentPlate();
         plateTitle.textContent = plate.label;
-        plateSummary.textContent = `${plate.label} — ${plate.wells.size} wells selected · Plate ${
+        plateSummary.innerHTML = `<span class="plate-highlight">${plate.label}</span> — ${plate.wells.size} wells selected · Plate ${
           currentPlateIndex + 1
         } of ${plates.length}`;
         if (plateMemoInput) {
