@@ -9,9 +9,9 @@
         color-scheme: light;
         font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
         background: #f3f4f6;
-        --cell-size: 48px;
-        --row-header: 16px;
-        --gap: 0.2rem;
+        --cell-size: 40px;
+        --row-header: 14px;
+        --gap: 0.16rem;
         --layout-scale: 1; /* 入力と同倍率で描画 */
         --input-grid-width: calc(var(--row-header) + 12 * var(--cell-size) + 11 * var(--gap));
         --pack-bar-height: 48px;
@@ -173,7 +173,8 @@
         }
       }
 .input-grid {
-  width: var(--input-grid-width);
+  width: 100%;
+  max-width: var(--input-grid-width);
   background: #f3f4f6;
   border-radius: 16px;
   padding: 0.55rem;
@@ -265,6 +266,8 @@
 }
 .layout-container {
   font-size: 0.82rem;
+  width: 100%;
+  max-width: var(--input-grid-width);
 }
       .status {
         margin-top: 1rem;
@@ -433,7 +436,8 @@
         background: #f4f6fb;
         border-radius: 16px;
         padding: 0.45rem;
-        width: fit-content;
+        width: 100%;
+        max-width: var(--input-grid-width);
         justify-self: start;
         height: 100%;
       }
