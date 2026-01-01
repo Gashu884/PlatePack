@@ -9,11 +9,11 @@
         color-scheme: light;
         font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
         background: #f3f4f6;
-        --cell-size: 42px;
-        --row-header: 14px;
-        --gap: 0.18rem;
-        --layout-scale: 0.91; /* outputプレートは入力の約1/1.1サイズ */
-        --input-grid-width: 820px;
+        --cell-size: 48px;
+        --row-header: 16px;
+        --gap: 0.2rem;
+        --layout-scale: 1; /* 入力と同倍率で描画 */
+        --input-grid-width: calc(var(--row-header) + 12 * var(--cell-size) + 11 * var(--gap));
         --pack-bar-height: 48px;
       }
       body {
@@ -129,7 +129,7 @@
 }
 .workspace {
   display: grid;
-  gap: 1rem;
+  gap: 0.4rem;
   align-items: stretch;
 }
 @media (min-width: 1080px) {
