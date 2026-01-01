@@ -9,9 +9,9 @@
         color-scheme: light;
         font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
         background: #f3f4f6;
-        --cell-size: 42px;
-        --row-header: 14px;
-        --gap: 0.18rem;
+        --cell-size: 50px;
+        --row-header: 17px;
+        --gap: 0.22rem;
         --layout-scale: 0.5;
       }
       body {
@@ -126,6 +126,7 @@
         display: grid;
         gap: 1rem;
         align-items: start;
+        height: 100%;
       }
       @media (min-width: 960px) {
         .input-layout {
@@ -137,6 +138,7 @@
         background: #f3f4f6;
         border-radius: 16px;
         padding: 0.55rem;
+        height: 100%;
       }
       .column-header,
       .well-row {
@@ -374,6 +376,7 @@
         padding: 0.45rem;
         width: fit-content;
         justify-self: start;
+        height: 100%;
       }
       .layout-cell,
       .layout-header {
@@ -421,7 +424,7 @@
       .io-layout {
         display: grid;
         gap: 1rem;
-        align-items: start;
+        align-items: stretch;
       }
       @media (min-width: 1080px) {
         .io-layout {
@@ -432,12 +435,15 @@
         display: grid;
         gap: 0.6rem;
         align-items: start;
+        height: 100%;
+        grid-template-rows: 1fr auto;
       }
       .right-column {
         display: grid;
         gap: 0.6rem;
         grid-template-rows: 1fr auto 2fr;
         min-width: 340px;
+        height: 100%;
       }
       .memo-field {
         margin: 0;
