@@ -110,6 +110,12 @@
       .title-row h2 {
         margin: 0;
       }
+      .title-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+      }
       .title-nav {
         display: flex;
         gap: 0.5rem;
@@ -185,7 +191,7 @@
         row-gap: var(--gap);
       }
       .well-btn {
-        border-radius: 0;
+        border-radius: 6px;
         border: none;
         background: #eef1f5;
         font-size: 0.9rem;
@@ -197,15 +203,10 @@
         transition: background 0.12s ease, box-shadow 0.12s ease;
       }
       .well-btn.selected {
-        background: #a7f3d0;
-        color: #065f46;
+        background: #0f172a;
+        color: #fff;
         border: none;
-        box-shadow: 0 10px 18px rgba(109, 209, 178, 0.35);
-      }
-      .pack-buttons {
-        display: flex;
-        gap: 0.75rem;
-        margin-top: 1.25rem;
+        box-shadow: none;
       }
       .status {
         margin-top: 1rem;
@@ -445,6 +446,17 @@
         min-width: 340px;
         height: 100%;
       }
+      .layout-row {
+        display: grid;
+        grid-template-columns: minmax(160px, 1fr) auto;
+        gap: 0.6rem;
+        align-items: start;
+      }
+      .layout-tools {
+        display: grid;
+        gap: 0.5rem;
+        align-items: start;
+      }
       .memo-field {
         margin: 0;
         display: grid;
@@ -502,9 +514,12 @@
         <div class="plate-summary" id="plateSummary">Plate 1 — 0 wells selected · Plate 1 of 1</div>
         <div class="title-row">
           <h2 id="plateTitle">Plate 1</h2>
-          <div class="title-nav">
-            <button type="button" class="ghost" id="prevPlateBtn">Previous</button>
-            <button type="button" class="ghost" id="nextPlateBtn">Next</button>
+          <div class="title-actions">
+            <button type="button" class="ghost" id="inputDirectionBtn">入力読み方向: 横(1A→12A)</button>
+            <div class="title-nav">
+              <button type="button" class="ghost" id="prevPlateBtn">Previous</button>
+              <button type="button" class="ghost" id="nextPlateBtn">Next</button>
+            </div>
           </div>
         </div>
 
@@ -521,23 +536,21 @@
               <textarea id="plateMemo" placeholder="この入力プレートに関するメモを入力してください。"></textarea>
               <div class="memo-hint">各入力プレートごとに保存されます。</div>
             </div>
-            <div class="layout-controls">
-              <span class="label">出力レイアウト</span>
-              <button type="button" class="ghost" id="directionBtn">→ 横方向</button>
-              <button type="button" class="ghost" id="skipModeBtn">空きwellモード: OFF</button>
-              <button type="button" class="ghost" id="inputDirectionBtn">入力読み方向: 横(1A→12A)</button>
-            </div>
-            <div class="layout-side">
-              <div class="layout-container" id="layoutContainer">
-                <div id="layoutGrid"></div>
+            <div class="layout-row">
+              <div class="layout-tools">
+                <span class="label">出力レイアウト</span>
+                <button type="button" class="ghost" id="directionBtn">→ 横方向</button>
+                <button type="button" class="ghost" id="skipModeBtn">空きwellモード: OFF</button>
+                <button type="button" class="primary" id="packLayoutBtn">Packing!</button>
+                <span class="hint">棒をクリックして区切りを追加できます。</span>
               </div>
-              <span class="hint">棒をクリックして区切りを追加できます。</span>
+              <div class="layout-side">
+                <div class="layout-container" id="layoutContainer">
+                  <div id="layoutGrid"></div>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-
-        <div class="pack-buttons">
-          <button type="button" class="primary" id="packLayoutBtn">Packing!</button>
         </div>
 
         <div class="status" id="status"></div>
