@@ -107,14 +107,64 @@
         gap: 0.75rem;
         margin: 0.6rem 0 1rem;
       }
-      .title-row h2 {
-        margin: 0;
-      }
-      .title-nav {
-        display: flex;
-        gap: 0.5rem;
-        align-items: center;
-      }
+.title-row h2 {
+  margin: 0;
+}
+.title-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.title-nav {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+.workspace {
+  display: grid;
+  gap: 1rem;
+  align-items: stretch;
+}
+@media (min-width: 1080px) {
+  .workspace {
+    grid-template-columns: 1.05fr 1fr;
+  }
+}
+.left-pane,
+.right-pane {
+  display: grid;
+  gap: 0.75rem;
+  height: 100%;
+}
+.left-pane {
+  grid-template-rows: auto auto 1fr;
+}
+.right-pane {
+  grid-template-rows: auto auto 1fr auto;
+}
+.workspace {
+  display: grid;
+  gap: 1rem;
+  align-items: stretch;
+}
+@media (min-width: 1080px) {
+  .workspace {
+    grid-template-columns: 1.05fr 1fr;
+  }
+}
+.left-pane,
+.right-pane {
+  display: grid;
+  gap: 0.75rem;
+  height: 100%;
+}
+.left-pane {
+  grid-template-rows: auto auto 1fr;
+}
+.right-pane {
+  grid-template-rows: auto auto 1fr auto;
+}
       .well-grid {
         margin-top: 0.2rem;
         display: grid;
@@ -184,29 +234,45 @@
         display: grid;
         row-gap: var(--gap);
       }
-      .well-btn {
-        border-radius: 0;
-        border: none;
-        background: #eef1f5;
-        font-size: 0.9rem;
-        width: var(--cell-size);
-        height: var(--cell-size);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: background 0.12s ease, box-shadow 0.12s ease;
-      }
-      .well-btn.selected {
-        background: #a7f3d0;
-        color: #065f46;
-        border: none;
-        box-shadow: 0 10px 18px rgba(109, 209, 178, 0.35);
-      }
-      .pack-buttons {
-        display: flex;
-        gap: 0.75rem;
-        margin-top: 1.25rem;
-      }
+.well-btn {
+  border-radius: 6px;
+  border: none;
+  background: #eef1f5;
+  font-size: 0.9rem;
+  width: var(--cell-size);
+  height: var(--cell-size);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s ease, box-shadow 0.12s ease;
+}
+.well-btn.selected {
+  background: #0f172a;
+  color: #fff;
+  border: none;
+  box-shadow: none;
+}
+.layout-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.layout-tools .label {
+  font-weight: 700;
+}
+.layout-tools .spacer {
+  flex: 1 1 auto;
+}
+.pack-bar {
+  display: flex;
+  justify-content: center;
+  padding: 0.6rem 0;
+}
+.accent-btn {
+  background: #fef9c3;
+  color: #3b3b0a;
+}
       .status {
         margin-top: 1rem;
         color: #64748b;
@@ -494,50 +560,55 @@
               <option value="custom">Custom…</option>
           </select>
         </div>
-        <div class="controls">
-          <button type="button" class="ghost" id="clearPlateBtn">Clear</button>
-        </div>
         </div>
 
         <div class="plate-summary" id="plateSummary">Plate 1 — 0 wells selected · Plate 1 of 1</div>
         <div class="title-row">
           <h2 id="plateTitle">Plate 1</h2>
-          <div class="title-nav">
-            <button type="button" class="ghost" id="prevPlateBtn">Previous</button>
-            <button type="button" class="ghost" id="nextPlateBtn">Next</button>
+          <div class="title-actions">
+            <button type="button" class="ghost" id="inputDirectionBtn">入力読み方向: 横方向</button>
+            <div class="title-nav">
+              <button type="button" class="ghost" id="prevPlateBtn">Previous</button>
+              <button type="button" class="ghost" id="nextPlateBtn">Next</button>
+            </div>
           </div>
         </div>
 
-        <div class="io-layout">
-          <div class="input-layout">
-            <div class="input-grid">
-              <div class="column-header" id="columnHeader"></div>
-              <div id="wellGrid"></div>
-            </div>
-          </div>
-          <div class="right-column">
+        <div class="workspace">
+          <div class="left-pane">
             <div class="memo-field">
               <label for="plateMemo">メモ</label>
-              <textarea id="plateMemo" placeholder="この入力プレートに関するメモを入力してください。"></textarea>
-              <div class="memo-hint">各入力プレートごとに保存されます。</div>
+              <textarea id="plateMemo" placeholder="メモ記入欄"></textarea>
+              <div class="memo-hint">この入力プレートに関するメモを入力してください。</div>
             </div>
             <div class="layout-controls">
+              <span class="label">ウェル入力</span>
+              <div style="flex:1 1 auto"></div>
+              <button type="button" class="accent-btn" id="clearPlateBtn">Clear</button>
+            </div>
+            <div class="input-layout">
+              <div class="input-grid">
+                <div class="column-header" id="columnHeader"></div>
+                <div id="wellGrid"></div>
+              </div>
+            </div>
+          </div>
+          <div class="right-pane">
+            <div class="layout-controls">
               <span class="label">出力レイアウト</span>
-              <button type="button" class="ghost" id="directionBtn">→ 横方向</button>
-              <button type="button" class="ghost" id="skipModeBtn">空きwellモード: OFF</button>
-              <button type="button" class="ghost" id="inputDirectionBtn">入力読み方向: 横(1A→12A)</button>
+              <button type="button" class="ghost" id="directionBtn">横方向→</button>
+              <div style="flex:1 1 auto"></div>
+              <button type="button" class="accent-btn" id="layoutClearBtn">Clear</button>
             </div>
             <div class="layout-side">
               <div class="layout-container" id="layoutContainer">
                 <div id="layoutGrid"></div>
               </div>
-              <span class="hint">棒をクリックして区切りを追加できます。</span>
+            </div>
+            <div class="pack-bar">
+              <button type="button" class="primary" id="packLayoutBtn">Packing</button>
             </div>
           </div>
-        </div>
-
-        <div class="pack-buttons">
-          <button type="button" class="primary" id="packLayoutBtn">Packing!</button>
         </div>
 
         <div class="status" id="status"></div>
@@ -572,7 +643,6 @@
       let sourceColorMap = new Map();
       let layoutDirection = "row";
       let inputReadDirection = "row";
-      let skipMode = false;
       let blockedLayoutWells = new Set();
       let verticalDividers = new Set();
       let horizontalDividers = new Set();
@@ -596,8 +666,8 @@
       const layoutContainer = document.getElementById("layoutContainer");
       const layoutGrid = document.getElementById("layoutGrid");
       const directionBtn = document.getElementById("directionBtn");
-      const skipModeBtn = document.getElementById("skipModeBtn");
       const inputDirectionBtn = document.getElementById("inputDirectionBtn");
+      const layoutClearBtn = document.getElementById("layoutClearBtn");
 
       function createPlate(index) {
         return { label: `Plate ${index}`, wells: new Set(), memo: "" };
@@ -682,11 +752,6 @@
         updateLayoutButtons();
       }
 
-      function toggleSkipMode() {
-        skipMode = !skipMode;
-        updateLayoutButtons();
-      }
-
       function toggleInputDirection() {
         inputReadDirection = inputReadDirection === "row" ? "column" : "row";
         updateLayoutButtons();
@@ -694,18 +759,21 @@
 
       function updateLayoutButtons() {
         if (directionBtn) {
-          directionBtn.textContent = layoutDirection === "row" ? "→ 横方向" : "↓ 縦方向";
-        }
-        if (skipModeBtn) {
-          skipModeBtn.textContent = `空きwellモード: ${skipMode ? "ON" : "OFF"}`;
-          skipModeBtn.classList.toggle("active", skipMode);
+          directionBtn.textContent = layoutDirection === "row" ? "横方向→" : "縦方向↓";
         }
         if (inputDirectionBtn) {
           inputDirectionBtn.textContent =
             inputReadDirection === "row"
-              ? "入力読み方向: 横(1A→12A)"
-              : "入力読み方向: 縦(1A→1H)";
+              ? "入力読み方向: 横方向"
+              : "入力読み方向: 縦方向";
         }
+      }
+
+      function clearLayoutSettings() {
+        blockedLayoutWells.clear();
+        verticalDividers.clear();
+        horizontalDividers.clear();
+        renderLayoutGrid();
       }
 
       function layoutDimensions() {
@@ -791,7 +859,6 @@
               cell.classList.add("blocked");
             }
             cell.addEventListener("click", () => {
-              if (!skipMode) return;
               if (blockedLayoutWells.has(wellId)) blockedLayoutWells.delete(wellId);
               else blockedLayoutWells.add(wellId);
               renderLayoutGrid();
@@ -1432,15 +1499,9 @@
         plate.memo = e.target.value;
         refreshMemoPanel();
       });
-      directionBtn.addEventListener("click", () => {
-        toggleDirection();
-      });
-      skipModeBtn.addEventListener("click", () => {
-        toggleSkipMode();
-      });
-      inputDirectionBtn.addEventListener("click", () => {
-        toggleInputDirection();
-      });
+      directionBtn.addEventListener("click", toggleDirection);
+      inputDirectionBtn.addEventListener("click", toggleInputDirection);
+      layoutClearBtn.addEventListener("click", clearLayoutSettings);
 
       // Initial render
       renderGridStructure();
