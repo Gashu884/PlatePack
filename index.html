@@ -432,6 +432,17 @@
         color: #94a3b8;
         font-size: 0.85rem;
       }
+      .column-order-controls input {
+        width: 210px;
+        padding: 0.5rem 0.7rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        font-size: 0.92rem;
+        background: #fff;
+      }
+      .column-order-controls .hint {
+        margin-left: 0.25rem;
+      }
       .layout-container {
         position: relative;
         background: #f4f6fb;
@@ -585,6 +596,18 @@
               <div style="flex:1 1 auto"></div>
               <button type="button" class="accent-btn" id="layoutClearBtn">Clear</button>
             </div>
+            <div class="layout-controls column-order-controls">
+              <span class="label">カラム順</span>
+              <input
+                type="text"
+                id="columnOrderInput"
+                value="1,2,3,4,5,6,7,8,9,10,11,12"
+                aria-label="カラム順を指定"
+              />
+              <button type="button" class="ghost" id="columnOrderApplyBtn">適用</button>
+              <button type="button" class="ghost" id="columnOrderResetBtn">リセット</button>
+              <span class="hint">例: 3,1,2,4,...</span>
+            </div>
             <div class="layout-side">
               <div class="layout-container" id="layoutContainer">
                 <div id="layoutGrid"></div>
@@ -618,7 +641,8 @@
 
     <script>
       const ROWS = ["A", "B", "C", "D", "E", "F", "G", "H"];
-      const COLS = Array.from({ length: 12 }, (_, i) => i + 1);
+      const DEFAULT_COLS = Array.from({ length: 12 }, (_, i) => i + 1);
+      let columnOrder = [...DEFAULT_COLS];
       const API_ENDPOINT = "/generate-html";
 
       let plates = [createPlate(1)];
@@ -631,6 +655,8 @@
       let blockedLayoutWells = new Set();
       let verticalDividers = new Set();
       let horizontalDividers = new Set();
+      let lastPackedDirection = layoutDirection;
+      let lastPackedColumns = [...columnOrder];
 
       const plateCountSelect = document.getElementById("plateCount");
       const plateSummary = document.getElementById("plateSummary");
@@ -653,6 +679,9 @@
       const directionBtn = document.getElementById("directionBtn");
       const inputDirectionBtn = document.getElementById("inputDirectionBtn");
       const layoutClearBtn = document.getElementById("layoutClearBtn");
+      const columnOrderInput = document.getElementById("columnOrderInput");
+      const columnOrderApplyBtn = document.getElementById("columnOrderApplyBtn");
+      const columnOrderResetBtn = document.getElementById("columnOrderResetBtn");
 
       function createPlate(index) {
         return { label: `Plate ${index}`, wells: new Set(), memo: "" };
@@ -697,7 +726,7 @@
         const corner = document.createElement("div");
         corner.className = "corner-cell";
         columnHeader.appendChild(corner);
-        COLS.forEach((col) => {
+        columnOrder.forEach((col) => {
           const colBtn = document.createElement("button");
           colBtn.type = "button";
           colBtn.className = "header-btn";
@@ -717,7 +746,7 @@
           rowBtn.addEventListener("click", () => toggleRow(row));
           rowDiv.appendChild(rowBtn);
 
-          COLS.forEach((col) => {
+          columnOrder.forEach((col) => {
             const wellId = `${row}${col}`;
             const btn = document.createElement("button");
             btn.type = "button";
@@ -735,7 +764,7 @@
         const dims = inputDimensions();
         document.documentElement.style.setProperty(
           "--input-grid-width",
-          `${dims.header + COLS.length * dims.cell + (COLS.length - 1) * dims.gap}px`
+          `${dims.width}px`
         );
       }
 
@@ -761,6 +790,50 @@
         }
       }
 
+      function syncColumnOrderInput() {
+        if (columnOrderInput) {
+          columnOrderInput.value = columnOrder.join(",");
+        }
+      }
+
+      function parseColumnOrderInput(value) {
+        const parts = String(value || "")
+          .split(/[^0-9]+/)
+          .map((part) => part.trim())
+          .filter(Boolean)
+          .map((part) => Number(part));
+        const numbers = parts.filter((n) => Number.isInteger(n));
+        const unique = Array.from(new Set(numbers));
+        const expected = DEFAULT_COLS.length;
+        if (unique.length !== expected) return null;
+        if (unique.some((n) => n < 1 || n > expected)) return null;
+        return unique;
+      }
+
+      function applyColumnOrder(order) {
+        columnOrder = order.slice();
+        renderGridStructure();
+        renderLayoutGrid();
+        renderPlate();
+        renderPacked();
+        syncColumnOrderInput();
+        setStatus("");
+      }
+
+      function handleColumnOrderApply() {
+        if (!columnOrderInput) return;
+        const parsed = parseColumnOrderInput(columnOrderInput.value);
+        if (!parsed) {
+          setStatus(`1-${DEFAULT_COLS.length}の重複なしの数字で入力してください。`, true);
+          return;
+        }
+        applyColumnOrder(parsed);
+      }
+
+      function resetColumnOrder() {
+        applyColumnOrder([...DEFAULT_COLS]);
+      }
+
       function clearLayoutSettings() {
         blockedLayoutWells.clear();
         verticalDividers.clear();
@@ -777,8 +850,10 @@
         const cell = baseCell * scale;
         const gap = baseGap * scale;
         const header = baseHeader * scale;
-        const width = header + 12 * cell + 11 * gap;
-        const height = header + 8 * cell + 7 * gap;
+        const cols = columnOrder.length || DEFAULT_COLS.length;
+        const rows = ROWS.length;
+        const width = header + cols * cell + (cols - 1) * gap;
+        const height = header + rows * cell + (rows - 1) * gap;
         return { cell, gap, header, width, height };
       }
 
@@ -787,8 +862,10 @@
         const cell = parseFloat(root.getPropertyValue("--cell-size")) || 62;
         const gap = parseFloat(root.getPropertyValue("--gap")) || 4;
         const header = parseFloat(root.getPropertyValue("--row-header")) || 20;
-        const width = header + 12 * cell + 11 * gap;
-        const height = header + 8 * cell + 7 * gap;
+        const cols = columnOrder.length || DEFAULT_COLS.length;
+        const rows = ROWS.length;
+        const width = header + cols * cell + (cols - 1) * gap;
+        const height = header + rows * cell + (rows - 1) * gap;
         return { cell, gap, header, width, height };
       }
 
@@ -828,7 +905,7 @@
         frag.appendChild(corner);
 
         // column headers
-        COLS.forEach((col, colIndex) => {
+        columnOrder.forEach((col, colIndex) => {
           const header = document.createElement("div");
           header.className = "layout-header";
           header.textContent = col;
@@ -852,7 +929,7 @@
           rowHeader.style.top = `${top}px`;
           frag.appendChild(rowHeader);
 
-          COLS.forEach((col, colIndex) => {
+          columnOrder.forEach((col, colIndex) => {
             const cell = document.createElement("div");
             cell.className = "layout-cell";
             const { left, top: cellTop } = wellPosition(rowIndex, colIndex, dims);
@@ -957,7 +1034,7 @@
         const upper = String(letter).trim().toUpperCase();
         if (!ROWS.includes(upper)) return;
         const plate = getCurrentPlate();
-        const wells = COLS.map((col) => `${upper}${col}`);
+        const wells = columnOrder.map((col) => `${upper}${col}`);
         const allSelected = wells.every((well) => plate.wells.has(well));
         wells.forEach((well) => {
           if (allSelected) plate.wells.delete(well);
@@ -968,7 +1045,7 @@
 
       function toggleColumn(colValue) {
         const num = Number(colValue);
-        if (!Number.isInteger(num) || num < 1 || num > 12) return;
+        if (!Number.isInteger(num) || !columnOrder.includes(num)) return;
         const plate = getCurrentPlate();
         const wells = ROWS.map((row) => `${row}${num}`);
         const allSelected = wells.every((well) => plate.wells.has(well));
@@ -997,8 +1074,9 @@
         return segments;
       }
 
-      function buildDestinationOrder(direction) {
-        const colSegments = buildSegments(COLS.length, verticalDividers);
+      function buildDestinationOrder(direction, columns = columnOrder) {
+        const activeColumns = columns && columns.length ? columns : DEFAULT_COLS;
+        const colSegments = buildSegments(activeColumns.length, verticalDividers);
         const rowSegments = buildSegments(ROWS.length, horizontalDividers);
         const placements = [];
         rowSegments.forEach(([rStart, rEnd]) => {
@@ -1020,12 +1098,13 @@
         });
         // remove blocked wells
         return placements.filter(({ rowIndex, colIndex }) => {
-          const wellId = `${ROWS[rowIndex]}${COLS[colIndex]}`;
+          const wellId = `${ROWS[rowIndex]}${activeColumns[colIndex]}`;
           return !blockedLayoutWells.has(wellId);
         });
       }
 
-      function buildPayload(direction) {
+      function buildPayload(direction, columns = columnOrder) {
+        const activeColumns = columns && columns.length ? columns : DEFAULT_COLS;
         const order = direction === "column" ? "column" : "row";
         const sortedSources = plates.map((plate, index) => {
           const wellsArray = Array.from(plate.wells);
@@ -1052,7 +1131,7 @@
           src.wells.map((well) => ({ source_plate: src.plate_id, source_well: well }))
         );
 
-        const placementOrder = buildDestinationOrder(order);
+        const placementOrder = buildDestinationOrder(order, activeColumns);
         const wellsPerPlate = placementOrder.length;
         const destinations = [];
         const orderedAssignments = [];
@@ -1064,7 +1143,7 @@
           const destRowIndex = placement?.rowIndex ?? 0;
           const destColIndex = placement?.colIndex ?? 0;
           const destPlateId = `DEST-${String(destPlateIndex + 1).padStart(3, "0")}`;
-          const destWell = `${ROWS[destRowIndex]}${COLS[destColIndex]}`;
+          const destWell = `${ROWS[destRowIndex]}${activeColumns[destColIndex]}`;
 
           orderedAssignments.push({
             source_plate: item.source_plate,
@@ -1083,7 +1162,7 @@
           destinations.push({
             plate_id: plateId,
             rows: ROWS.length,
-            cols: COLS.length,
+            cols: activeColumns.length,
             assignments: orderedAssignments
               .filter((assign) => assign.destination_plate === plateId)
               .map((assign) => ({
@@ -1106,13 +1185,14 @@
         try {
           tsvBtn.disabled = true;
           setStatus("");
+          const columnsForPack = columnOrder.length ? [...columnOrder] : [...DEFAULT_COLS];
           const order = layoutDirection;
-          const placements = buildDestinationOrder(order);
+          const placements = buildDestinationOrder(order, columnsForPack);
           if (placements.length === 0) {
             setStatus("配置できる出力ウェルがありません。区切りや空きwell設定を見直してください。", true);
             return;
           }
-          const payload = buildPayload(order);
+          const payload = buildPayload(order, columnsForPack);
           const selectionCount = payload.plan.length;
           if (selectionCount === 0) {
             setStatus("ウェルを選択してください。", true);
@@ -1149,7 +1229,7 @@
           tsvBtn.disabled = false;
 
           packedPlates = payload.destinations.map((plate) => {
-            const destColumns = Array.from({ length: plate.cols }, (_, i) => i + 1);
+            const destColumns = [...columnsForPack];
             const grid = Array.from({ length: ROWS.length }, () =>
               Array.from({ length: destColumns.length }, () => null)
             );
@@ -1167,6 +1247,8 @@
             });
             return { id: plate.plate_id, grid, columns: destColumns };
           });
+          lastPackedDirection = order;
+          lastPackedColumns = [...columnsForPack];
           currentPackedIndex = 0;
           renderPacked();
         } catch (error) {
@@ -1221,9 +1303,10 @@
         panel.replaceWith(fresh);
       }
 
-      function buildWellOrder() {
-        return buildDestinationOrder(layoutDirection).map(
-          ({ rowIndex, colIndex }) => `${ROWS[rowIndex]}${COLS[colIndex]}`
+      function buildWellOrder(direction = layoutDirection, columns = columnOrder) {
+        const activeColumns = columns && columns.length ? columns : DEFAULT_COLS;
+        return buildDestinationOrder(direction, activeColumns).map(
+          ({ rowIndex, colIndex }) => `${ROWS[rowIndex]}${activeColumns[colIndex]}`
         );
       }
 
@@ -1237,7 +1320,8 @@
           return;
         }
         const plate = packedPlates[currentPackedIndex];
-        const destColumns = plate.columns && plate.columns.length ? plate.columns : COLS;
+        const destColumns =
+          plate.columns && plate.columns.length ? plate.columns : columnOrder.length ? columnOrder : DEFAULT_COLS;
         packedSummary.textContent = `Packed Plate ${currentPackedIndex + 1} of ${packedPlates.length}`;
 
         const table = document.createElement("table");
@@ -1424,8 +1508,16 @@
           setStatus("パックされたプレートがありません。", true);
           return;
         }
-        const order = layoutDirection || "row";
-        const wellOrder = buildWellOrder();
+        const order = (packedPlates.length ? lastPackedDirection : layoutDirection) || "row";
+        const exportColumns =
+          (packedPlates[0] && packedPlates[0].columns && packedPlates[0].columns.length
+            ? packedPlates[0].columns
+            : lastPackedColumns.length
+              ? lastPackedColumns
+              : columnOrder.length
+                ? columnOrder
+                : DEFAULT_COLS);
+        const wellOrder = buildWellOrder(order, exportColumns);
         const header = ["well_position", ...packedPlates.map((plate, idx) => plate.id || `Output ${idx + 1}`)];
         const lines = [header.join("\t")];
 
@@ -1435,7 +1527,8 @@
           const rowIdx = ROWS.indexOf(parsed.row);
           const rowLabel = order === "column" ? formatWellDisplay(wellId) : wellId;
           const rowValues = packedPlates.map((plate) => {
-            const columns = plate.columns && plate.columns.length ? plate.columns : COLS;
+            const columns =
+              plate.columns && plate.columns.length ? plate.columns : exportColumns;
             const colIdx = columns.indexOf(parsed.col);
             if (rowIdx === -1 || colIdx === -1) return "";
             const cellData = plate.grid[rowIdx]?.[colIdx];
@@ -1509,11 +1602,26 @@
       directionBtn.addEventListener("click", toggleDirection);
       inputDirectionBtn.addEventListener("click", toggleInputDirection);
       layoutClearBtn.addEventListener("click", clearLayoutSettings);
+      if (columnOrderApplyBtn) {
+        columnOrderApplyBtn.addEventListener("click", handleColumnOrderApply);
+      }
+      if (columnOrderResetBtn) {
+        columnOrderResetBtn.addEventListener("click", resetColumnOrder);
+      }
+      if (columnOrderInput) {
+        columnOrderInput.addEventListener("keydown", (event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            handleColumnOrderApply();
+          }
+        });
+      }
 
       // Initial render
       renderGridStructure();
       renderPlate();
       updateLayoutButtons();
+      syncColumnOrderInput();
       renderLayoutGrid();
     </script>
   </body>
