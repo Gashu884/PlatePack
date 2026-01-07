@@ -500,10 +500,6 @@
         justify-content: center;
         box-shadow: none;
       }
-      .split-output .layout-container .layout-header.clickable:hover {
-        background: #dfe7f2;
-        cursor: pointer;
-      }
       .split-output .layout-container .layout-cell {
         background: #eef1f5; /* same as .well-btn */
         color: #1f2937;
@@ -513,9 +509,9 @@
         border-radius: 0;
         box-shadow: none;
       }
-      .split-output .layout-container .layout-cell:hover {
-        background: #e6eef7;
-        cursor: pointer;
+      .split-output .layout-container .layout-cell.selected {
+        background: #0f172a;
+        color: #fff;
       }
       /* Keep the row/col dash indicators (framework borders) visible but subtle */
       .split-output .layout-container .row-dash,
@@ -573,10 +569,6 @@
         opacity: 0.8;
         transition: opacity 0.12s ease, transform 0.1s ease;
         z-index: 4; /* keep above headers/cells */
-      }
-      .divider-btn:hover {
-        opacity: 1;
-        transform: scale(1.02);
       }
       .divider-btn.vertical {
         width: 6px; /* slightly narrower to avoid overlapping */
@@ -994,8 +986,9 @@
           frag.appendChild(rowHeader);
 
           COLS.forEach((col, colIndex) => {
-            const cell = document.createElement("div");
-            cell.className = "layout-cell";
+            const cell = document.createElement("button");
+            cell.type = "button";
+            cell.className = "layout-cell well-btn";
             const { left, top: cellTop } = wellPosition(rowIndex, colIndex, dims);
             cell.style.width = `${dims.cell}px`;
             cell.style.height = `${dims.cell}px`;
@@ -1004,7 +997,7 @@
             const wellId = `${row}${col}`;
             cell.dataset.well = wellId;
             if (blockedLayoutWells.has(wellId)) {
-              cell.classList.add("blocked");
+              cell.classList.add("selected");
             }
             cell.addEventListener("click", () => {
               if (blockedLayoutWells.has(wellId)) blockedLayoutWells.delete(wellId);
