@@ -13,7 +13,7 @@
         --column-header-height: calc(var(--cell-size) * 0.5); /* 列名の縦幅 */
         --row-header: var(--column-header-height); /* 行名の横幅を列名の高さと一致 */
         --gap: 0.14rem;
-        --layout-scale: 1; /* 入力と同倍率で描画 */
+        --layout-scale: 1; /* 出力レイアウトを1.5倍（2/3→1） */
         --input-grid-width: calc(var(--row-header) + 12 * var(--cell-size) + 11 * var(--gap));
         --pack-bar-height: 48px;
       }
@@ -487,8 +487,8 @@
       /* Make output layout visually match the input: rounded rectangular background */
       .split-output .layout-container {
         background: transparent; /* remove the special blue background for output plates */
-        border-radius: 16px;
-        padding: 0.45rem;
+        border-radius: 24px;
+        padding: 0.675rem;
       }
       /* Style output layout headers/cells to match input plate visuals */
       .split-output .layout-container .layout-header {
@@ -526,11 +526,16 @@
       /* Output panel boxed area: white background behind controls and pack button */
       .output-panel-box {
         background: #ffffff;
-        border-radius: 12px;
-        padding: 0.8rem;
+        border-radius: 18px;
+        padding: 1.2rem;
         border: 1px solid #e6eefc;
         box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
-        margin-top: 0.6rem;
+        margin-top: 0.9rem;
+        display: flex;
+        flex-direction: column;
+      }
+      .output-panel-box .layout-side {
+        margin-top: auto;
       }
       .layout-cell,
       .layout-header {
@@ -542,6 +547,8 @@
         color: #1e293b;
         background: #eef1f5; /* 入力側のウェル色に合わせる */
         border-radius: 0; /* 四角にする */
+        box-sizing: border-box;
+        padding: 0;
         user-select: none;
         border: none;
       }
@@ -565,7 +572,7 @@
         cursor: pointer;
         opacity: 0.8;
         transition: opacity 0.12s ease, transform 0.1s ease;
-        z-index: 2; /* keep between headers and wells */
+        z-index: 4; /* keep above headers/cells */
       }
       .divider-btn:hover {
         opacity: 1;
@@ -698,21 +705,24 @@
 
         <div class="split-gap" aria-hidden="true"></div>
 
-        <div class="split split-output">
-          <div class="split-inner output-stack">
-            <div class="output-panel-box">
+	        <div class="split split-output">
+	          <div class="split-inner output-stack">
+	            <div class="output-panel-box">
 	              <div class="layout-controls">
 	                <span class="label">出力レイアウト</span>
-	                <button type="button" class="ghost" id="directionBtn">横方向→</button>
+	              </div>
+	              <div class="split-gap" style="height:20px;" aria-hidden="true"></div>
+	              <div class="layout-controls" style="margin-top:0.25rem;">
+	                <button type="button" class="ghost" id="directionBtn">整列方向：→</button>
 	                <div style="flex:1 1 auto"></div>
 	                <button type="button" class="accent-btn" id="layoutClearBtn">Clear</button>
 	              </div>
-              <div class="layout-side">
-                <div class="layout-container" id="layoutContainer">
-                  <div id="layoutGrid"></div>
-                </div>
-              </div>
-            </div>
+	              <div class="layout-side">
+	                <div class="layout-container" id="layoutContainer">
+	                  <div id="layoutGrid"></div>
+	                </div>
+	              </div>
+	            </div>
             <div class="pack-bar" style="margin-top:0.6rem;">
               <button type="button" class="primary" id="packLayoutBtn">Packing</button>
             </div>
@@ -876,7 +886,7 @@
 
       function updateLayoutButtons() {
         if (directionBtn) {
-          directionBtn.textContent = layoutDirection === "row" ? "横方向→" : "縦方向↓";
+          directionBtn.textContent = layoutDirection === "row" ? "整列方向：→" : "整列方向：↓";
         }
         if (inputDirectionBtn) {
           inputDirectionBtn.textContent = inputReadDirection === "row" ? "読み方向：→" : "読み方向：↓";
@@ -894,7 +904,10 @@
         const root = getComputedStyle(document.documentElement);
         const baseCell = parseFloat(root.getPropertyValue("--cell-size")) || 62;
         const baseGap = parseFloat(root.getPropertyValue("--gap")) || 4;
-        const baseHeader = parseFloat(root.getPropertyValue("--row-header")) || 20;
+        const baseHeader =
+          parseFloat(root.getPropertyValue("--layout-header-size")) ||
+          parseFloat(root.getPropertyValue("--row-header")) ||
+          20;
         const scale = parseFloat(root.getPropertyValue("--layout-scale")) || 0.5;
         const cell = baseCell * scale;
         const gap = baseGap * scale;
@@ -927,11 +940,16 @@
         verticalDividers = new Set(verticalDividers);
         horizontalDividers = new Set(horizontalDividers);
         const dims = layoutDimensions();
-        layoutContainer.style.width = `${dims.width + 12}px`;
-        layoutContainer.style.height = `${dims.height + 12}px`;
+        const containerStyles = getComputedStyle(layoutContainer);
+        const padLeft = parseFloat(containerStyles.paddingLeft) || 0;
+        const padRight = parseFloat(containerStyles.paddingRight) || 0;
+        const padTop = parseFloat(containerStyles.paddingTop) || 0;
+        const padBottom = parseFloat(containerStyles.paddingBottom) || 0;
+        layoutContainer.style.width = `${dims.width + padLeft + padRight}px`;
+        layoutContainer.style.height = `${dims.height + padTop + padBottom}px`;
         layoutGrid.style.position = "relative";
-        layoutGrid.style.width = "100%";
-        layoutGrid.style.height = "100%";
+        layoutGrid.style.width = `${dims.width}px`;
+        layoutGrid.style.height = `${dims.height}px`;
 
         // headers and cells
         const frag = document.createDocumentFragment();
@@ -947,7 +965,7 @@
         // column headers
         COLS.forEach((col, colIndex) => {
           const header = document.createElement("div");
-          header.className = "layout-header clickable header-btn";
+          header.className = "layout-header clickable";
           header.textContent = col;
           header.dataset.colIndex = String(colIndex);
           header.title = `Toggle column ${col}`;
@@ -963,7 +981,7 @@
         // row headers + cells
         ROWS.forEach((row, rowIndex) => {
           const rowHeader = document.createElement("div");
-          rowHeader.className = "layout-header clickable header-btn row";
+          rowHeader.className = "layout-header clickable";
           rowHeader.textContent = row;
           rowHeader.dataset.rowIndex = String(rowIndex);
           rowHeader.title = `Toggle row ${row}`;
@@ -977,7 +995,7 @@
 
           COLS.forEach((col, colIndex) => {
             const cell = document.createElement("div");
-            cell.className = "layout-cell well-btn";
+            cell.className = "layout-cell";
             const { left, top: cellTop } = wellPosition(rowIndex, colIndex, dims);
             cell.style.width = `${dims.cell}px`;
             cell.style.height = `${dims.cell}px`;
