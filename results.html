@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Saved Results - PlatePack</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        background: #f3f4f6;
+      }
+      body {
+        margin: 0;
+        padding: clamp(1.5rem, 4vw, 3rem);
+        color: #0f172a;
+      }
+      header {
+        max-width: 1100px;
+        margin: 0 auto 1.25rem;
+        display: grid;
+        gap: 0.5rem;
+      }
+      h1 {
+        margin: 0;
+        font-size: clamp(1.6rem, 2.4vw, 2.1rem);
+      }
+      .muted {
+        margin: 0;
+        color: #64748b;
+        line-height: 1.4;
+      }
+      .toolbar {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .btn {
+        border: none;
+        border-radius: 12px;
+        padding: 0.7rem 1rem;
+        font-weight: 700;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #dbeafe;
+        color: #1e293b;
+      }
+      .btn.secondary {
+        background: #e2e8f0;
+      }
+      .btn.danger {
+        background: #fee2e2;
+        color: #7f1d1d;
+      }
+      .panel {
+        max-width: 1100px;
+        margin: 0 auto;
+        background: #fff;
+        border-radius: 18px;
+        border: 1px solid #e6eefc;
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+        padding: 1rem;
+      }
+      .grid {
+        display: grid;
+        gap: 1rem;
+      }
+      @media (min-width: 720px) {
+        .grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+      @media (min-width: 1040px) {
+        .grid {
+          grid-template-columns: repeat(3, 1fr);
+        }
+      }
+      .item {
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        overflow: hidden;
+        display: grid;
+        background: #fff;
+      }
+      .thumb {
+        width: 100%;
+        aspect-ratio: 1 / 1;
+        object-fit: contain;
+        background: #f8fafc;
+      }
+      .meta {
+        padding: 0.75rem 0.8rem;
+        display: grid;
+        gap: 0.4rem;
+      }
+      .title {
+        font-weight: 800;
+        color: #0f172a;
+        font-size: 0.95rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .sub {
+        color: #64748b;
+        font-size: 0.85rem;
+      }
+      .actions {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        margin-top: 0.25rem;
+      }
+      .empty {
+        color: #64748b;
+        padding: 1rem;
+      }
+      code {
+        background: #eef2ff;
+        padding: 0.05rem 0.3rem;
+        border-radius: 6px;
+        font-size: 0.95em;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>保存した結果</h1>
+      <p class="muted">
+        <code>PlatesPacker</code> で <code>Download PNG</code> を押すと、このページに保存されます（ブラウザ内保存）。
+      </p>
+      <div class="toolbar">
+        <a class="btn secondary" href="/">ホームへ</a>
+        <a class="btn" href="/plates">PlatesPackerへ</a>
+        <button type="button" class="btn danger" id="clearAllBtn">全削除</button>
+      </div>
+    </header>
+
+    <main class="panel">
+      <div id="list" class="grid"></div>
+      <div id="empty" class="empty" style="display:none;">保存されたPNGがありません。</div>
+    </main>
+
+    <script>
+      const STORAGE_KEY = "platepack_saved_pngs_v1";
+      const listEl = document.getElementById("list");
+      const emptyEl = document.getElementById("empty");
+      const clearAllBtn = document.getElementById("clearAllBtn");
+
+      function readItems() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return [];
+          const parsed = JSON.parse(raw);
+          return Array.isArray(parsed) ? parsed : [];
+        } catch {
+          return [];
+        }
+      }
+
+      function writeItems(items) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+      }
+
+      function formatDate(iso) {
+        try {
+          const d = new Date(iso);
+          if (Number.isNaN(d.getTime())) return iso;
+          return d.toLocaleString();
+        } catch {
+          return iso;
+        }
+      }
+
+      function downloadDataUrl(filename, dataUrl) {
+        const link = document.createElement("a");
+        link.href = dataUrl;
+        link.download = filename || "packed.png";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      }
+
+      function removeItem(id) {
+        const items = readItems().filter((x) => x && x.id !== id);
+        writeItems(items);
+        render();
+      }
+
+      function render() {
+        const items = readItems();
+        listEl.innerHTML = "";
+        emptyEl.style.display = items.length ? "none" : "block";
+        if (!items.length) return;
+
+        items.forEach((item) => {
+          const card = document.createElement("div");
+          card.className = "item";
+
+          const img = document.createElement("img");
+          img.className = "thumb";
+          img.alt = item?.title || "packed";
+          img.src = item?.dataUrl || "";
+
+          const meta = document.createElement("div");
+          meta.className = "meta";
+
+          const title = document.createElement("div");
+          title.className = "title";
+          title.textContent = item?.title || "Packed Plate";
+
+          const sub = document.createElement("div");
+          sub.className = "sub";
+          sub.textContent = item?.createdAt ? formatDate(item.createdAt) : "";
+
+          const actions = document.createElement("div");
+          actions.className = "actions";
+
+          const dl = document.createElement("button");
+          dl.type = "button";
+          dl.className = "btn";
+          dl.textContent = "Download PNG";
+          dl.addEventListener("click", () => downloadDataUrl(item?.filename, item?.dataUrl));
+
+          const del = document.createElement("button");
+          del.type = "button";
+          del.className = "btn danger";
+          del.textContent = "削除";
+          del.addEventListener("click", () => removeItem(item?.id));
+
+          actions.appendChild(dl);
+          actions.appendChild(del);
+
+          meta.appendChild(title);
+          meta.appendChild(sub);
+          meta.appendChild(actions);
+
+          card.appendChild(img);
+          card.appendChild(meta);
+          listEl.appendChild(card);
+        });
+      }
+
+      clearAllBtn.addEventListener("click", () => {
+        if (!confirm("保存したPNGをすべて削除します。よろしいですか？")) return;
+        writeItems([]);
+        render();
+      });
+
+      render();
+    </script>
+  </body>
+</html>
+

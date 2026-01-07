@@ -16,14 +16,32 @@ app = FastAPI(
 )
 
 INDEX_PATH = Path("index.html")
+PLATES_PATH = Path("plates.html")
+RESULTS_PATH = Path("results.html")
 
 
 @app.get("/", response_class=HTMLResponse)
 def serve_index() -> HTMLResponse:
-    """Return the interactive console page."""
+    """Return the home page."""
     if not INDEX_PATH.exists():
         raise HTTPException(status_code=404, detail="index.html not found.")
     return HTMLResponse(INDEX_PATH.read_text(encoding="utf-8"))
+
+
+@app.get("/plates", response_class=HTMLResponse)
+def serve_plates() -> HTMLResponse:
+    """Return the PlatePacker page."""
+    if not PLATES_PATH.exists():
+        raise HTTPException(status_code=404, detail="plates.html not found.")
+    return HTMLResponse(PLATES_PATH.read_text(encoding="utf-8"))
+
+
+@app.get("/results", response_class=HTMLResponse)
+def serve_results() -> HTMLResponse:
+    """Return the saved results page."""
+    if not RESULTS_PATH.exists():
+        raise HTTPException(status_code=404, detail="results.html not found.")
+    return HTMLResponse(RESULTS_PATH.read_text(encoding="utf-8"))
 
 
 @app.post("/generate-html", response_class=Response)
