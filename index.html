@@ -781,14 +781,15 @@
 
       <section class="panel">
         <div class="packed-section">
-          <div class="packed-header">
-            <div class="packed-info" id="packedSummary">Packed Plate 0 of 0</div>
-            <div class="packed-controls">
-              <button type="button" class="ghost" id="prevPackedBtn" disabled>Previous</button>
-            <button type="button" class="ghost" id="nextPackedBtn" disabled>Next</button>
-            <button type="button" class="success" id="tsvBtn" disabled>Download TSV</button>
-            </div>
-          </div>
+	          <div class="packed-header">
+	            <div class="packed-info" id="packedSummary">Packed Plate 0 of 0</div>
+	            <div class="packed-controls">
+	              <button type="button" class="ghost" id="prevPackedBtn" disabled>Previous</button>
+	            <button type="button" class="ghost" id="nextPackedBtn" disabled>Next</button>
+	            <button type="button" class="success" id="tsvBtn" disabled>Download TSV</button>
+	            <button type="button" class="success" id="pngBtn" disabled>Download PNG</button>
+	            </div>
+	          </div>
           <div class="packed-panel-box">
             <div class="packed-grid" id="packedGrid">
               <p class="muted">まだパッキング結果はありません。</p>
@@ -851,6 +852,7 @@
       const prevPackedBtn = document.getElementById("prevPackedBtn");
       const nextPackedBtn = document.getElementById("nextPackedBtn");
       const tsvBtn = document.getElementById("tsvBtn");
+      const pngBtn = document.getElementById("pngBtn");
       const plateMemoInput = document.getElementById("plateMemo");
       const layoutContainer = document.getElementById("layoutContainer");
       const layoutGrid = document.getElementById("layoutGrid");
@@ -1508,6 +1510,7 @@
           prevPackedBtn.disabled = true;
           nextPackedBtn.disabled = true;
           tsvBtn.disabled = true;
+          if (pngBtn) pngBtn.disabled = true;
           return;
         }
         const plate = packedPlates[currentPackedIndex];
@@ -1572,6 +1575,7 @@
         prevPackedBtn.disabled = currentPackedIndex === 0;
         nextPackedBtn.disabled = currentPackedIndex >= packedPlates.length - 1;
         tsvBtn.disabled = false;
+        if (pngBtn) pngBtn.disabled = false;
       }
 
       function applyBordersForRegion(matrix, rowHeaders, columnHeaders, gridData, thickWidth = 2) {
@@ -1730,6 +1734,136 @@
         URL.revokeObjectURL(url);
       }
 
+      function exportPackedPng() {
+        if (!packedPlates.length) {
+          setStatus("パックされたプレートがありません。", true);
+          return;
+        }
+        setStatus("");
+        const plate = packedPlates[currentPackedIndex];
+        const destColumns = plate.columns && plate.columns.length ? plate.columns : COLS;
+        const rows = ROWS.length;
+        const cols = destColumns.length;
+
+        const table = packedGrid.querySelector(".packed-table");
+        const sampleTd = table?.querySelector("tbody td");
+        const headerCorner = table?.querySelector("thead th:first-child");
+        const headerTh = table?.querySelector("thead th");
+        const cellSize = sampleTd ? Math.round(sampleTd.getBoundingClientRect().width) : 50;
+        const headerH = headerTh ? Math.round(headerTh.getBoundingClientRect().height) : 22;
+        const headerW = headerCorner ? Math.round(headerCorner.getBoundingClientRect().width) : headerH;
+
+        const width = headerW + cols * cellSize;
+        const height = headerH + rows * cellSize;
+        const dpr = window.devicePixelRatio || 1;
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(width * dpr);
+        canvas.height = Math.round(height * dpr);
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          setStatus("PNGの生成に失敗しました。", true);
+          return;
+        }
+        ctx.scale(dpr, dpr);
+
+        const border = "#d5deff";
+        const headerBg = "#e5ecf6";
+        const rowHeaderBg = "#e9f0fa";
+        const textColor = "#475569";
+
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, width, height);
+
+        ctx.fillStyle = headerBg;
+        ctx.fillRect(0, 0, headerW, headerH);
+
+        ctx.font = `600 ${Math.max(10, Math.round(headerH * 0.55))}px system-ui, -apple-system, Segoe UI, Roboto, sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillStyle = textColor;
+        destColumns.forEach((col, idx) => {
+          const x = headerW + idx * cellSize;
+          ctx.fillStyle = headerBg;
+          ctx.fillRect(x, 0, cellSize, headerH);
+          ctx.fillStyle = textColor;
+          ctx.fillText(String(col), x + cellSize / 2, headerH / 2);
+        });
+
+        ROWS.forEach((rowLabel, r) => {
+          const y = headerH + r * cellSize;
+          ctx.fillStyle = rowHeaderBg;
+          ctx.fillRect(0, y, headerW, cellSize);
+          ctx.fillStyle = textColor;
+          ctx.fillText(String(rowLabel), headerW / 2, y + cellSize / 2);
+
+          destColumns.forEach((col, c) => {
+            const x = headerW + c * cellSize;
+            const cellData = plate.grid[r]?.[c] || null;
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(x, y, cellSize, cellSize);
+            if (cellData) {
+              const fill = cellData.color || sourceColorMap.get(cellData.sourcePlate) || "#dbeafe";
+              ctx.fillStyle = fill;
+              ctx.fillRect(x, y, cellSize, cellSize);
+
+              const label = `${cellData.sourcePlate}-${formatWellDisplay(cellData.sourceWell)}`;
+              ctx.save();
+              ctx.beginPath();
+              ctx.rect(x, y, cellSize, cellSize);
+              ctx.clip();
+              ctx.fillStyle = "#1f2937";
+              ctx.font = `600 ${Math.max(9, Math.round(cellSize * 0.22))}px system-ui, -apple-system, Segoe UI, Roboto, sans-serif`;
+              ctx.fillText(label, x + cellSize / 2, y + cellSize / 2);
+              ctx.restore();
+            }
+          });
+        });
+
+        ctx.strokeStyle = border;
+        ctx.lineWidth = 1;
+        for (let c = 0; c <= cols; c += 1) {
+          const x = headerW + c * cellSize;
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, height);
+          ctx.stroke();
+        }
+        for (let r = 0; r <= rows; r += 1) {
+          const y = headerH + r * cellSize;
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(width, y);
+          ctx.stroke();
+        }
+        ctx.beginPath();
+        ctx.moveTo(0, headerH);
+        ctx.lineTo(width, headerH);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(headerW, 0);
+        ctx.lineTo(headerW, height);
+        ctx.stroke();
+        ctx.strokeRect(0, 0, width, height);
+
+        const filenameBase = (plate.id || `packed_${currentPackedIndex + 1}`).replace(/[^a-zA-Z0-9_-]+/g, "_");
+        canvas.toBlob((blob) => {
+          if (!blob) {
+            setStatus("PNGの生成に失敗しました。", true);
+            return;
+          }
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = `${filenameBase}.png`;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          URL.revokeObjectURL(url);
+        }, "image/png");
+      }
+
       // Event bindings
       plateCountSelect.addEventListener("change", (e) => {
         const value = e.target.value;
@@ -1775,6 +1909,7 @@
         renderPacked();
       });
       tsvBtn.addEventListener("click", exportPackedTsv);
+      if (pngBtn) pngBtn.addEventListener("click", exportPackedPng);
       plateMemoInput.addEventListener("input", (e) => {
         const plate = getCurrentPlate();
         plate.memo = e.target.value;
