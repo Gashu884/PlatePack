@@ -40,11 +40,12 @@
         gap: 1.8rem;
       }
       .panel {
-        background: #fff;
+        background: #f8fafc; /* neutral subtle background */
         border-radius: 22px;
         box-shadow: 0 28px 60px rgba(15, 23, 42, 0.1);
         padding: clamp(1.4rem, 3vw, 2.1rem);
       }
+      /* Removed boxed wrappers for input/output; frames eliminated per user request */
       .toolbar {
         display: flex;
         flex-wrap: wrap;
@@ -67,21 +68,36 @@
         font-weight: 600;
         margin-right: 0.4rem;
       }
-      /* Plate count label in the first split */
+      /* Plate count label in the toolbar and input split */
+      .toolbar .controls label[for="plateCount"],
       .split-input .controls label[for="plateCount"] {
-        font-size: 2.0rem; /* 必要に応じて調整してください */
+        font-size: 30px !important; /* enforced size */
+        display: inline-block;
+        line-height: 1;
+      }
+
+      /* Plate count control sizes (select and adjacent buttons) */
+      .toolbar .controls #plateCount,
+      .toolbar .controls button {
+        height: 30px !important;
+        min-height: 30px !important;
+        padding: 0 0.6rem !important;
+        line-height: 30px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        font-size: 18px;
       }
       button {
         border: none;
         border-radius: 0; /* make buttons rectangular */
         padding: 0.7rem 1.2rem;
         font-weight: 600;
-        font-size: 0.94rem;
+        font-size: 15px;
         cursor: pointer;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        gap: 1rem;
+        gap: 0rem;
         transition: transform 0.12s ease, box-shadow 0.12s ease;
         box-shadow: none;
       }
@@ -303,6 +319,16 @@
       .packed-grid {
         width: 100%;
       }
+      /* Packed output boxed area: white background to group packed plates */
+      .packed-panel-box {
+        border: 1px solid #fff; /* slightly stronger border for visibility */
+        padding: 0.8rem;
+        border-radius: 8px;
+        background: #fff;
+        margin-top: 0.6rem;
+        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+        display: block;
+      }
       .packed-table {
         border-collapse: collapse;
         border-spacing: 0;
@@ -458,6 +484,54 @@
         overflow: hidden;
         font-size: 0.82rem;
       }
+      /* Make output layout visually match the input: rounded rectangular background */
+      .split-output .layout-container {
+        background: transparent; /* remove the special blue background for output plates */
+        border-radius: 16px;
+        padding: 0.45rem;
+      }
+      /* Style output layout headers/cells to match input plate visuals */
+      .split-output .layout-container .layout-header {
+        background: #e7ecf3; /* same as .header-btn */
+        color: #1e3a8a;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: none;
+      }
+      .split-output .layout-container .layout-header.clickable:hover {
+        background: #dfe7f2;
+        cursor: pointer;
+      }
+      .split-output .layout-container .layout-cell {
+        background: #eef1f5; /* same as .well-btn */
+        color: #1f2937;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 0;
+        box-shadow: none;
+      }
+      .split-output .layout-container .layout-cell:hover {
+        background: #e6eef7;
+        cursor: pointer;
+      }
+      /* Keep the row/col dash indicators (framework borders) visible but subtle */
+      .split-output .layout-container .row-dash,
+      .split-output .layout-container .col-dash {
+        display: block !important;
+        opacity: 0.5; /* slightly softer than the original */
+      }
+      /* Output panel boxed area: white background behind controls and pack button */
+      .output-panel-box {
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 0.8rem;
+        border: 1px solid #e6eefc;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+        margin-top: 0.6rem;
+      }
       .layout-cell,
       .layout-header {
         position: absolute;
@@ -491,24 +565,31 @@
         cursor: pointer;
         opacity: 0.8;
         transition: opacity 0.12s ease, transform 0.1s ease;
+        z-index: 2; /* keep between headers and wells */
       }
       .divider-btn:hover {
         opacity: 1;
         transform: scale(1.02);
       }
       .divider-btn.vertical {
-        width: 8px;
+        width: 6px; /* slightly narrower to avoid overlapping */
         background: #fecdd3;
       }
       .divider-btn.vertical.active {
         background: #ef4444;
       }
       .divider-btn.horizontal {
-        height: 8px;
+        height: 6px; /* slightly thinner */
         background: #dbeafe;
       }
       .divider-btn.horizontal.active {
         background: #3b82f6;
+      }
+      /* Ensure headers and cells are on top and clickable */
+      .split-output .layout-container .layout-header,
+      .split-output .layout-container .layout-cell {
+        z-index: 3;
+        pointer-events: auto;
       }
       .layout-side {
         display: grid;
@@ -577,7 +658,9 @@
         </div>
         </div>
 
-        <div class="plate-summary" id="plateSummary">Plate 1 — 0 wells selected · Plate 1 of 1</div>
+        <div class="split-gap" aria-hidden="true"></div>
+
+          <div class="plate-summary" id="plateSummary">Plate 1 — 0 wells selected · Plate 1 of 1</div>
         <span id="plateTitle" style="display:none;"></span>
         <div class="title-row" style="margin-top:0;"></div>
 
@@ -611,22 +694,26 @@
             </div>
           </div>
         </div>
+        </div>
 
         <div class="split-gap" aria-hidden="true"></div>
 
         <div class="split split-output">
           <div class="split-inner output-stack">
-            <div class="layout-controls">
-              <span class="label">出力レイアウト</span>
-              <button type="button" class="ghost" id="directionBtn">横方向→</button>
-              <button type="button" class="accent-btn" id="layoutClearBtn">Clear</button>
-            </div>
-            <div class="layout-side">
-              <div class="layout-container" id="layoutContainer">
-                <div id="layoutGrid"></div>
+            <div class="output-panel-box">
+	              <div class="layout-controls">
+	                <span class="label">出力レイアウト</span>
+	                <button type="button" class="ghost" id="directionBtn">横方向→</button>
+	                <div style="flex:1 1 auto"></div>
+	                <button type="button" class="accent-btn" id="layoutClearBtn">Clear</button>
+	              </div>
+              <div class="layout-side">
+                <div class="layout-container" id="layoutContainer">
+                  <div id="layoutGrid"></div>
+                </div>
               </div>
             </div>
-            <div class="pack-bar">
+            <div class="pack-bar" style="margin-top:0.6rem;">
               <button type="button" class="primary" id="packLayoutBtn">Packing</button>
             </div>
           </div>
@@ -645,8 +732,10 @@
             <button type="button" class="success" id="tsvBtn" disabled>Download TSV</button>
             </div>
           </div>
-          <div class="packed-grid" id="packedGrid">
-            <p class="muted">まだパッキング結果はありません。</p>
+          <div class="packed-panel-box">
+            <div class="packed-grid" id="packedGrid">
+              <p class="muted">まだパッキング結果はありません。</p>
+            </div>
           </div>
         </div>
       </section>
@@ -858,7 +947,7 @@
         // column headers
         COLS.forEach((col, colIndex) => {
           const header = document.createElement("div");
-          header.className = "layout-header clickable";
+          header.className = "layout-header clickable header-btn";
           header.textContent = col;
           header.dataset.colIndex = String(colIndex);
           header.title = `Toggle column ${col}`;
@@ -874,7 +963,7 @@
         // row headers + cells
         ROWS.forEach((row, rowIndex) => {
           const rowHeader = document.createElement("div");
-          rowHeader.className = "layout-header clickable";
+          rowHeader.className = "layout-header clickable header-btn row";
           rowHeader.textContent = row;
           rowHeader.dataset.rowIndex = String(rowIndex);
           rowHeader.title = `Toggle row ${row}`;
@@ -888,7 +977,7 @@
 
           COLS.forEach((col, colIndex) => {
             const cell = document.createElement("div");
-            cell.className = "layout-cell";
+            cell.className = "layout-cell well-btn";
             const { left, top: cellTop } = wellPosition(rowIndex, colIndex, dims);
             cell.style.width = `${dims.cell}px`;
             cell.style.height = `${dims.cell}px`;
@@ -921,11 +1010,13 @@
           const btn = document.createElement("div");
           btn.className = "divider-btn vertical";
           if (verticalDividers.has(i)) btn.classList.add("active");
-          btn.style.height = `${dims.height}px`;
-          btn.style.left = `${dims.header + i * dims.cell + (i - 1) * dims.gap + dims.gap / 2 - 4}px`;
-          btn.style.top = "0px";
+          // place vertical divider only across the cell body (not the top header row)
+          btn.style.top = `${dims.header}px`;
+          btn.style.height = `${Math.max(0, dims.height - dims.header)}px`;
+          btn.style.left = `${dims.header + i * dims.cell + (i - 1) * dims.gap + dims.gap / 2 - 3}px`;
           btn.title = `列 ${i}/${i + 1} の間`;
-          btn.addEventListener("click", () => {
+          btn.addEventListener("click", (ev) => {
+            ev.stopPropagation();
             if (verticalDividers.has(i)) verticalDividers.delete(i);
             else verticalDividers.add(i);
             renderLayoutGrid();
@@ -937,11 +1028,13 @@
           const btn = document.createElement("div");
           btn.className = "divider-btn horizontal";
           if (horizontalDividers.has(j)) btn.classList.add("active");
-          btn.style.width = `${dims.width}px`;
-          btn.style.top = `${dims.header + j * dims.cell + (j - 1) * dims.gap + dims.gap / 2 - 4}px`;
-          btn.style.left = "0px";
+          // place horizontal divider only across the cell body (not the left header column)
+          btn.style.left = `${dims.header}px`;
+          btn.style.width = `${Math.max(0, dims.width - dims.header)}px`;
+          btn.style.top = `${dims.header + j * dims.cell + (j - 1) * dims.gap + dims.gap / 2 - 3}px`;
           btn.title = `行 ${ROWS[j - 1]}/${ROWS[j]} の間`;
-          btn.addEventListener("click", () => {
+          btn.addEventListener("click", (ev) => {
+            ev.stopPropagation();
             if (horizontalDividers.has(j)) horizontalDividers.delete(j);
             else horizontalDividers.add(j);
             renderLayoutGrid();
