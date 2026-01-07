@@ -669,16 +669,17 @@
               <span class="label">入力レイアウト</span>
             </div>
 
-            <div class="input-controls-row" style="width: var(--input-grid-width); display:flex; justify-content:space-between; align-items:center; margin:0.25rem 0 0.4rem;">
-              <div class="input-controls-left" style="display:flex; gap:0.5rem; align-items:center;">
-                <button type="button" class="ghost" id="prevPlateBtn">Previous</button>
-                <button type="button" class="ghost" id="nextPlateBtn">Next</button>
-              </div>
-              <div class="input-controls-right" style="display:flex; gap:0.5rem; align-items:center;">
-                <button type="button" class="ghost" id="inputDirectionBtn">読み方向：→</button>
-                <button type="button" class="accent-btn" id="clearPlateBtn">Clear</button>
-              </div>
-            </div>
+	            <div class="input-controls-row" style="width: var(--input-grid-width); display:flex; justify-content:space-between; align-items:center; margin:0.25rem 0 0.4rem;">
+	              <div class="input-controls-left" style="display:flex; gap:0.5rem; align-items:center;">
+	                <button type="button" class="ghost" id="prevPlateBtn">Previous</button>
+	                <button type="button" class="ghost" id="nextPlateBtn">Next</button>
+	              </div>
+	              <div class="input-controls-right" style="display:flex; gap:0.5rem; align-items:center;">
+	                <button type="button" class="ghost" id="wellLabelBtn">1A</button>
+	                <button type="button" class="ghost" id="inputDirectionBtn">読み方向：→</button>
+	                <button type="button" class="accent-btn" id="clearPlateBtn">Clear</button>
+	              </div>
+	            </div>
             <div class="input-layout">
               <div class="input-grid">
                 <div class="column-header" id="columnHeader"></div>
@@ -780,6 +781,9 @@
       const directionBtn = document.getElementById("directionBtn");
       const inputDirectionBtn = document.getElementById("inputDirectionBtn");
       const layoutClearBtn = document.getElementById("layoutClearBtn");
+      const wellLabelBtn = document.getElementById("wellLabelBtn");
+
+      let wellLabelMode = "colRow"; // "colRow" => 1A, "rowCol" => A1
 
       function createPlate(index) {
         return { label: `Plate ${index}`, wells: new Set(), memo: "" };
@@ -793,6 +797,12 @@
         const match = well.match(/^([A-H])(\d{1,2})$/);
         if (!match) return null;
         return { row: match[1], col: Number(match[2]) };
+      }
+
+      function formatWellLabel(well) {
+        const parsed = parseWell(well);
+        if (!parsed) return well;
+        return wellLabelMode === "rowCol" ? `${parsed.row}${parsed.col}` : `${parsed.col}${parsed.row}`;
       }
 
       function resizePlateCount(count) {
@@ -850,7 +860,7 @@
             btn.type = "button";
             btn.className = "well-btn";
             btn.dataset.well = wellId;
-            btn.textContent = `${col}${row}`;
+            btn.textContent = formatWellLabel(wellId);
             btn.addEventListener("click", () => toggleWell(wellId));
             rowDiv.appendChild(btn);
           });
@@ -883,6 +893,17 @@
         if (inputDirectionBtn) {
           inputDirectionBtn.textContent = inputReadDirection === "row" ? "読み方向：→" : "読み方向：↓";
         }
+        if (wellLabelBtn) {
+          wellLabelBtn.textContent = wellLabelMode === "rowCol" ? "A1" : "1A";
+        }
+      }
+
+      function toggleWellLabelMode() {
+        wellLabelMode = wellLabelMode === "rowCol" ? "colRow" : "rowCol";
+        updateLayoutButtons();
+        renderGridStructure();
+        renderPlate();
+        renderPacked();
       }
 
       function clearLayoutSettings() {
@@ -1365,9 +1386,7 @@
       }
 
       function formatWellDisplay(well) {
-        const parsed = parseWell(well);
-        if (!parsed) return well;
-        return `${parsed.col}${parsed.row}`;
+        return formatWellLabel(well);
       }
       function buildMemoPanel() {
         const wrapper = document.createElement("div");
@@ -1688,6 +1707,9 @@
       directionBtn.addEventListener("click", toggleDirection);
       inputDirectionBtn.addEventListener("click", toggleInputDirection);
       layoutClearBtn.addEventListener("click", clearLayoutSettings);
+      if (wellLabelBtn) {
+        wellLabelBtn.addEventListener("click", toggleWellLabelMode);
+      }
 
       // Initial render
       renderGridStructure();
