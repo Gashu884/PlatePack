@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -11,7 +12,17 @@ from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
 
-DB_PATH = Path("platepack.db")
+def _default_db_path() -> Path:
+    configured = os.getenv("PLATEPACK_DB_PATH")
+    if configured:
+        return Path(configured)
+    # Vercel serverless filesystem is read-only except /tmp.
+    if os.getenv("VERCEL"):
+        return Path("/tmp/platepack.db")
+    return Path("platepack.db")
+
+
+DB_PATH = _default_db_path()
 
 
 @dataclass(frozen=True)
@@ -31,24 +42,30 @@ def _now_iso() -> str:
 
 
 def _connect() -> sqlite3.Connection:
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
 
 
-def init_db() -> None:
-    with _connect() as conn:
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS logs (
-              id TEXT PRIMARY KEY,
-              name TEXT NOT NULL,
-              created_at TEXT NOT NULL,
-              payload_json TEXT NOT NULL
+def init_db() -> bool:
+    try:
+        with _connect() as conn:
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS logs (
+                  id TEXT PRIMARY KEY,
+                  name TEXT NOT NULL,
+                  created_at TEXT NOT NULL,
+                  payload_json TEXT NOT NULL
+                )
+                """
             )
-            """
-        )
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_logs_created_at ON logs(created_at)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_logs_created_at ON logs(created_at)")
+        return True
+    except sqlite3.Error:
+        # Allow app to run even when persistence is unavailable (e.g. read-only FS).
+        return False
 
 
 def create_log(name: str, payload: Dict[str, Any]) -> LogSummary:
@@ -95,4 +112,3 @@ def delete_log(log_id: str) -> bool:
     with _connect() as conn:
         cur = conn.execute("DELETE FROM logs WHERE id = ?", (log_id,))
     return cur.rowcount > 0
-
