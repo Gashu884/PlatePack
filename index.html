@@ -175,16 +175,14 @@
           grid-template-columns: auto minmax(230px, 320px);
         }
       }
-..input-grid {
+.input-grid {
   width: 100%;
   max-width: var(--input-grid-width);
-  background: #fff;
-  border-radius: 12px;
-  padding: 0.6rem;
-  height: auto;
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+  height: 100%;
   margin: 0;
-  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
-  border: 1px solid rgba(213, 222, 255, 0.6);
 }
       .column-header,
       .well-row {
@@ -199,31 +197,22 @@
       .corner-cell {
         width: var(--row-header);
         height: var(--cell-size);
-        background: #eef1f5;
-        border: 1px solid #d5deff;
-        display: flex;
-        align-items: center;
-        justify-content: center;
       }
       .header-btn {
         border-radius: 0;
         border: none;
-        background: #e5ecf6; /* packed table header color */
+        background: #e7ecf3;
         font-weight: 600;
-        color: #475569;
+        color: #1e3a8a;
         font-size: 0.8rem;
-        padding: 0;
+        padding: 0.18rem 0.25rem;
         cursor: pointer;
         transition: background 0.12s ease, box-shadow 0.12s ease;
         width: 100%;
-        height: var(--cell-size);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border: 1px solid #d5deff;
+        height: calc(var(--cell-size) * 0.5);
       }
       .header-btn.row {
-        background: #e9f0fa;
+        background: #e7ecf3;
         color: #475569;
         width: var(--row-header);
         height: var(--cell-size);
@@ -240,12 +229,12 @@
         row-gap: var(--gap);
       }
 .well-btn {
-  border-radius: 0;
-  border: 1px solid #d5deff;
-  background: transparent;
+  border-radius: 6px;
+  border: none;
+  background: #eef1f5;
   font-size: 0.9rem;
-  width: 50px; /* match packed cell */
-  height: 50px; /* match packed cell */
+  width: var(--cell-size);
+  height: var(--cell-size);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -257,32 +246,21 @@
   border: none;
   box-shadow: none;
 }
-/* Layout container: make header/cell visuals match packed table */
       .layout-container {
         position: relative;
-        background: #fff;
-        border-radius: 12px;
-        padding: 0.6rem;
+        background: #f4f6fb;
+        border-radius: 16px;
+        padding: 0.45rem;
         width: 100%;
         max-width: var(--input-grid-width);
         justify-self: start;
         height: 100%;
         margin: 0;
-        overflow: auto;
+        overflow: hidden;
         font-size: 0.82rem;
-        box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
-        border: 1px solid rgba(213, 222, 255, 0.6);
       }
       .layout-header {
-        background: #e5ecf6;
-        border: 1px solid #d5deff;
-        color: #475569;
-      }
-      .layout-cell {
-        border: 1px solid #d5deff;
-        background: #fff;
-        box-sizing: border-box;
-        border-radius: 0;
+        background: #dfe7f2;
       }
 .pack-bar {
   display: flex;
