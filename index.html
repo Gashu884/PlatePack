@@ -10,7 +10,8 @@
         font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
         background: #f3f4f6;
         --cell-size: 48px;
-        --row-header: 13px;
+        --column-header-height: calc(var(--cell-size) * 0.5); /* 列名の縦幅 */
+        --row-header: var(--column-header-height); /* 行名の横幅を列名の高さと一致 */
         --gap: 0.14rem;
         --layout-scale: 1; /* 入力と同倍率で描画 */
         --input-grid-width: calc(var(--row-header) + 12 * var(--cell-size) + 11 * var(--gap));
@@ -72,7 +73,7 @@
       }
       button {
         border: none;
-        border-radius: 12px;
+        border-radius: 0; /* make buttons rectangular */
         padding: 0.7rem 1.2rem;
         font-weight: 600;
         font-size: 0.94rem;
@@ -229,7 +230,7 @@
         row-gap: var(--gap);
       }
 .well-btn {
-  border-radius: 6px;
+  border-radius: 0; /* rectangular wells/buttons */
   border: none;
   background: #eef1f5;
   font-size: 0.9rem;
@@ -446,9 +447,9 @@
       }
       .layout-container {
         position: relative;
-        background: #f4f6fb;
-        border-radius: 16px;
-        padding: 0.45rem;
+        background: transparent; /* 入力プレートと同じ見た目にするため透明に */
+        border-radius: 0;
+        padding: 0;
         width: 100%;
         max-width: var(--input-grid-width);
         justify-self: start;
@@ -465,19 +466,21 @@
         justify-content: center;
         font-weight: 600;
         color: #1e293b;
-        background: #eef1f5;
-        border-radius: 6px;
+        background: #eef1f5; /* 入力側のウェル色に合わせる */
+        border-radius: 0; /* 四角にする */
         user-select: none;
+        border: none;
       }
       .layout-header {
-        background: #dfe7f2;
+        background: #e7ecf3; /* 入力側のヘッダー色に合わせる */
+        color: #1e3a8a;
       }
       .layout-header.clickable {
         cursor: pointer;
       }
       .layout-header.selected {
-        background: linear-gradient(180deg,#bfdbfe,#dbeafe);
-        box-shadow: inset 0 0 0 2px rgba(59,130,246,0.12);
+        background: #dfe7f2; /* 選択時の色は控えめに */
+        box-shadow: none;
       }
       .layout-cell.blocked {
         background: #0f172a;
@@ -516,18 +519,27 @@
       }
       .memo-field {
         margin: 0;
-        display: grid;
-        gap: 0.35rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .memo-field label {
+        margin: 0;
+        font-weight: 600;
+        color: #1e293b;
+        white-space: nowrap;
       }
       .memo-field textarea {
         width: 100%;
-        min-height: 54px;
+        height: var(--pack-bar-height);
+        min-height: var(--pack-bar-height);
         border: none;
-        border-radius: 12px;
-        padding: 0.55rem 0.75rem;
+        border-radius: 8px;
+        padding: 0 0.75rem;
         font-family: inherit;
         background: #eef1f5;
-        resize: vertical;
+        resize: none;
+        box-sizing: border-box;
       }
       .memo-hint {
         color: #94a3b8;
@@ -572,22 +584,29 @@
         <div class="split split-input">
           <div class="split-inner input-stack">
             <div class="layout-controls">
-              <span class="label">ウェル入力</span>
-              <button type="button" class="ghost" id="inputDirectionBtn">入力読み方向: 横方向</button>
-              <button type="button" class="ghost" id="prevPlateBtn">Previous</button>
-              <button type="button" class="ghost" id="nextPlateBtn">Next</button>
-              <div style="width: 0.6rem;"></div>
-              <button type="button" class="accent-btn" id="clearPlateBtn">Clear</button>
+              <span class="label">入力レイアウト</span>
             </div>
-            <div class="memo-field" style="width: var(--input-grid-width);">
-              <label for="plateMemo">メモ</label>
-              <textarea id="plateMemo" placeholder="メモ記入欄"></textarea>
-              <div class="memo-hint">この入力プレートに関するメモを入力してください。</div>
+
+            <div class="input-controls-row" style="width: var(--input-grid-width); display:flex; justify-content:space-between; align-items:center; margin:0.25rem 0 0.4rem;">
+              <div class="input-controls-left" style="display:flex; gap:0.5rem; align-items:center;">
+                <button type="button" class="ghost" id="prevPlateBtn">Previous</button>
+                <button type="button" class="ghost" id="nextPlateBtn">Next</button>
+              </div>
+              <div class="input-controls-right" style="display:flex; gap:0.5rem; align-items:center;">
+                <button type="button" class="ghost" id="inputDirectionBtn">読み方向：→</button>
+                <button type="button" class="accent-btn" id="clearPlateBtn">Clear</button>
+              </div>
             </div>
             <div class="input-layout">
               <div class="input-grid">
                 <div class="column-header" id="columnHeader"></div>
                 <div id="wellGrid"></div>
+              </div>
+            </div>
+            <div class="memo-below" style="width: var(--input-grid-width); margin-top:0.6rem;">
+              <div class="memo-field" style="display:flex; align-items:center; gap:0.5rem;">
+                <label for="plateMemo">メモ</label>
+                <textarea id="plateMemo" placeholder="メモ記入欄"></textarea>
               </div>
             </div>
           </div>
@@ -771,10 +790,7 @@
           directionBtn.textContent = layoutDirection === "row" ? "横方向→" : "縦方向↓";
         }
         if (inputDirectionBtn) {
-          inputDirectionBtn.textContent =
-            inputReadDirection === "row"
-              ? "入力読み方向: 横方向"
-              : "入力読み方向: 縦方向";
+          inputDirectionBtn.textContent = inputReadDirection === "row" ? "読み方向：→" : "読み方向：↓";
         }
       }
 
