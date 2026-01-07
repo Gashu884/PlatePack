@@ -783,13 +783,15 @@
         <div class="packed-section">
 	          <div class="packed-header">
 	            <div class="packed-info" id="packedSummary">Packed Plate 0 of 0</div>
-	            <div class="packed-controls">
-	              <button type="button" class="ghost" id="prevPackedBtn" disabled>Previous</button>
-	            <button type="button" class="ghost" id="nextPackedBtn" disabled>Next</button>
-	            <button type="button" class="success" id="tsvBtn" disabled>Download TSV</button>
-	            <button type="button" class="success" id="pngBtn" disabled>Download PNG</button>
-	            </div>
-	          </div>
+		            <div class="packed-controls">
+		              <button type="button" class="ghost" id="prevPackedBtn" disabled>Previous</button>
+		            <button type="button" class="ghost" id="nextPackedBtn" disabled>Next</button>
+		            <button type="button" class="success" id="tsvBtn" disabled>Download TSV</button>
+		            <button type="button" class="success" id="pngBtn" disabled>Download PNG</button>
+		            <button type="button" class="success" id="saveLogBtn">Save Log</button>
+		            <a class="ghost" id="logsLink" href="/results" style="text-decoration:none; display:inline-flex; align-items:center; justify-content:center; height:30px; padding:0 0.6rem;">Logs</a>
+		            </div>
+		          </div>
           <div class="packed-panel-box">
             <div class="packed-grid" id="packedGrid">
               <p class="muted">まだパッキング結果はありません。</p>
@@ -853,6 +855,7 @@
       const nextPackedBtn = document.getElementById("nextPackedBtn");
       const tsvBtn = document.getElementById("tsvBtn");
       const pngBtn = document.getElementById("pngBtn");
+      const saveLogBtn = document.getElementById("saveLogBtn");
       const plateMemoInput = document.getElementById("plateMemo");
       const layoutContainer = document.getElementById("layoutContainer");
       const layoutGrid = document.getElementById("layoutGrid");
@@ -1889,6 +1892,89 @@
         }, "image/png");
       }
 
+      function buildLogSnapshot() {
+        return {
+          version: 1,
+          plates: plates.map((plate) => ({
+            label: plate.label,
+            memo: plate.memo || "",
+            wells: Array.from(plate.wells || []),
+          })),
+          currentPlateIndex,
+          inputReadDirection,
+          layoutDirection,
+          wellLabelMode,
+          blockedLayoutWells: Array.from(blockedLayoutWells),
+          verticalDividers: Array.from(verticalDividers),
+          horizontalDividers: Array.from(horizontalDividers),
+        };
+      }
+
+      function applyLogSnapshot(snapshot) {
+        const nextPlates = Array.isArray(snapshot?.plates) ? snapshot.plates : [];
+        plates = nextPlates.map((p, idx) => ({
+          label: p?.label || `Plate ${idx + 1}`,
+          memo: p?.memo || "",
+          wells: new Set(Array.isArray(p?.wells) ? p.wells : []),
+        }));
+        if (!plates.length) plates = [createPlate(1)];
+        currentPlateIndex = Math.max(0, Math.min(Number(snapshot?.currentPlateIndex) || 0, plates.length - 1));
+        inputReadDirection = snapshot?.inputReadDirection === "column" ? "column" : "row";
+        layoutDirection = snapshot?.layoutDirection === "column" ? "column" : "row";
+        wellLabelMode = snapshot?.wellLabelMode === "rowCol" ? "rowCol" : "colRow";
+        blockedLayoutWells = new Set(Array.isArray(snapshot?.blockedLayoutWells) ? snapshot.blockedLayoutWells : []);
+        verticalDividers = new Set(Array.isArray(snapshot?.verticalDividers) ? snapshot.verticalDividers : []);
+        horizontalDividers = new Set(Array.isArray(snapshot?.horizontalDividers) ? snapshot.horizontalDividers : []);
+
+        ensurePlateOption(plates.length);
+        plateCountSelect.value = String(plates.length);
+        renderGridStructure();
+        renderPlate();
+        updateLayoutButtons();
+        renderLayoutGrid();
+        setStatus("ログを読み込みました。");
+      }
+
+      async function saveLog() {
+        try {
+          const defaultName = `Log ${new Date().toLocaleString()}`;
+          const name = prompt("ログ名を入力してください:", defaultName);
+          if (!name) return;
+          setStatus("ログを保存中...");
+          const res = await fetch("/api/logs", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, payload: buildLogSnapshot() }),
+          });
+          const data = await res.json().catch(() => null);
+          if (!res.ok) {
+            setStatus(`ログ保存に失敗しました (${res.status})`, true);
+            return;
+          }
+          setStatus(`ログ保存しました: ${data?.name || name}`);
+        } catch (e) {
+          setStatus("ログ保存に失敗しました。", true);
+        }
+      }
+
+      async function loadLogFromQuery() {
+        const params = new URLSearchParams(window.location.search);
+        const logId = params.get("log");
+        if (!logId) return;
+        try {
+          setStatus("ログを読み込み中...");
+          const res = await fetch(`/api/logs/${encodeURIComponent(logId)}`);
+          const data = await res.json();
+          if (!res.ok || !data?.payload) {
+            setStatus(`ログ読み込みに失敗しました (${res.status})`, true);
+            return;
+          }
+          applyLogSnapshot(data.payload);
+        } catch {
+          setStatus("ログ読み込みに失敗しました。", true);
+        }
+      }
+
       // Event bindings
       plateCountSelect.addEventListener("change", (e) => {
         const value = e.target.value;
@@ -1935,6 +2021,7 @@
       });
       tsvBtn.addEventListener("click", exportPackedTsv);
       if (pngBtn) pngBtn.addEventListener("click", exportPackedPng);
+      if (saveLogBtn) saveLogBtn.addEventListener("click", saveLog);
       plateMemoInput.addEventListener("input", (e) => {
         const plate = getCurrentPlate();
         plate.memo = e.target.value;
@@ -1952,6 +2039,7 @@
       renderPlate();
       updateLayoutButtons();
       renderLayoutGrid();
+      loadLogFromQuery();
     </script>
   </body>
 </html>

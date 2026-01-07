@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Saved Results - PlatePack</title>
+    <title>Saved Logs - PlatePack</title>
     <style>
       :root {
         color-scheme: light;
@@ -129,9 +129,9 @@
   </head>
   <body>
     <header>
-      <h1>保存した結果</h1>
+      <h1>保存したログ</h1>
       <p class="muted">
-        <code>PlatesPacker</code> で <code>Download PNG</code> を押すと、このページに保存されます（ブラウザ内保存）。
+        <code>PlatesPacker</code> の <code>Save Log</code> で保存した入力/出力レイアウト設定を一覧できます。
       </p>
       <div class="toolbar">
         <a class="btn secondary" href="/">ホームへ</a>
@@ -146,25 +146,11 @@
     </main>
 
     <script>
-      const STORAGE_KEY = "platepack_saved_pngs_v1";
+      const API_LIST = "/api/logs";
+      const API_ITEM = (id) => `/api/logs/${encodeURIComponent(id)}`;
       const listEl = document.getElementById("list");
       const emptyEl = document.getElementById("empty");
       const clearAllBtn = document.getElementById("clearAllBtn");
-
-      function readItems() {
-        try {
-          const raw = localStorage.getItem(STORAGE_KEY);
-          if (!raw) return [];
-          const parsed = JSON.parse(raw);
-          return Array.isArray(parsed) ? parsed : [];
-        } catch {
-          return [];
-        }
-      }
-
-      function writeItems(items) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-      }
 
       function formatDate(iso) {
         try {
@@ -176,23 +162,22 @@
         }
       }
 
-      function downloadDataUrl(filename, dataUrl) {
-        const link = document.createElement("a");
-        link.href = dataUrl;
-        link.download = filename || "packed.png";
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
+      async function deleteLog(id) {
+        const res = await fetch(API_ITEM(id), { method: "DELETE" });
+        if (!res.ok) throw new Error("delete failed");
       }
 
-      function removeItem(id) {
-        const items = readItems().filter((x) => x && x.id !== id);
-        writeItems(items);
-        render();
-      }
-
-      function render() {
-        const items = readItems();
+      async function render() {
+        listEl.innerHTML = "";
+        emptyEl.style.display = "none";
+        let items = [];
+        try {
+          const res = await fetch(API_LIST);
+          items = (await res.json()) || [];
+          if (!Array.isArray(items)) items = [];
+        } catch {
+          items = [];
+        }
         listEl.innerHTML = "";
         emptyEl.style.display = items.length ? "none" : "block";
         if (!items.length) return;
@@ -201,38 +186,48 @@
           const card = document.createElement("div");
           card.className = "item";
 
-          const img = document.createElement("img");
+          const img = document.createElement("div");
           img.className = "thumb";
-          img.alt = item?.title || "packed";
-          img.src = item?.dataUrl || "";
+          img.style.display = "grid";
+          img.style.placeItems = "center";
+          img.style.color = "#64748b";
+          img.style.fontWeight = "800";
+          img.textContent = "LOG";
 
           const meta = document.createElement("div");
           meta.className = "meta";
 
           const title = document.createElement("div");
           title.className = "title";
-          title.textContent = item?.title || "Packed Plate";
+          title.textContent = item?.name || "Log";
 
           const sub = document.createElement("div");
           sub.className = "sub";
-          sub.textContent = item?.createdAt ? formatDate(item.createdAt) : "";
+          sub.textContent = item?.created_at ? formatDate(item.created_at) : "";
 
           const actions = document.createElement("div");
           actions.className = "actions";
 
-          const dl = document.createElement("button");
-          dl.type = "button";
-          dl.className = "btn";
-          dl.textContent = "Download PNG";
-          dl.addEventListener("click", () => downloadDataUrl(item?.filename, item?.dataUrl));
+          const load = document.createElement("a");
+          load.className = "btn";
+          load.href = `/plates?log=${encodeURIComponent(item?.id || "")}`;
+          load.textContent = "読み込む";
 
           const del = document.createElement("button");
           del.type = "button";
           del.className = "btn danger";
           del.textContent = "削除";
-          del.addEventListener("click", () => removeItem(item?.id));
+          del.addEventListener("click", async () => {
+            if (!confirm("このログを削除します。よろしいですか？")) return;
+            try {
+              await deleteLog(item?.id);
+              await render();
+            } catch {
+              alert("削除に失敗しました。");
+            }
+          });
 
-          actions.appendChild(dl);
+          actions.appendChild(load);
           actions.appendChild(del);
 
           meta.appendChild(title);
@@ -246,13 +241,10 @@
       }
 
       clearAllBtn.addEventListener("click", () => {
-        if (!confirm("保存したPNGをすべて削除します。よろしいですか？")) return;
-        writeItems([]);
-        render();
+        alert("全削除は未対応です。個別に削除してください。");
       });
 
       render();
     </script>
   </body>
 </html>
-
