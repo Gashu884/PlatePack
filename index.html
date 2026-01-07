@@ -131,12 +131,18 @@
   display: flex;
   justify-content: flex-start;
   width: 100%;
+  gap: 1.5rem; /* スプリット間の横間隔 */
+  align-items: flex-start;
+  margin-bottom: 1rem; /* セクション間の余白 */
+  flex-wrap: wrap;
 }
 .split-inner {
   width: 100%;
   max-width: min(100%, calc(var(--input-grid-width) + 200px));
   display: grid;
   gap: 1rem;
+  padding: 0.5rem; /* スプリット内部の余白 */
+  box-sizing: border-box;
 }
 .input-stack,
 .output-stack {
@@ -144,7 +150,7 @@
 }
 .split-gap {
   width: 100%;
-  height: 1.5rem;
+  height: 2rem; /* スプリット間の縦間隔を拡大 */
 }
       .well-grid {
         margin-top: 0.2rem;
@@ -529,11 +535,6 @@
 
         <div class="split split-input">
           <div class="split-inner input-stack">
-            <div class="memo-field" style="width: var(--input-grid-width);">
-              <label for="plateMemo">メモ</label>
-              <textarea id="plateMemo" placeholder="メモ記入欄"></textarea>
-              <div class="memo-hint">この入力プレートに関するメモを入力してください。</div>
-            </div>
             <div class="layout-controls">
               <span class="label">ウェル入力</span>
               <button type="button" class="ghost" id="inputDirectionBtn">入力読み方向: 横方向</button>
@@ -541,6 +542,11 @@
               <button type="button" class="ghost" id="nextPlateBtn">Next</button>
               <div style="width: 0.6rem;"></div>
               <button type="button" class="accent-btn" id="clearPlateBtn">Clear</button>
+            </div>
+            <div class="memo-field" style="width: var(--input-grid-width);">
+              <label for="plateMemo">メモ</label>
+              <textarea id="plateMemo" placeholder="メモ記入欄"></textarea>
+              <div class="memo-hint">この入力プレートに関するメモを入力してください。</div>
             </div>
             <div class="input-layout">
               <div class="input-grid">
