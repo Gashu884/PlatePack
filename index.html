@@ -66,6 +66,10 @@
         font-weight: 600;
         margin-right: 0.4rem;
       }
+      /* Plate count label in the first split */
+      .split-input .controls label[for="plateCount"] {
+        font-size: 2.0rem; /* 必要に応じて調整してください */
+      }
       button {
         border: none;
         border-radius: 12px;
@@ -443,6 +447,13 @@
       .layout-header {
         background: #dfe7f2;
       }
+      .layout-header.clickable {
+        cursor: pointer;
+      }
+      .layout-header.selected {
+        background: linear-gradient(180deg,#bfdbfe,#dbeafe);
+        box-shadow: inset 0 0 0 2px rgba(59,130,246,0.12);
+      }
       .layout-cell.blocked {
         background: #0f172a;
         color: #fff;
@@ -806,26 +817,32 @@
         // column headers
         COLS.forEach((col, colIndex) => {
           const header = document.createElement("div");
-          header.className = "layout-header";
+          header.className = "layout-header clickable";
           header.textContent = col;
+          header.dataset.colIndex = String(colIndex);
+          header.title = `Toggle column ${col}`;
           header.style.width = `${dims.cell}px`;
           header.style.height = `${dims.header}px`;
           const { left } = wellPosition(0, colIndex, dims);
           header.style.left = `${left}px`;
           header.style.top = "0px";
+          header.addEventListener("click", () => toggleLayoutColumn(colIndex));
           frag.appendChild(header);
         });
 
         // row headers + cells
         ROWS.forEach((row, rowIndex) => {
           const rowHeader = document.createElement("div");
-          rowHeader.className = "layout-header";
+          rowHeader.className = "layout-header clickable";
           rowHeader.textContent = row;
+          rowHeader.dataset.rowIndex = String(rowIndex);
+          rowHeader.title = `Toggle row ${row}`;
           rowHeader.style.width = `${dims.header}px`;
           rowHeader.style.height = `${dims.cell}px`;
           const { top } = wellPosition(rowIndex, 0, dims);
           rowHeader.style.left = "0px";
           rowHeader.style.top = `${top}px`;
+          rowHeader.addEventListener("click", () => toggleLayoutRow(rowIndex));
           frag.appendChild(rowHeader);
 
           COLS.forEach((col, colIndex) => {
@@ -852,6 +869,7 @@
 
         layoutGrid.appendChild(frag);
         renderDividers(dims);
+        updateLayoutHeaderSelection();
       }
 
       function renderDividers(dims) {
@@ -890,6 +908,46 @@
           layoutGrid.appendChild(btn);
         }
       }
+
+      function toggleLayoutColumn(colIndex) {
+        const col = COLS[colIndex];
+        const allBlocked = ROWS.every((row) => blockedLayoutWells.has(`${row}${col}`));
+        ROWS.forEach((row) => {
+          const well = `${row}${col}`;
+          if (allBlocked) blockedLayoutWells.delete(well);
+          else blockedLayoutWells.add(well);
+        });
+        renderLayoutGrid();
+      }
+
+      function toggleLayoutRow(rowIndex) {
+        const row = ROWS[rowIndex];
+        const allBlocked = COLS.every((col) => blockedLayoutWells.has(`${row}${col}`));
+        COLS.forEach((col) => {
+          const well = `${row}${col}`;
+          if (allBlocked) blockedLayoutWells.delete(well);
+          else blockedLayoutWells.add(well);
+        });
+        renderLayoutGrid();
+      }
+
+      function updateLayoutHeaderSelection() {
+        // columns
+        Array.from(layoutGrid.querySelectorAll(".layout-header[data-col-index]")).forEach((el) => {
+          const idx = Number(el.dataset.colIndex);
+          const col = COLS[idx];
+          const allBlocked = ROWS.every((row) => blockedLayoutWells.has(`${row}${col}`));
+          el.classList.toggle("selected", allBlocked);
+        });
+        // rows
+        Array.from(layoutGrid.querySelectorAll(".layout-header[data-row-index]")).forEach((el) => {
+          const idx = Number(el.dataset.rowIndex);
+          const row = ROWS[idx];
+          const allBlocked = COLS.every((col) => blockedLayoutWells.has(`${row}${col}`));
+          el.classList.toggle("selected", allBlocked);
+        });
+      }
+
       function updateWellButtons() {
         const plate = getCurrentPlate();
         document.querySelectorAll(".well-btn").forEach((btn) => {
