@@ -22,6 +22,58 @@
         padding: clamp(1.5rem, 4vw, 3rem);
         color: #0f172a;
       }
+      .page {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 320px;
+        gap: 1.5rem;
+        align-items: start;
+      }
+      .page-main {
+        min-width: 0;
+      }
+      .page-help {
+        position: sticky;
+        top: 1.5rem;
+        align-self: start;
+      }
+      .help-card {
+        background: #fff;
+        border-radius: 16px;
+        padding: 1rem 1.05rem;
+        border: 1px solid #e6eefc;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+        font-size: 0.9rem;
+        color: #1e293b;
+      }
+      .help-card h2 {
+        margin: 0 0 0.6rem;
+        font-size: 1.05rem;
+      }
+      .help-card h3 {
+        margin: 0.9rem 0 0.35rem;
+        font-size: 0.95rem;
+      }
+      .help-card ol,
+      .help-card ul {
+        margin: 0;
+        padding-left: 1.1rem;
+        display: grid;
+        gap: 0.35rem;
+      }
+      .help-card code {
+        background: #eef2ff;
+        padding: 0.05rem 0.3rem;
+        border-radius: 6px;
+        font-size: 0.88em;
+      }
+      @media (max-width: 1200px) {
+        .page {
+          grid-template-columns: 1fr;
+        }
+        .page-help {
+          position: static;
+        }
+      }
       header {
         margin-bottom: 1.75rem;
         display: grid;
@@ -631,12 +683,14 @@
     </style>
   </head>
   <body>
-    <header>
-      <h1>Plates Packer</h1>
-      <p class="muted">抽出するwellをクリックし、パッキング結果を新しいプレートとして表示します。</p>
-    </header>
+    <div class="page">
+      <div class="page-main">
+        <header>
+          <h1>Plates Packer</h1>
+          <p class="muted">抽出するwellをクリックし、パッキング結果を新しいプレートとして表示します。</p>
+        </header>
 
-    <div class="layout">
+        <div class="layout">
       <section class="panel">
         <div class="toolbar">
           <div class="controls">
@@ -742,6 +796,28 @@
           </div>
         </div>
       </section>
+        </div>
+      </div>
+
+      <aside class="page-help">
+        <div class="help-card">
+          <h2>使い方</h2>
+          <ol>
+            <li><code>Number of Plates</code>で入力プレート枚数を設定（<code>Previous</code>/<code>Next</code>で移動）。</li>
+            <li>入力プレート：ウェルをクリックして選択（黒＝選択、もう一度で解除）。</li>
+            <li><code>1A</code>ボタンで表示形式を切替（<code>1A ⇄ A1</code>）。出力にも反映されます。</li>
+            <li><code>読み方向</code>で入力の読み順を切替。</li>
+            <li>出力レイアウト：ウェルをクリックすると空ウェル（黒）として除外、もう一度で解除。</li>
+            <li>区切り線（赤/青）をクリックして出力領域を分割。</li>
+            <li><code>Packing</code>で実行 → 下の出力プレートに結果表示。</li>
+            <li>結果プレートは<code>Previous</code>/<code>Next</code>で移動、<code>Download TSV</code>でTSV出力。</li>
+          </ol>
+          <h3>ヒント</h3>
+          <ul>
+            <li>出力レイアウトの行/列ラベルをクリックすると行/列まとめて空ウェルを切替できます。</li>
+          </ul>
+        </div>
+      </aside>
     </div>
 
     <script>
@@ -1006,14 +1082,14 @@
           rowHeader.addEventListener("click", () => toggleLayoutRow(rowIndex));
           frag.appendChild(rowHeader);
 
-          COLS.forEach((col, colIndex) => {
-            const cell = document.createElement("button");
-            cell.type = "button";
-            cell.className = "layout-cell well-btn";
-            const { left, top: cellTop } = wellPosition(rowIndex, colIndex, dims);
-            cell.style.width = `${dims.cell}px`;
-            cell.style.height = `${dims.cell}px`;
-            cell.style.left = `${left}px`;
+	          COLS.forEach((col, colIndex) => {
+	            const cell = document.createElement("button");
+	            cell.type = "button";
+	            cell.className = "layout-cell layout-well-btn";
+	            const { left, top: cellTop } = wellPosition(rowIndex, colIndex, dims);
+	            cell.style.width = `${dims.cell}px`;
+	            cell.style.height = `${dims.cell}px`;
+	            cell.style.left = `${left}px`;
             cell.style.top = `${cellTop}px`;
             const wellId = `${row}${col}`;
             cell.dataset.well = wellId;
@@ -1116,7 +1192,7 @@
 
       function updateWellButtons() {
         const plate = getCurrentPlate();
-        document.querySelectorAll(".well-btn").forEach((btn) => {
+        (wellGrid ? wellGrid.querySelectorAll(".well-btn") : []).forEach((btn) => {
           const well = btn.dataset.well;
           if (plate.wells.has(well)) {
             btn.classList.add("selected");
