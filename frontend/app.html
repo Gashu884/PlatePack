@@ -734,6 +734,20 @@
         color: #334155;
         line-height: 1.5;
       }
+      #view-home .card-link {
+        cursor: pointer;
+        text-decoration: none;
+        color: inherit;
+        transition: transform 0.12s ease, box-shadow 0.12s ease;
+      }
+      #view-home .card-link:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 22px 50px rgba(15, 23, 42, 0.12);
+      }
+      #view-home .card-link:focus-visible {
+        outline: 3px solid #93c5fd;
+        outline-offset: 4px;
+      }
 
       /* Logs view (scoped) */
       #view-logs header {
@@ -903,16 +917,14 @@
         </header>
 
         <div class="cards">
-          <section class="card">
-            <h2>Plates Packer</h2>
+          <a class="card card-link" href="/plates">
+            <h2>Packer</h2>
             <p>入力プレートのwellを選択し、出力レイアウトに空well/区切り線を設定してパッキングします。</p>
-            <a class="btn" href="/plates">PlatesPackerへ</a>
-          </section>
-          <section class="card">
-            <h2>保存したログ</h2>
+          </a>
+          <a class="card card-link" href="/results">
+            <h2>Database</h2>
             <p><code>Save Log</code>で保存した入力/出力レイアウト設定を一覧・読み込みできます。</p>
-            <a class="btn secondary" href="/results">保存ログページへ</a>
-          </section>
+          </a>
         </div>
       </div>
     </section>
@@ -921,7 +933,7 @@
     <div class="page">
       <div class="page-main">
         <header>
-          <h1>Plates Packer</h1>
+          <h1>Packer</h1>
           <p class="muted">抽出するwellをクリックし、パッキング結果を新しいプレートとして表示します。</p>
         </header>
 
@@ -1023,10 +1035,10 @@
 		            <button type="button" class="ghost" id="nextPackedBtn" disabled>Next</button>
 		            <button type="button" class="success" id="tsvBtn" disabled>Download TSV</button>
 		            <button type="button" class="success" id="pngBtn" disabled>Download PNG</button>
-		            <button type="button" class="success" id="saveLogBtn">Save Log</button>
-		            <a class="ghost" id="logsLink" href="/results" style="text-decoration:none; display:inline-flex; align-items:center; justify-content:center; height:30px; padding:0 0.6rem;">Logs</a>
-		            </div>
-		          </div>
+	            <button type="button" class="success" id="saveLogBtn">Save Log</button>
+			            <a class="ghost" id="logsLink" href="/results" style="text-decoration:none; display:inline-flex; align-items:center; justify-content:center; height:30px; padding:0 0.6rem;">Database</a>
+			            </div>
+			          </div>
           <div class="packed-panel-box">
             <div class="packed-grid" id="packedGrid">
               <p class="muted">まだパッキング結果はありません。</p>
@@ -1059,19 +1071,19 @@
     </div>
     </section>
 
-    <section id="view-logs" class="app-view">
-      <header>
-        <h1>保存したログ</h1>
-        <p class="muted">
-          <code>PlatesPacker</code> の <code>Save Log</code> で保存した入力/出力レイアウト設定を一覧できます。
-        </p>
-        <div id="notice" class="notice" style="display:none;"></div>
-        <div class="toolbar">
-          <a class="btn secondary" href="/">ホームへ</a>
-          <a class="btn" href="/plates">PlatesPackerへ</a>
-          <button type="button" class="btn" id="importBtn">Import JSON</button>
-          <input type="file" id="importInput" accept="application/json,.json" style="display:none;" />
-          <button type="button" class="btn secondary" id="migrateBtn" style="display:none;">LOCAL→DB移行</button>
+	    <section id="view-logs" class="app-view">
+	      <header>
+	        <h1>Database</h1>
+	        <p class="muted">
+	          <code>Packer</code> の <code>Save Log</code> で保存した入力/出力レイアウト設定を一覧できます。
+	        </p>
+	        <div id="notice" class="notice" style="display:none;"></div>
+	        <div class="toolbar">
+	          <a class="btn secondary" href="/">ホームへ</a>
+	          <a class="btn" href="/plates">Packerへ</a>
+	          <button type="button" class="btn" id="importBtn">Import JSON</button>
+	          <input type="file" id="importInput" accept="application/json,.json" style="display:none;" />
+	          <button type="button" class="btn secondary" id="migrateBtn" style="display:none;">LOCAL→DB移行</button>
           <button type="button" class="btn danger" id="clearAllBtn">全削除</button>
         </div>
       </header>
@@ -2672,7 +2684,7 @@
               item?.source === "local"
                 ? `/plates?log=${encodeURIComponent(`local:${item?.id || ""}`)}`
                 : `/plates?log=${encodeURIComponent(item?.id || "")}`;
-            open.textContent = "PlatesPackerで開く";
+            open.textContent = "Packerで開く";
 
             const dl = document.createElement("button");
             dl.type = "button";
@@ -2776,15 +2788,18 @@
           return "home";
         }
 
-        function setActiveView(key) {
-          Object.entries(views).forEach(([k, el]) => {
-            if (!el) return;
-            el.classList.toggle("is-active", k === key);
-          });
-          if (key === "logs" && typeof window.__platepack_logs_render === "function") {
-            window.__platepack_logs_render();
-          }
-        }
+	        function setActiveView(key) {
+	          Object.entries(views).forEach(([k, el]) => {
+	            if (!el) return;
+	            const isActive = k === key;
+	            el.classList.toggle("is-active", isActive);
+	            el.hidden = !isActive;
+	            el.setAttribute("aria-hidden", String(!isActive));
+	          });
+	          if (key === "logs" && typeof window.__platepack_logs_render === "function") {
+	            window.__platepack_logs_render();
+	          }
+	        }
 
         setActiveView(keyFromPathname(window.location.pathname));
         window.addEventListener("popstate", () => setActiveView(keyFromPathname(window.location.pathname)));
