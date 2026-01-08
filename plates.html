@@ -1910,6 +1910,48 @@
         };
       }
 
+      const LOCAL_LOG_KEY = "PLATEPACK_LOCAL_LOGS_V1";
+
+      function safeParseJson(raw, fallback) {
+        try {
+          return JSON.parse(raw);
+        } catch {
+          return fallback;
+        }
+      }
+
+      function listLocalLogs() {
+        try {
+          const raw = localStorage.getItem(LOCAL_LOG_KEY);
+          const parsed = raw ? safeParseJson(raw, []) : [];
+          return Array.isArray(parsed) ? parsed : [];
+        } catch {
+          return [];
+        }
+      }
+
+      function writeLocalLogs(items) {
+        try {
+          localStorage.setItem(LOCAL_LOG_KEY, JSON.stringify(items));
+        } catch {
+          // ignore quota / privacy errors
+        }
+      }
+
+      function saveLocalLog(name, payload) {
+        const id = `${Date.now()}_${Math.random().toString(16).slice(2)}`;
+        const created_at = new Date().toISOString();
+        const items = listLocalLogs();
+        items.unshift({ id, name: String(name || "Log"), created_at, payload: payload || {} });
+        writeLocalLogs(items.slice(0, 200));
+        return { id, name: String(name || "Log"), created_at };
+      }
+
+      function getLocalLog(id) {
+        const items = listLocalLogs();
+        return items.find((x) => x && typeof x === "object" && x.id === id) || null;
+      }
+
       function applyLogSnapshot(snapshot) {
         const nextPlates = Array.isArray(snapshot?.plates) ? snapshot.plates : [];
         plates = nextPlates.map((p, idx) => ({
@@ -1941,18 +1983,29 @@
           const name = prompt("ログ名を入力してください:", defaultName);
           if (!name) return;
           setStatus("ログを保存中...");
-          const res = await fetch("/api/logs", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name, payload: buildLogSnapshot() }),
-          });
-          const data = await res.json().catch(() => null);
-          if (!res.ok) {
-            const detail = data?.detail ? `: ${data.detail}` : "";
-            setStatus(`ログ保存に失敗しました (${res.status})${detail}`, true);
-            return;
+          const payload = buildLogSnapshot();
+          try {
+            const res = await fetch("/api/logs", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ name, payload }),
+            });
+            const data = await res.json().catch(() => null);
+            if (!res.ok) {
+              const detail = data?.detail ? `: ${data.detail}` : "";
+              if (res.status === 503) {
+                const saved = saveLocalLog(name, payload);
+                setStatus(`サーバー保存できないためローカルに保存しました: ${saved.name}`);
+                return;
+              }
+              setStatus(`ログ保存に失敗しました (${res.status})${detail}`, true);
+              return;
+            }
+            setStatus(`ログ保存しました: ${data?.name || name}`);
+          } catch {
+            const saved = saveLocalLog(name, payload);
+            setStatus(`サーバー保存できないためローカルに保存しました: ${saved.name}`);
           }
-          setStatus(`ログ保存しました: ${data?.name || name}`);
         } catch (e) {
           setStatus("ログ保存に失敗しました。", true);
         }
@@ -1964,6 +2017,16 @@
         if (!logId) return;
         try {
           setStatus("ログを読み込み中...");
+          if (logId.startsWith("local:")) {
+            const localId = logId.slice("local:".length);
+            const entry = getLocalLog(localId);
+            if (!entry?.payload) {
+              setStatus("ローカルログが見つかりません。", true);
+              return;
+            }
+            applyLogSnapshot(entry.payload);
+            return;
+          }
           const res = await fetch(`/api/logs/${encodeURIComponent(logId)}`);
           const data = await res.json().catch(() => null);
           if (!res.ok || !data?.payload) {
