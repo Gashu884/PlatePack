@@ -237,35 +237,42 @@
 	  margin-bottom: 1rem; /* セクション間の余白 */
 	  flex-wrap: wrap;
 	}
-	.io-splits {
-	  display: flex;
-	  flex-wrap: wrap;
-	  gap: 1.5rem;
-	  align-items: flex-start;
+		.io-splits {
+		  display: flex;
+		  flex-wrap: wrap;
+		  column-gap: 0;
+		  row-gap: 2rem;
+		  align-items: flex-start;
+		}
+		.io-splits .io-spacer {
+		  flex: 0 0 50px;
+		  width: 50px;
+		  height: 1px;
+		}
+		.io-splits > .split {
+		  width: auto;
+		  margin-bottom: 0;
+		}
+		.io-splits > .split-input {
+		  flex: 0 0 var(--input-grid-width);
+		  width: var(--input-grid-width);
+		}
+		.io-splits > .split-output {
+		  flex: 0 0 var(--input-grid-width);
+		  width: var(--input-grid-width);
+		}
+		.io-splits .split-inner {
+		  max-width: 100%;
+		  padding: 0;
+		}
+	.split-inner {
+	  width: 100%;
+	  max-width: var(--input-grid-width);
+	  display: grid;
+	  gap: 1rem;
+	  padding: 0.5rem; /* スプリット内部の余白 */
+	  box-sizing: border-box;
 	}
-	.io-splits > .split {
-	  width: auto;
-	  margin-bottom: 0;
-	}
-	.io-splits > .split-input {
-	  width: calc(var(--input-grid-width) + 200px);
-	  max-width: 100%;
-	}
-	.io-splits > .split-output {
-	  width: max-content;
-	  max-width: 100%;
-	}
-	.io-splits .split-inner {
-	  max-width: 100%;
-	}
-.split-inner {
-  width: 100%;
-  max-width: min(100%, calc(var(--input-grid-width) + 200px));
-  display: grid;
-  gap: 1rem;
-  padding: 0.5rem; /* スプリット内部の余白 */
-  box-sizing: border-box;
-}
 .input-stack,
 .output-stack {
   justify-items: start;
@@ -1045,13 +1052,14 @@
                 <textarea id="plateMemo" placeholder="メモ記入欄"></textarea>
               </div>
             </div>
-          </div>
-	        </div>
-	        </div>
-
-		        <div class="split split-output">
-		          <div class="split-inner output-stack">
-	            <div class="output-panel-box">
+		        </div>
+		        </div>
+		        </div>
+		        <div class="io-spacer" aria-hidden="true"></div>
+	
+			        <div class="split split-output">
+			          <div class="split-inner output-stack">
+		            <div class="output-panel-box">
 	              <div class="layout-controls">
 	                <span class="label">出力レイアウト</span>
 	              </div>
