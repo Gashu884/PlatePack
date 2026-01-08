@@ -17,9 +17,8 @@ app = FastAPI(
     description="Generate printable HTML reports for plate packing plans.",
 )
 
-INDEX_PATH = Path("index.html")
-PLATES_PATH = Path("plates.html")
-RESULTS_PATH = Path("results.html")
+ROOT_DIR = Path(__file__).resolve().parent.parent
+APP_HTML_PATH = ROOT_DIR / "frontend" / "app.html"
 
 
 class LogCreateRequest(BaseModel):
@@ -42,28 +41,28 @@ def _startup() -> None:
     init_db()
 
 
+def _serve_app_html() -> HTMLResponse:
+    if not APP_HTML_PATH.exists():
+        raise HTTPException(status_code=404, detail="frontend/app.html not found.")
+    return HTMLResponse(APP_HTML_PATH.read_text(encoding="utf-8"))
+
+
 @app.get("/", response_class=HTMLResponse)
 def serve_index() -> HTMLResponse:
-    """Return the home page."""
-    if not INDEX_PATH.exists():
-        raise HTTPException(status_code=404, detail="index.html not found.")
-    return HTMLResponse(INDEX_PATH.read_text(encoding="utf-8"))
+    """Return the UI page."""
+    return _serve_app_html()
 
 
 @app.get("/plates", response_class=HTMLResponse)
 def serve_plates() -> HTMLResponse:
-    """Return the PlatePacker page."""
-    if not PLATES_PATH.exists():
-        raise HTTPException(status_code=404, detail="plates.html not found.")
-    return HTMLResponse(PLATES_PATH.read_text(encoding="utf-8"))
+    """Return the UI page (PlatesPacker view)."""
+    return _serve_app_html()
 
 
 @app.get("/results", response_class=HTMLResponse)
 def serve_results() -> HTMLResponse:
-    """Return the saved results page."""
-    if not RESULTS_PATH.exists():
-        raise HTTPException(status_code=404, detail="results.html not found.")
-    return HTMLResponse(RESULTS_PATH.read_text(encoding="utf-8"))
+    """Return the UI page (logs view)."""
+    return _serve_app_html()
 
 
 @app.get("/api/logs", response_model=list[LogSummaryResponse])

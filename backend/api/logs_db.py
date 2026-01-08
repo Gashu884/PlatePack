@@ -1,4 +1,4 @@
-"""SQLite-backed log storage for PlatePack UI snapshots."""
+"""Log storage for PlatePack UI snapshots (SQLite locally, Postgres on Vercel)."""
 
 from __future__ import annotations
 

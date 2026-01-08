@@ -1,4 +1,4 @@
-"""Core data models and HTML generation helpers for PlatePack."""
+"""Core data models and HTML generation helpers for PlatePack backend."""
 
 from __future__ import annotations
 

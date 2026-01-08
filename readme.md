@@ -1,15 +1,17 @@
-# PlatePack HTML API
+# PlatePack
 
-ゼロから再構築された PlatePack プロジェクトです。96 ウェルプレートのパッキング結果を JSON で受け取り、即座に整形済みの HTML レポートを返却する API と、インタラクティブなフロントエンド (`index.html`) を提供します。フロントエンドではウェルをクリックしてハイライトし、その状態のまま FastAPI エンドポイントへ送信できます。
+96ウェルプレートのパッキングを行うUIと、パッキング結果をHTMLレポートとして返すFastAPIを提供します。
 
 ## 構成
 
 ```
 .
-├── api/
-│   └── generate_html.py   # FastAPI ベースのサーバーレス関数
-├── index.html             # API コンソール (静的ページ)
-├── requirements.txt       # ローカル開発用の依存関係
+├── backend/
+│   ├── app.py             # FastAPI
+│   └── api/               # HTML生成・ログ永続化
+└── frontend/
+    ├── app.html           # UI (Home / PlatesPacker / Logs を1枚に統合)
+    └── sample_report.html # 参考HTML
 └── vercel.json            # Vercel ルーティング設定
 ```
 
@@ -21,19 +23,19 @@
 python -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-uvicorn app:app --reload
+uvicorn backend.app:app --reload
 ```
 
+- UI: `http://localhost:8000/`（`/plates`, `/results` も同一HTMLで表示切替）
 - API: `http://localhost:8000/generate-html`
 - サンプル: `http://localhost:8000/generate-html/sample`
-- ブラウザで `http://localhost:8000/` を開くと API コンソールが表示され、同一オリジンで呼び出しをテストできます。
 
 ### Vercel にデプロイする場合
 
 1. リポジトリを Vercel にインポート
 2. Build Command / Output Directory は空欄で OK
 3. デプロイすると以下が利用できます
-   - `https://{your-project}.vercel.app/` → API コンソール
+   - `https://{your-project}.vercel.app/` → UI
    - `https://{your-project}.vercel.app/generate-html` → HTML 生成エンドポイント (POST)
    - `https://{your-project}.vercel.app/generate-html/sample` → サンプル JSON
 
@@ -110,13 +112,12 @@ Content-Type: text/html; charset=utf-8
 
 ## ブラウザコンソールの使い方
 
-1. `index.html` を開く
-2. 「サンプルを読み込む」ボタンで JSON を取得
-3. 任意に編集し「HTML を生成」を押す
-4. 右側のプレビューで生成されたレポートを確認（必要ならダウンロード）
+1. ブラウザで `http://localhost:8000/` を開く
+2. `PlatesPackerへ` からウェル選択・レイアウト設定・パッキングを実行
+3. 必要なら `Save Log` でログ保存、`保存したログ` から読み込み/JSONダウンロード
 
 ## 開発メモ
 
-- HTML は `api/generate_html.py` 内の `build_html_report` で組み立てています。スタイルや構造を変更したい場合は同関数を編集してください。
+- HTML レポートは `backend/api/generate_html.py` の `build_html_report` で組み立てています。スタイルや構造を変更したい場合は同関数を編集してください。
 - カラーパレットは 12 色を用意しています。ソースプレートが 13 枚以上の場合は再利用されます。
 - 追加のバリデーションや表現が必要な場合は Pydantic モデルを拡張して対応してください。
