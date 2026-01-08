@@ -10,7 +10,9 @@
 │   ├── app.py             # FastAPI
 │   └── api/               # HTML生成・ログ永続化
 └── frontend/
-    ├── app.html           # UI (Home / PlatesPacker / Logs を1枚に統合)
+    ├── home.html          # Home (Packer / Database の入口)
+    ├── app.html           # Packer UI
+    ├── database.html      # 保存ログ(Database) UI
     └── sample_report.html # 参考HTML
 └── vercel.json            # Vercel ルーティング設定
 ```

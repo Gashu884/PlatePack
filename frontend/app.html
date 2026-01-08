@@ -909,27 +909,7 @@
     </style>
   </head>
   <body>
-    <section id="view-home" class="app-view">
-      <div class="shell">
-        <header>
-          <h1>PlatePack</h1>
-          <p class="muted">プレートのwell選択 → 出力レイアウト → パッキング結果の保存</p>
-        </header>
-
-        <div class="cards">
-          <a class="card card-link" href="/plates">
-            <h2>Packer</h2>
-            <p>入力プレートのwellを選択し、出力レイアウトに空well/区切り線を設定してパッキングします。</p>
-          </a>
-          <a class="card card-link" href="/results">
-            <h2>Database</h2>
-            <p><code>Save Log</code>で保存した入力/出力レイアウト設定を一覧・読み込みできます。</p>
-          </a>
-        </div>
-      </div>
-    </section>
-
-    <section id="view-plates" class="app-view">
+    <section id="view-plates">
     <div class="page">
       <div class="page-main">
         <header>
@@ -1069,29 +1049,6 @@
         </div>
       </aside>
     </div>
-    </section>
-
-	    <section id="view-logs" class="app-view">
-	      <header>
-	        <h1>Database</h1>
-	        <p class="muted">
-	          <code>Packer</code> の <code>Save Log</code> で保存した入力/出力レイアウト設定を一覧できます。
-	        </p>
-	        <div id="notice" class="notice" style="display:none;"></div>
-	        <div class="toolbar">
-	          <a class="btn secondary" href="/">ホームへ</a>
-	          <a class="btn" href="/plates">Packerへ</a>
-	          <button type="button" class="btn" id="importBtn">Import JSON</button>
-	          <input type="file" id="importInput" accept="application/json,.json" style="display:none;" />
-	          <button type="button" class="btn secondary" id="migrateBtn" style="display:none;">LOCAL→DB移行</button>
-          <button type="button" class="btn danger" id="clearAllBtn">全削除</button>
-        </div>
-      </header>
-
-      <main class="panel">
-        <div id="list" class="grid"></div>
-        <div id="empty" class="empty" style="display:none;">保存されたログがありません。</div>
-      </main>
     </section>
 
     <script>

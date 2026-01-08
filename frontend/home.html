@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PlatePack</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        background: #f3f4f6;
+      }
+      body {
+        margin: 0;
+        padding: clamp(1.5rem, 4vw, 3rem);
+        color: #0f172a;
+      }
+      #view-home .shell {
+        max-width: 980px;
+        margin: 0 auto;
+        display: grid;
+        gap: 1.25rem;
+      }
+      #view-home header {
+        display: grid;
+        gap: 0.35rem;
+      }
+      #view-home h1 {
+        margin: 0;
+        font-size: clamp(1.9rem, 3vw, 2.4rem);
+      }
+      #view-home .muted {
+        margin: 0;
+        color: #64748b;
+      }
+      #view-home .cards {
+        display: grid;
+        gap: 1rem;
+      }
+      @media (min-width: 860px) {
+        #view-home .cards {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+      #view-home .card {
+        background: #fff;
+        border-radius: 18px;
+        border: 1px solid #e6eefc;
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+        padding: 1.25rem 1.25rem;
+        display: grid;
+        gap: 0.8rem;
+      }
+      #view-home .card h2 {
+        margin: 0;
+        font-size: 1.2rem;
+      }
+      #view-home .card p {
+        margin: 0;
+        color: #334155;
+        line-height: 1.5;
+      }
+      #view-home code {
+        background: #eef2ff;
+        padding: 0.05rem 0.3rem;
+        border-radius: 6px;
+        font-size: 0.95em;
+      }
+      #view-home .card-link {
+        cursor: pointer;
+        text-decoration: none;
+        color: inherit;
+        transition: transform 0.12s ease, box-shadow 0.12s ease;
+      }
+      #view-home .card-link:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 22px 50px rgba(15, 23, 42, 0.12);
+      }
+      #view-home .card-link:focus-visible {
+        outline: 3px solid #93c5fd;
+        outline-offset: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <section id="view-home">
+      <div class="shell">
+        <header>
+          <h1>PlatePack</h1>
+          <p class="muted">プレートのwell選択 → 出力レイアウト → パッキング結果の保存</p>
+        </header>
+
+        <div class="cards">
+          <a class="card card-link" href="/plates">
+            <h2>Packer</h2>
+            <p>入力プレートのwellを選択し、出力レイアウトに空well/区切り線を設定してパッキングします。</p>
+          </a>
+          <a class="card card-link" href="/results">
+            <h2>Database</h2>
+            <p><code>Save Log</code>で保存した入力/出力レイアウト設定を一覧・読み込みできます。</p>
+          </a>
+        </div>
+      </div>
+    </section>
+  </body>
+</html>
+

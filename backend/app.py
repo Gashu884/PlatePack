@@ -22,7 +22,9 @@ app = FastAPI(
 )
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
-APP_HTML_PATH = ROOT_DIR / "frontend" / "app.html"
+HOME_HTML_PATH = ROOT_DIR / "frontend" / "home.html"
+PACKER_HTML_PATH = ROOT_DIR / "frontend" / "app.html"
+DATABASE_HTML_PATH = ROOT_DIR / "frontend" / "database.html"
 
 
 class LogCreateRequest(BaseModel):
@@ -45,28 +47,28 @@ def _startup() -> None:
     init_db()
 
 
-def _serve_app_html() -> HTMLResponse:
-    if not APP_HTML_PATH.exists():
-        raise HTTPException(status_code=404, detail="frontend/app.html not found.")
-    return HTMLResponse(APP_HTML_PATH.read_text(encoding="utf-8"))
+def _serve_html(path: Path, label: str) -> HTMLResponse:
+    if not path.exists():
+        raise HTTPException(status_code=404, detail=f"{label} not found.")
+    return HTMLResponse(path.read_text(encoding="utf-8"))
 
 
 @app.get("/", response_class=HTMLResponse)
 def serve_index() -> HTMLResponse:
-    """Return the UI page."""
-    return _serve_app_html()
+    """Return the Home page."""
+    return _serve_html(HOME_HTML_PATH, "frontend/home.html")
 
 
 @app.get("/plates", response_class=HTMLResponse)
 def serve_plates() -> HTMLResponse:
-    """Return the UI page (PlatesPacker view)."""
-    return _serve_app_html()
+    """Return the Packer page."""
+    return _serve_html(PACKER_HTML_PATH, "frontend/app.html")
 
 
 @app.get("/results", response_class=HTMLResponse)
 def serve_results() -> HTMLResponse:
-    """Return the UI page (logs view)."""
-    return _serve_app_html()
+    """Return the Database page."""
+    return _serve_html(DATABASE_HTML_PATH, "frontend/database.html")
 
 
 @app.get("/api/logs", response_model=list[LogSummaryResponse])
