@@ -74,6 +74,14 @@
           position: static;
         }
       }
+      @media (min-width: 1200px) {
+        body {
+          padding: 1.5rem;
+        }
+        .panel {
+          padding: 1.5rem;
+        }
+      }
       header {
         margin-bottom: 1.75rem;
         display: grid;
@@ -232,6 +240,7 @@
 		  display: flex;
 		  flex-wrap: wrap;
 		  align-items: flex-start;
+		  column-gap: 50px;
 		  row-gap: 2rem;
 		}
 		.io-splits .split-input,
@@ -240,13 +249,10 @@
 		  width: var(--input-grid-width);
 		  max-width: 100%;
 		}
-		.io-splits .io-spacer {
-		  flex: 0 0 50px;
-		  width: 50px;
-		  height: 1px;
-		}
 		.io-splits .split-inner {
 		  max-width: 100%;
+		  padding: 0;
+		  box-sizing: border-box;
 		}
 	.split-inner {
 	  width: 100%;
@@ -623,6 +629,9 @@
       }
       .output-panel-box .layout-side {
         margin-top: auto;
+      }
+      .output-panel-box .pack-bar {
+        margin-top: 0.8rem;
       }
       .layout-cell,
       .layout-header {
@@ -1042,9 +1051,6 @@
 	              </div>
 	            </div>
 	          </div>
-	
-	          <div class="io-spacer" aria-hidden="true"></div>
-	
 	          <div class="split-output">
 	            <div class="split-inner output-stack">
 	              <div class="output-panel-box">
@@ -1062,10 +1068,10 @@
 	                    <div id="layoutGrid"></div>
 	                  </div>
 	                </div>
-	              </div>
 	
-	              <div class="pack-bar" style="margin-top:0.6rem;">
-	                <button type="button" class="primary" id="packLayoutBtn">Packing</button>
+	                <div class="pack-bar">
+	                  <button type="button" class="primary" id="packLayoutBtn">Packing</button>
+	                </div>
 	              </div>
 	            </div>
 	          </div>
