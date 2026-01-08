@@ -228,15 +228,36 @@
   gap: 0.5rem;
   align-items: center;
 }
-.split {
-  display: flex;
-  justify-content: flex-start;
-  width: 100%;
-  gap: 1.5rem; /* スプリット間の横間隔 */
-  align-items: flex-start;
-  margin-bottom: 1rem; /* セクション間の余白 */
-  flex-wrap: wrap;
-}
+	.split {
+	  display: flex;
+	  justify-content: flex-start;
+	  width: 100%;
+	  gap: 1.5rem; /* スプリット間の横間隔 */
+	  align-items: flex-start;
+	  margin-bottom: 1rem; /* セクション間の余白 */
+	  flex-wrap: wrap;
+	}
+	.io-splits {
+	  display: flex;
+	  flex-wrap: wrap;
+	  gap: 1.5rem;
+	  align-items: flex-start;
+	}
+	.io-splits > .split {
+	  width: auto;
+	  margin-bottom: 0;
+	}
+	.io-splits > .split-input {
+	  width: calc(var(--input-grid-width) + 200px);
+	  max-width: 100%;
+	}
+	.io-splits > .split-output {
+	  width: max-content;
+	  max-width: 100%;
+	}
+	.io-splits .split-inner {
+	  max-width: 100%;
+	}
 .split-inner {
   width: 100%;
   max-width: min(100%, calc(var(--input-grid-width) + 200px));
@@ -994,8 +1015,9 @@
         <span id="plateTitle" style="display:none;"></span>
         <div class="title-row" style="margin-top:0;"></div>
 
-        <div class="split split-input">
-          <div class="split-inner input-stack">
+	        <div class="io-splits">
+	        <div class="split split-input">
+	          <div class="split-inner input-stack">
             <div class="layout-controls">
               <span class="label">入力レイアウト</span>
             </div>
@@ -1024,13 +1046,11 @@
               </div>
             </div>
           </div>
-        </div>
-        </div>
+	        </div>
+	        </div>
 
-        <div class="split-gap" aria-hidden="true"></div>
-
-	        <div class="split split-output">
-	          <div class="split-inner output-stack">
+		        <div class="split split-output">
+		          <div class="split-inner output-stack">
 	            <div class="output-panel-box">
 	              <div class="layout-controls">
 	                <span class="label">出力レイアウト</span>
@@ -1044,8 +1064,9 @@
 	              <div class="layout-side">
 	                <div class="layout-container" id="layoutContainer">
 	                  <div id="layoutGrid"></div>
-	                </div>
-	              </div>
+	          </div>
+	        </div>
+	        </div>
 	            </div>
             <div class="pack-bar" style="margin-top:0.6rem;">
               <button type="button" class="primary" id="packLayoutBtn">Packing</button>
