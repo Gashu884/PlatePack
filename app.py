@@ -68,19 +68,28 @@ def serve_results() -> HTMLResponse:
 
 @app.get("/api/logs", response_model=list[LogSummaryResponse])
 def api_list_logs(limit: int = 50) -> list[LogSummaryResponse]:
-    logs = list_logs(limit=limit)
+    try:
+        logs = list_logs(limit=limit)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     return [LogSummaryResponse(id=log.id, name=log.name, created_at=log.created_at) for log in logs]
 
 
 @app.post("/api/logs", response_model=LogSummaryResponse)
 def api_create_log(body: LogCreateRequest) -> LogSummaryResponse:
-    log = create_log(name=body.name.strip(), payload=body.payload or {})
+    try:
+        log = create_log(name=body.name.strip(), payload=body.payload or {})
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     return LogSummaryResponse(id=log.id, name=log.name, created_at=log.created_at)
 
 
 @app.get("/api/logs/{log_id}", response_model=LogEntryResponse)
 def api_get_log(log_id: str) -> LogEntryResponse:
-    log = get_log(log_id)
+    try:
+        log = get_log(log_id)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     if log is None:
         raise HTTPException(status_code=404, detail="log not found")
     return LogEntryResponse(id=log.id, name=log.name, created_at=log.created_at, payload=log.payload)
@@ -88,7 +97,10 @@ def api_get_log(log_id: str) -> LogEntryResponse:
 
 @app.delete("/api/logs/{log_id}")
 def api_delete_log(log_id: str) -> dict:
-    deleted = delete_log(log_id)
+    try:
+        deleted = delete_log(log_id)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     if not deleted:
         raise HTTPException(status_code=404, detail="log not found")
     return {"ok": True}

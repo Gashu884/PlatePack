@@ -1948,7 +1948,8 @@
           });
           const data = await res.json().catch(() => null);
           if (!res.ok) {
-            setStatus(`ログ保存に失敗しました (${res.status})`, true);
+            const detail = data?.detail ? `: ${data.detail}` : "";
+            setStatus(`ログ保存に失敗しました (${res.status})${detail}`, true);
             return;
           }
           setStatus(`ログ保存しました: ${data?.name || name}`);
@@ -1964,9 +1965,10 @@
         try {
           setStatus("ログを読み込み中...");
           const res = await fetch(`/api/logs/${encodeURIComponent(logId)}`);
-          const data = await res.json();
+          const data = await res.json().catch(() => null);
           if (!res.ok || !data?.payload) {
-            setStatus(`ログ読み込みに失敗しました (${res.status})`, true);
+            const detail = data?.detail ? `: ${data.detail}` : "";
+            setStatus(`ログ読み込みに失敗しました (${res.status})${detail}`, true);
             return;
           }
           applyLogSnapshot(data.payload);

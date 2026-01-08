@@ -86,6 +86,43 @@
         display: grid;
         background: #fff;
       }
+      details.item {
+        display: block;
+      }
+      summary.item-summary {
+        list-style: none;
+        cursor: pointer;
+        padding: 0.75rem 0.8rem;
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+      }
+      summary.item-summary::-webkit-details-marker {
+        display: none;
+      }
+      .badge {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        background: #eef2ff;
+        display: grid;
+        place-items: center;
+        font-weight: 900;
+        color: #3730a3;
+        flex: 0 0 auto;
+      }
+      .summary-text {
+        min-width: 0;
+        display: grid;
+        gap: 0.2rem;
+      }
+      .summary-actions {
+        margin-left: auto;
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        align-items: center;
+      }
       .thumb {
         width: 100%;
         aspect-ratio: 1 / 1;
@@ -96,6 +133,12 @@
         padding: 0.75rem 0.8rem;
         display: grid;
         gap: 0.4rem;
+      }
+      .meta .row {
+        display: flex;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+        align-items: center;
       }
       .title {
         font-weight: 800;
@@ -232,6 +275,10 @@
         let items = [];
         try {
           const res = await fetch(API_LIST);
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err?.detail || `HTTP ${res.status}`);
+          }
           items = (await res.json()) || [];
           if (!Array.isArray(items)) items = [];
         } catch {
@@ -242,19 +289,18 @@
         if (!items.length) return;
 
         items.forEach((item) => {
-          const card = document.createElement("div");
+          const card = document.createElement("details");
           card.className = "item";
 
-          const img = document.createElement("div");
-          img.className = "thumb";
-          img.style.display = "grid";
-          img.style.placeItems = "center";
-          img.style.color = "#64748b";
-          img.style.fontWeight = "800";
-          img.textContent = "LOG";
+          const summary = document.createElement("summary");
+          summary.className = "item-summary";
 
-          const meta = document.createElement("div");
-          meta.className = "meta";
+          const badge = document.createElement("div");
+          badge.className = "badge";
+          badge.textContent = "LOG";
+
+          const summaryText = document.createElement("div");
+          summaryText.className = "summary-text";
 
           const title = document.createElement("div");
           title.className = "title";
@@ -264,13 +310,37 @@
           sub.className = "sub";
           sub.textContent = item?.created_at ? formatDate(item.created_at) : "";
 
+          summaryText.appendChild(title);
+          summaryText.appendChild(sub);
+
+          const summaryActions = document.createElement("div");
+          summaryActions.className = "summary-actions";
+
+          const expandBtn = document.createElement("button");
+          expandBtn.type = "button";
+          expandBtn.className = "btn secondary";
+          expandBtn.textContent = "展開";
+          expandBtn.addEventListener("click", (ev) => {
+            ev.preventDefault();
+            card.open = !card.open;
+          });
+
+          summaryActions.appendChild(expandBtn);
+
+          summary.appendChild(badge);
+          summary.appendChild(summaryText);
+          summary.appendChild(summaryActions);
+
+          const meta = document.createElement("div");
+          meta.className = "meta";
+
           const actions = document.createElement("div");
           actions.className = "actions";
 
-          const load = document.createElement("a");
-          load.className = "btn";
-          load.href = `/plates?log=${encodeURIComponent(item?.id || "")}`;
-          load.textContent = "読み込む";
+          const open = document.createElement("a");
+          open.className = "btn";
+          open.href = `/plates?log=${encodeURIComponent(item?.id || "")}`;
+          open.textContent = "PlatesPackerで開く";
 
           const dl = document.createElement("button");
           dl.type = "button";
@@ -298,22 +368,27 @@
             }
           });
 
-          actions.appendChild(load);
+          actions.appendChild(open);
           actions.appendChild(dl);
           actions.appendChild(del);
 
-          meta.appendChild(title);
-          meta.appendChild(sub);
+          const row = document.createElement("div");
+          row.className = "row";
+          const idTag = document.createElement("div");
+          idTag.className = "sub";
+          idTag.textContent = `id: ${item?.id || ""}`;
+          row.appendChild(idTag);
+          meta.appendChild(row);
           meta.appendChild(actions);
 
-          card.appendChild(img);
+          card.appendChild(summary);
           card.appendChild(meta);
           listEl.appendChild(card);
         });
       }
 
       clearAllBtn.addEventListener("click", () => {
-        alert("全削除は未対応です。個別に削除してください。");
+        alert("全削除は未対応です（DB永続化のため）。個別に削除してください。");
       });
 
       importBtn.addEventListener("click", () => importInput.click());

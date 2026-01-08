@@ -35,10 +35,23 @@ if _HAS_POSTGRES:
     try:
         import psycopg  # type: ignore
         from psycopg.rows import dict_row  # type: ignore
+        from psycopg.types.json import Json  # type: ignore
     except Exception:  # pragma: no cover
         psycopg = None
         dict_row = None
+        Json = None
         _HAS_POSTGRES = False
+
+
+def _is_vercel() -> bool:
+    return bool(os.getenv("VERCEL"))
+
+
+def _ensure_persistence_available() -> None:
+    if _is_vercel() and not _HAS_POSTGRES:
+        raise RuntimeError(
+            "Persistent logs require Postgres on Vercel (set POSTGRES_URL or DATABASE_URL)."
+        )
 
 
 @dataclass(frozen=True)
@@ -72,6 +85,8 @@ def _pg_connect():
 
 
 def init_db() -> bool:
+    if _is_vercel() and not _HAS_POSTGRES:
+        return False
     if _HAS_POSTGRES:
         try:
             with _pg_connect() as conn:
@@ -81,15 +96,15 @@ def init_db() -> bool:
                       id TEXT PRIMARY KEY,
                       name TEXT NOT NULL,
                       created_at TEXT NOT NULL,
-                      payload_json TEXT NOT NULL
+                      payload_json JSONB NOT NULL
                     )
                     """
                 )
                 conn.execute("CREATE INDEX IF NOT EXISTS idx_logs_created_at ON logs(created_at)")
             return True
         except Exception:
-            # fall back to sqlite below
-            pass
+            # Do not silently fall back if Postgres is configured; callers want persistence.
+            return False
     try:
         with _connect() as conn:
             conn.execute(
@@ -110,16 +125,19 @@ def init_db() -> bool:
 
 
 def create_log(name: str, payload: Dict[str, Any]) -> LogSummary:
+    _ensure_persistence_available()
     log_id = uuid4().hex
     created_at = _now_iso()
-    payload_json = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
     if _HAS_POSTGRES:
+        if Json is None:
+            raise RuntimeError("Postgres JSON adapter unavailable")
         with _pg_connect() as conn:
             conn.execute(
                 "INSERT INTO logs (id, name, created_at, payload_json) VALUES (%s, %s, %s, %s)",
-                (log_id, name, created_at, payload_json),
+                (log_id, name, created_at, Json(payload)),
             )
         return LogSummary(id=log_id, name=name, created_at=created_at)
+    payload_json = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
     with _connect() as conn:
         conn.execute(
             "INSERT INTO logs (id, name, created_at, payload_json) VALUES (?, ?, ?, ?)",
@@ -129,6 +147,7 @@ def create_log(name: str, payload: Dict[str, Any]) -> LogSummary:
 
 
 def list_logs(limit: int = 50) -> List[LogSummary]:
+    _ensure_persistence_available()
     bounded = max(1, min(int(limit), 200))
     if _HAS_POSTGRES:
         with _pg_connect() as conn:
@@ -146,6 +165,7 @@ def list_logs(limit: int = 50) -> List[LogSummary]:
 
 
 def get_log(log_id: str) -> Optional[LogEntry]:
+    _ensure_persistence_available()
     if _HAS_POSTGRES:
         with _pg_connect() as conn:
             row = conn.execute(
@@ -154,7 +174,10 @@ def get_log(log_id: str) -> Optional[LogEntry]:
             ).fetchone()
         if row is None:
             return None
-        payload = json.loads(row["payload_json"])
+        payload_raw = row["payload_json"]
+        payload = payload_raw
+        if isinstance(payload_raw, str):
+            payload = json.loads(payload_raw)
         if not isinstance(payload, dict):
             payload = {}
         return LogEntry(
@@ -182,6 +205,7 @@ def get_log(log_id: str) -> Optional[LogEntry]:
 
 
 def delete_log(log_id: str) -> bool:
+    _ensure_persistence_available()
     if _HAS_POSTGRES:
         with _pg_connect() as conn:
             cur = conn.execute("DELETE FROM logs WHERE id = %s", (log_id,))
