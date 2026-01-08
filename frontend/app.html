@@ -7,8 +7,8 @@
     <style>
       :root {
         color-scheme: light;
-        font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-        background: #f3f4f6;
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        background: #ffffff;
         --cell-size: 48px;
         --column-header-height: calc(var(--cell-size) * 0.5); /* 列名の縦幅 */
         --row-header: var(--column-header-height); /* 行名の横幅を列名の高さと一致 */
@@ -19,8 +19,9 @@
       }
       body {
         margin: 0;
-        padding: clamp(1.5rem, 4vw, 3rem);
+        padding: 1.5rem;
         color: #0f172a;
+        background: #ffffff;
       }
       .page {
         display: grid;
@@ -38,10 +39,10 @@
       }
       .help-card {
         background: #fff;
-        border-radius: 16px;
+        border-radius: 0;
         padding: 1rem 1.05rem;
-        border: 1px solid #e6eefc;
-        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+        border: 1px solid #9ca3af;
+        box-shadow: none;
         font-size: 0.9rem;
         color: #1e293b;
       }
@@ -61,9 +62,9 @@
         gap: 0.35rem;
       }
       .help-card code {
-        background: #eef2ff;
+        background: #f3f4f6;
         padding: 0.05rem 0.3rem;
-        border-radius: 6px;
+        border-radius: 0;
         font-size: 0.88em;
       }
       @media (max-width: 1200px) {
@@ -134,9 +135,10 @@
         gap: 1.8rem;
       }
       .panel {
-        background: #f8fafc; /* neutral subtle background */
-        border-radius: 22px;
-        box-shadow: 0 28px 60px rgba(15, 23, 42, 0.1);
+        background: #ffffff;
+        border-radius: 0;
+        border: 1px solid #9ca3af;
+        box-shadow: none;
         padding: clamp(1.4rem, 3vw, 2.1rem);
       }
       /* Removed boxed wrappers for input/output; frames eliminated per user request */
@@ -182,7 +184,7 @@
         font-size: 18px;
       }
       button {
-        border: none;
+        border: 1px solid #9ca3af;
         border-radius: 0; /* make buttons rectangular */
         padding: 0.7rem 1.2rem;
         font-weight: 600;
@@ -192,20 +194,20 @@
         align-items: center;
         justify-content: center;
         gap: 0rem;
-        transition: transform 0.12s ease, box-shadow 0.12s ease;
+        transition: none;
         box-shadow: none;
+        background: #e5e7eb;
+        color: #111827;
       }
       button.primary {
-        background: #dbeafe;
-        color: #1e293b;
+        background: #d1d5db;
       }
       button.ghost {
-        background: #e2e8f0;
-        color: #1e293b;
+        background: #e5e7eb;
       }
       button.success {
-        background: #d1fae5;
-        color: #065f46;
+        background: #e5e7eb;
+        color: #111827;
       }
       button:disabled {
         opacity: 0.55;
@@ -350,8 +352,8 @@
       }
 .well-btn {
   border-radius: 0; /* rectangular wells/buttons */
-  border: none;
-  background: #eef1f5;
+  border: 1px solid #d1d5db;
+  background: #f3f4f6;
   font-size: 0.9rem;
   width: var(--cell-size);
   height: var(--cell-size);
@@ -363,13 +365,14 @@
 .well-btn.selected {
   background: #0f172a;
   color: #fff;
-  border: none;
+  border: 1px solid #0f172a;
   box-shadow: none;
 }
       .layout-container {
         position: relative;
-        background: #f4f6fb;
-        border-radius: 16px;
+        background: #f3f4f6;
+        border-radius: 0;
+        border: 1px solid #9ca3af;
         padding: 0.45rem;
         width: 100%;
         max-width: var(--input-grid-width);
@@ -380,7 +383,7 @@
         font-size: 0.82rem;
       }
       .layout-header {
-        background: #dfe7f2;
+        background: #e5e7eb;
       }
 .pack-bar {
   display: flex;
@@ -389,8 +392,8 @@
   min-height: var(--pack-bar-height);
 }
 .accent-btn {
-  background: #fef9c3;
-  color: #3b3b0a;
+  background: #e5e7eb;
+  color: #111827;
 }
       .status {
         margin-top: 1rem;
@@ -424,22 +427,22 @@
       }
       /* Packed output boxed area: white background to group packed plates */
       .packed-panel-box {
-        border: 1px solid #fff; /* slightly stronger border for visibility */
+        border: 1px solid #9ca3af;
         padding: 0.8rem;
-        border-radius: 8px;
+        border-radius: 0;
         background: #fff;
         margin-top: 0.6rem;
-        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+        box-shadow: none;
         display: block;
       }
       .packed-table {
         border-collapse: collapse;
         border-spacing: 0;
         background: #fff;
-        box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
+        box-shadow: none;
         border-radius: 0;
         overflow: hidden;
-        border: none;
+        border: 1px solid #9ca3af;
       }
       :root {
         --packed-row-header-size: 22px; /* 行ヘッダーの横幅と同じ値をここで管理 */
@@ -505,10 +508,11 @@
         max-width: 100%;
       }
       .memo-panel {
-        background: #f8fafc;
-        border-radius: 16px;
+        background: #ffffff;
+        border-radius: 0;
+        border: 1px solid #9ca3af;
         padding: 0.9rem 1rem;
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+        box-shadow: none;
       }
       .memo-panel h3 {
         margin: 0 0 0.5rem;
@@ -590,7 +594,7 @@
       /* Make output layout visually match the input: rounded rectangular background */
       .split-output .layout-container {
         background: transparent; /* remove the special blue background for output plates */
-        border-radius: 24px;
+        border-radius: 0;
         padding: 0.675rem;
       }
       /* Style output layout headers/cells to match input plate visuals */
@@ -625,10 +629,10 @@
       /* Output panel boxed area: white background behind controls and pack button */
       .output-panel-box {
         background: #ffffff;
-        border-radius: 18px;
+        border-radius: 0;
         padding: 1.2rem;
-        border: 1px solid #e6eefc;
-        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+        border: 1px solid #9ca3af;
+        box-shadow: none;
         margin-top: 0.9rem;
         display: flex;
         flex-direction: column;
@@ -772,9 +776,9 @@
       }
       #view-home .card {
         background: #fff;
-        border-radius: 18px;
-        border: 1px solid #e6eefc;
-        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+        border-radius: 0;
+        border: 1px solid #9ca3af;
+        box-shadow: none;
         padding: 1.25rem 1.25rem;
         display: grid;
         gap: 0.8rem;
@@ -792,11 +796,11 @@
         cursor: pointer;
         text-decoration: none;
         color: inherit;
-        transition: transform 0.12s ease, box-shadow 0.12s ease;
+        transition: none;
       }
       #view-home .card-link:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 22px 50px rgba(15, 23, 42, 0.12);
+        text-decoration: underline;
+        text-underline-offset: 6px;
       }
       #view-home .card-link:focus-visible {
         outline: 3px solid #93c5fd;
@@ -821,10 +825,10 @@
       }
       #view-logs .notice {
         padding: 0.75rem 0.9rem;
-        border-radius: 14px;
-        background: #fff7ed;
-        border: 1px solid #fed7aa;
-        color: #9a3412;
+        border-radius: 0;
+        background: #f3f4f6;
+        border: 1px solid #9ca3af;
+        color: #0f172a;
         line-height: 1.4;
         font-size: 0.95rem;
       }
@@ -835,8 +839,8 @@
         align-items: center;
       }
       .btn {
-        border: none;
-        border-radius: 12px;
+        border: 1px solid #9ca3af;
+        border-radius: 0;
         padding: 0.7rem 1rem;
         font-weight: 700;
         cursor: pointer;
@@ -844,23 +848,23 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        background: #dbeafe;
-        color: #1e293b;
+        background: #e5e7eb;
+        color: #111827;
       }
       .btn.secondary {
-        background: #e2e8f0;
+        background: #e5e7eb;
       }
       .btn.danger {
-        background: #fee2e2;
-        color: #7f1d1d;
+        background: #e5e7eb;
+        color: #111827;
       }
       #view-logs .panel {
         max-width: 1100px;
         margin: 0 auto;
         background: #fff;
-        border-radius: 18px;
-        border: 1px solid #e6eefc;
-        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+        border-radius: 0;
+        border: 1px solid #9ca3af;
+        box-shadow: none;
         padding: 1rem;
       }
       #view-logs .grid {
@@ -878,8 +882,8 @@
         }
       }
       #view-logs .item {
-        border: 1px solid #e2e8f0;
-        border-radius: 14px;
+        border: 1px solid #9ca3af;
+        border-radius: 0;
         overflow: hidden;
         display: grid;
         background: #fff;
@@ -901,12 +905,13 @@
       #view-logs .badge {
         width: 44px;
         height: 44px;
-        border-radius: 12px;
-        background: #eef2ff;
+        border-radius: 0;
+        background: #f3f4f6;
+        border: 1px solid #9ca3af;
         display: grid;
         place-items: center;
         font-weight: 900;
-        color: #3730a3;
+        color: #111827;
         flex: 0 0 auto;
       }
       #view-logs .summary-text {
