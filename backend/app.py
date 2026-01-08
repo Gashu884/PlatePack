@@ -8,8 +8,12 @@ from fastapi import FastAPI, HTTPException, Response
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
-from api.generate_html import ReportRequest, build_html_report, sample_payload
-from api.logs_db import create_log, delete_log, get_log, init_db, list_logs
+try:
+    from backend.api.generate_html import ReportRequest, build_html_report, sample_payload
+    from backend.api.logs_db import create_log, delete_log, get_log, init_db, list_logs
+except ModuleNotFoundError:  # pragma: no cover
+    from api.generate_html import ReportRequest, build_html_report, sample_payload
+    from api.logs_db import create_log, delete_log, get_log, init_db, list_logs
 
 app = FastAPI(
     title="PlatePack HTML API",

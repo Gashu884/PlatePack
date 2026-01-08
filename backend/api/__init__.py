@@ -1,2 +1,2 @@
-"""Backend API package for PlatePack."""
+"""Backend API helpers for PlatePack."""
 

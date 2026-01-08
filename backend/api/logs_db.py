@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import os
-import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -70,7 +69,9 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
-def _connect() -> sqlite3.Connection:
+def _connect() -> "sqlite3.Connection":
+    import sqlite3
+
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -119,7 +120,7 @@ def init_db() -> bool:
             )
             conn.execute("CREATE INDEX IF NOT EXISTS idx_logs_created_at ON logs(created_at)")
         return True
-    except sqlite3.Error:
+    except Exception:
         # Allow app to run even when persistence is unavailable (e.g. read-only FS).
         return False
 
