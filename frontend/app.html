@@ -228,42 +228,25 @@
   gap: 0.5rem;
   align-items: center;
 }
-	.split {
-	  display: flex;
-	  justify-content: flex-start;
-	  width: 100%;
-	  gap: 1.5rem; /* スプリット間の横間隔 */
-	  align-items: flex-start;
-	  margin-bottom: 1rem; /* セクション間の余白 */
-	  flex-wrap: wrap;
-	}
 		.io-splits {
 		  display: flex;
 		  flex-wrap: wrap;
-		  column-gap: 0;
-		  row-gap: 2rem;
 		  align-items: flex-start;
+		  row-gap: 2rem;
+		}
+		.io-splits .split-input,
+		.io-splits .split-output {
+		  flex: 0 0 var(--input-grid-width);
+		  width: var(--input-grid-width);
+		  max-width: 100%;
 		}
 		.io-splits .io-spacer {
 		  flex: 0 0 50px;
 		  width: 50px;
 		  height: 1px;
 		}
-		.io-splits > .split {
-		  width: auto;
-		  margin-bottom: 0;
-		}
-		.io-splits > .split-input {
-		  flex: 0 0 var(--input-grid-width);
-		  width: var(--input-grid-width);
-		}
-		.io-splits > .split-output {
-		  flex: 0 0 var(--input-grid-width);
-		  width: var(--input-grid-width);
-		}
 		.io-splits .split-inner {
 		  max-width: 100%;
-		  padding: 0;
 		}
 	.split-inner {
 	  width: 100%;
@@ -1023,64 +1006,70 @@
         <div class="title-row" style="margin-top:0;"></div>
 
 	        <div class="io-splits">
-	        <div class="split split-input">
-	          <div class="split-inner input-stack">
-            <div class="layout-controls">
-              <span class="label">入力レイアウト</span>
-            </div>
-
-	            <div class="input-controls-row" style="width: var(--input-grid-width); display:flex; justify-content:space-between; align-items:center; margin:0.25rem 0 0.4rem;">
-	              <div class="input-controls-left" style="display:flex; gap:0.5rem; align-items:center;">
-	                <button type="button" class="ghost" id="prevPlateBtn">Previous</button>
-	                <button type="button" class="ghost" id="nextPlateBtn">Next</button>
+	          <div class="split-input">
+	            <div class="split-inner input-stack">
+	              <div class="layout-controls">
+	                <span class="label">入力レイアウト</span>
 	              </div>
-	              <div class="input-controls-right" style="display:flex; gap:0.5rem; align-items:center;">
-	                <button type="button" class="ghost" id="wellLabelBtn">1A</button>
-	                <button type="button" class="ghost" id="inputDirectionBtn">読み方向：→</button>
-	                <button type="button" class="accent-btn" id="clearPlateBtn">Clear</button>
+	
+	              <div
+	                class="input-controls-row"
+	                style="width: var(--input-grid-width); display:flex; justify-content:space-between; align-items:center; margin:0.25rem 0 0.4rem;"
+	              >
+	                <div class="input-controls-left" style="display:flex; gap:0.5rem; align-items:center;">
+	                  <button type="button" class="ghost" id="prevPlateBtn">Previous</button>
+	                  <button type="button" class="ghost" id="nextPlateBtn">Next</button>
+	                </div>
+	                <div class="input-controls-right" style="display:flex; gap:0.5rem; align-items:center;">
+	                  <button type="button" class="ghost" id="wellLabelBtn">1A</button>
+	                  <button type="button" class="ghost" id="inputDirectionBtn">読み方向：→</button>
+	                  <button type="button" class="accent-btn" id="clearPlateBtn">Clear</button>
+	                </div>
+	              </div>
+	
+	              <div class="input-layout">
+	                <div class="input-grid">
+	                  <div class="column-header" id="columnHeader"></div>
+	                  <div id="wellGrid"></div>
+	                </div>
+	              </div>
+	
+	              <div class="memo-below" style="width: var(--input-grid-width); margin-top:0.6rem;">
+	                <div class="memo-field" style="display:flex; align-items:center; gap:0.5rem;">
+	                  <label for="plateMemo">メモ</label>
+	                  <textarea id="plateMemo" placeholder="メモ記入欄"></textarea>
+	                </div>
 	              </div>
 	            </div>
-            <div class="input-layout">
-              <div class="input-grid">
-                <div class="column-header" id="columnHeader"></div>
-                <div id="wellGrid"></div>
-              </div>
-            </div>
-            <div class="memo-below" style="width: var(--input-grid-width); margin-top:0.6rem;">
-              <div class="memo-field" style="display:flex; align-items:center; gap:0.5rem;">
-                <label for="plateMemo">メモ</label>
-                <textarea id="plateMemo" placeholder="メモ記入欄"></textarea>
-              </div>
-            </div>
-		        </div>
-		        </div>
-		        </div>
-		        <div class="io-spacer" aria-hidden="true"></div>
+	          </div>
 	
-			        <div class="split split-output">
-			          <div class="split-inner output-stack">
-		            <div class="output-panel-box">
-	              <div class="layout-controls">
-	                <span class="label">出力レイアウト</span>
+	          <div class="io-spacer" aria-hidden="true"></div>
+	
+	          <div class="split-output">
+	            <div class="split-inner output-stack">
+	              <div class="output-panel-box">
+	                <div class="layout-controls">
+	                  <span class="label">出力レイアウト</span>
+	                </div>
+	                <div class="split-gap" style="height:20px;" aria-hidden="true"></div>
+	                <div class="layout-controls" style="margin-top:0.25rem;">
+	                  <button type="button" class="ghost" id="directionBtn">整列方向：→</button>
+	                  <div style="flex:1 1 auto"></div>
+	                  <button type="button" class="accent-btn" id="layoutClearBtn">Clear</button>
+	                </div>
+	                <div class="layout-side">
+	                  <div class="layout-container" id="layoutContainer">
+	                    <div id="layoutGrid"></div>
+	                  </div>
+	                </div>
 	              </div>
-	              <div class="split-gap" style="height:20px;" aria-hidden="true"></div>
-	              <div class="layout-controls" style="margin-top:0.25rem;">
-	                <button type="button" class="ghost" id="directionBtn">整列方向：→</button>
-	                <div style="flex:1 1 auto"></div>
-	                <button type="button" class="accent-btn" id="layoutClearBtn">Clear</button>
+	
+	              <div class="pack-bar" style="margin-top:0.6rem;">
+	                <button type="button" class="primary" id="packLayoutBtn">Packing</button>
 	              </div>
-	              <div class="layout-side">
-	                <div class="layout-container" id="layoutContainer">
-	                  <div id="layoutGrid"></div>
+	            </div>
 	          </div>
 	        </div>
-	        </div>
-	            </div>
-            <div class="pack-bar" style="margin-top:0.6rem;">
-              <button type="button" class="primary" id="packLayoutBtn">Packing</button>
-            </div>
-          </div>
-        </div>
 
         <div class="status" id="status"></div>
       </section>
