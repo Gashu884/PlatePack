@@ -24,7 +24,7 @@
       }
       .page {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) 320px;
+        grid-template-columns: minmax(0, 1fr);
         gap: 1.5rem;
         align-items: start;
       }
@@ -78,6 +78,34 @@
         margin-bottom: 1.75rem;
         display: grid;
         gap: 0.4rem;
+      }
+      .page-title-link {
+        color: inherit;
+        text-decoration: none;
+      }
+      .page-title-link:hover {
+        text-decoration: underline;
+        text-decoration-thickness: 3px;
+        text-underline-offset: 6px;
+      }
+      .breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        font-size: 0.95rem;
+        color: #64748b;
+      }
+      .breadcrumb a {
+        color: inherit;
+        text-decoration: none;
+      }
+      .breadcrumb a:hover {
+        color: #0f172a;
+        text-decoration: underline;
+        text-underline-offset: 4px;
+      }
+      .breadcrumb .sep {
+        opacity: 0.6;
       }
       h1 {
         margin: 0;
@@ -913,11 +941,33 @@
     <div class="page">
       <div class="page-main">
         <header>
-          <h1>Packer</h1>
+          <h1><a class="page-title-link" href="/">Packer</a></h1>
+          <nav class="breadcrumb" aria-label="Breadcrumb">
+            <a href="/">Home</a>
+            <span class="sep">/</span>
+            <span aria-current="page">Packer</span>
+          </nav>
           <p class="muted">抽出するwellをクリックし、パッキング結果を新しいプレートとして表示します。</p>
         </header>
 
         <div class="layout">
+      <div class="help-card">
+        <h2>使い方</h2>
+        <ol>
+          <li><code>Number of Plates</code>で入力プレート枚数を設定（<code>Previous</code>/<code>Next</code>で移動）。</li>
+          <li>入力プレート：ウェルをクリックして選択（黒＝選択、もう一度で解除）。</li>
+          <li><code>1A</code>ボタンで表示形式を切替（<code>1A ⇄ A1</code>）。出力にも反映されます。</li>
+          <li><code>読み方向</code>で入力の読み順を切替。</li>
+          <li>出力レイアウト：ウェルをクリックすると空ウェル（黒）として除外、もう一度で解除。</li>
+          <li>区切り線（赤/青）をクリックして出力領域を分割。</li>
+          <li><code>Packing</code>で実行 → 下の出力プレートに結果表示。</li>
+          <li>結果プレートは<code>Previous</code>/<code>Next</code>で移動、<code>Download TSV</code>でTSV出力。</li>
+        </ol>
+        <h3>ヒント</h3>
+        <ul>
+          <li>出力レイアウトの行/列ラベルをクリックすると行/列まとめて空ウェルを切替できます。</li>
+        </ul>
+      </div>
       <section class="panel">
         <div class="toolbar">
           <div class="controls">
@@ -1029,25 +1079,6 @@
         </div>
       </div>
 
-      <aside class="page-help">
-        <div class="help-card">
-          <h2>使い方</h2>
-          <ol>
-            <li><code>Number of Plates</code>で入力プレート枚数を設定（<code>Previous</code>/<code>Next</code>で移動）。</li>
-            <li>入力プレート：ウェルをクリックして選択（黒＝選択、もう一度で解除）。</li>
-            <li><code>1A</code>ボタンで表示形式を切替（<code>1A ⇄ A1</code>）。出力にも反映されます。</li>
-            <li><code>読み方向</code>で入力の読み順を切替。</li>
-            <li>出力レイアウト：ウェルをクリックすると空ウェル（黒）として除外、もう一度で解除。</li>
-            <li>区切り線（赤/青）をクリックして出力領域を分割。</li>
-            <li><code>Packing</code>で実行 → 下の出力プレートに結果表示。</li>
-            <li>結果プレートは<code>Previous</code>/<code>Next</code>で移動、<code>Download TSV</code>でTSV出力。</li>
-          </ol>
-          <h3>ヒント</h3>
-          <ul>
-            <li>出力レイアウトの行/列ラベルをクリックすると行/列まとめて空ウェルを切替できます。</li>
-          </ul>
-        </div>
-      </aside>
     </div>
     </section>
 
