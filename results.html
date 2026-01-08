@@ -136,6 +136,8 @@
       <div class="toolbar">
         <a class="btn secondary" href="/">ホームへ</a>
         <a class="btn" href="/plates">PlatesPackerへ</a>
+        <button type="button" class="btn" id="importBtn">Import JSON</button>
+        <input type="file" id="importInput" accept="application/json,.json" style="display:none;" />
         <button type="button" class="btn danger" id="clearAllBtn">全削除</button>
       </div>
     </header>
@@ -151,6 +153,8 @@
       const listEl = document.getElementById("list");
       const emptyEl = document.getElementById("empty");
       const clearAllBtn = document.getElementById("clearAllBtn");
+      const importBtn = document.getElementById("importBtn");
+      const importInput = document.getElementById("importInput");
 
       function formatDate(iso) {
         try {
@@ -185,6 +189,41 @@
         const data = await res.json();
         const safe = String(name || "log").replace(/[^a-zA-Z0-9_-]+/g, "_");
         downloadJson(`platepack_log_${safe}_${id}.json`, data);
+      }
+
+      function readFileAsText(file) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result || ""));
+          reader.onerror = () => reject(reader.error || new Error("read failed"));
+          reader.readAsText(file);
+        });
+      }
+
+      async function importJsonFile(file) {
+        const text = await readFileAsText(file);
+        const parsed = JSON.parse(text);
+        const payload =
+          parsed && typeof parsed === "object" && parsed.payload && typeof parsed.payload === "object"
+            ? parsed.payload
+            : parsed && typeof parsed === "object"
+              ? parsed
+              : null;
+        if (!payload || typeof payload !== "object") {
+          throw new Error("invalid payload");
+        }
+        const defaultName =
+          (parsed && typeof parsed === "object" && typeof parsed.name === "string" && parsed.name.trim()) ||
+          (file?.name ? file.name.replace(/\\.json$/i, "") : "") ||
+          `Imported ${new Date().toLocaleString()}`;
+        const name = prompt("ログ名を入力してください:", defaultName);
+        if (!name) return;
+        const res = await fetch(API_LIST, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, payload }),
+        });
+        if (!res.ok) throw new Error("import failed");
       }
 
       async function render() {
@@ -275,6 +314,19 @@
 
       clearAllBtn.addEventListener("click", () => {
         alert("全削除は未対応です。個別に削除してください。");
+      });
+
+      importBtn.addEventListener("click", () => importInput.click());
+      importInput.addEventListener("change", async () => {
+        const file = importInput.files && importInput.files[0];
+        importInput.value = "";
+        if (!file) return;
+        try {
+          await importJsonFile(file);
+          await render();
+        } catch {
+          alert("JSONの読み込み/保存に失敗しました。");
+        }
       });
 
       render();
