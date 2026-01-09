@@ -22,6 +22,9 @@
 ### ローカルで動かす場合
 
 ```bash
+npm install
+npm run build:frontend
+
 python -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
@@ -35,7 +38,7 @@ uvicorn backend.app:app --reload
 ### Vercel にデプロイする場合
 
 1. リポジトリを Vercel にインポート
-2. Build Command / Output Directory は空欄で OK
+2. `frontend/static` にビルド済みJS（`npm run build:frontend`）が必要です（コミットするか、Vercel側でBuild Commandを設定してください）
 3. デプロイすると以下が利用できます
    - `https://{your-project}.vercel.app/` → UI
    - `https://{your-project}.vercel.app/generate-html` → HTML 生成エンドポイント (POST)
