@@ -1,4 +1,3 @@
-// @ts-nocheck
 (function () {
         const API_LIST = "/api/logs";
         const API_ITEM = (id) => `/api/logs/${encodeURIComponent(id)}`;
@@ -345,7 +344,5 @@
           if (migrateBtn) migrateBtn.style.display = ok ? "inline-flex" : "none";
         });
 
-      render();
+        render();
       })();
-
-export {};

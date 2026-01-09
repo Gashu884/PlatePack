@@ -1,4 +1,3 @@
-// @ts-nocheck
 const ROWS = ["A", "B", "C", "D", "E", "F", "G", "H"];
       const COLS = Array.from({ length: 12 }, (_, i) => i + 1);
       const API_ENDPOINT = "/generate-html";
@@ -1674,7 +1673,7 @@ const ROWS = ["A", "B", "C", "D", "E", "F", "G", "H"];
           }
         });
 
-        (window as any).__platepack_logs_render = render;
+        window.__platepack_logs_render = render;
       })();
 
 (function () {
@@ -1698,13 +1697,11 @@ const ROWS = ["A", "B", "C", "D", "E", "F", "G", "H"];
 	            el.hidden = !isActive;
 	            el.setAttribute("aria-hidden", String(!isActive));
 	          });
-	          if (key === "logs" && typeof (window as any).__platepack_logs_render === "function") {
-	            (window as any).__platepack_logs_render();
+	          if (key === "logs" && typeof window.__platepack_logs_render === "function") {
+	            window.__platepack_logs_render();
 	          }
 	        }
 
         setActiveView(keyFromPathname(window.location.pathname));
         window.addEventListener("popstate", () => setActiveView(keyFromPathname(window.location.pathname)));
       })();
-
-export {};

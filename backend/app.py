@@ -6,7 +6,6 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Response
 from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 try:
@@ -26,9 +25,6 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 HOME_HTML_PATH = ROOT_DIR / "frontend" / "home.html"
 PACKER_HTML_PATH = ROOT_DIR / "frontend" / "app.html"
 DATABASE_HTML_PATH = ROOT_DIR / "frontend" / "database.html"
-STATIC_DIR = ROOT_DIR / "frontend" / "static"
-
-app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
 class LogCreateRequest(BaseModel):
