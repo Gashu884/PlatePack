@@ -7,32 +7,29 @@
     <style>
       :root {
         color-scheme: light;
-        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, "Segoe UI", Roboto,
+          sans-serif;
         text-rendering: optimizeLegibility;
 
-        --bg: #f8fafc;
-        --text: #0f172a;
-        --muted: #475569;
-        --panel: rgba(255, 255, 255, 0.82);
-        --panel-solid: #ffffff;
-        --border: rgba(15, 23, 42, 0.12);
-        --shadow: 0 22px 50px rgba(2, 6, 23, 0.12);
-        --radius-lg: 18px;
-        --radius-md: 14px;
-        --radius-sm: 12px;
-        --focus: 0 0 0 4px rgba(99, 102, 241, 0.22);
-        --accent: #6366f1;
-        --accent2: #22d3ee;
-        --danger: #ef4444;
+        --bg: #f5f5f7;
+        --text: #1d1d1f;
+        --muted: #6e6e73;
+        --panel: #ffffff;
+        --border: rgba(0, 0, 0, 0.10);
+        --shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 12px 34px rgba(0, 0, 0, 0.06);
+        --radius-lg: 20px;
+        --radius-md: 16px;
+        --radius-sm: 999px;
+        --focus: 0 0 0 4px rgba(0, 113, 227, 0.28);
+        --accent: #0071e3;
+        --accent-pressed: #0066cc;
+        --danger: #c9342d;
       }
       body {
         margin: 0;
         padding: clamp(1.1rem, 3vw, 2rem);
         color: var(--text);
-        background:
-          radial-gradient(900px 520px at 10% -10%, rgba(99, 102, 241, 0.18), transparent 60%),
-          radial-gradient(780px 460px at 105% 0%, rgba(34, 211, 238, 0.14), transparent 55%),
-          var(--bg);
+        background: var(--bg);
       }
       header {
         display: grid;
@@ -52,14 +49,14 @@
         align-items: center;
         gap: 0.4rem;
         font-size: 0.95rem;
-        color: #64748b;
+        color: var(--muted);
       }
       .breadcrumb a {
         color: inherit;
         text-decoration: none;
       }
       .breadcrumb a:hover {
-        color: #0f172a;
+        color: var(--text);
         text-decoration: underline;
         text-underline-offset: 4px;
       }
@@ -94,8 +91,8 @@
       #view-logs .notice {
         padding: 0.75rem 0.9rem;
         border-radius: var(--radius-md);
-        background: rgba(99, 102, 241, 0.08);
-        border: 1px solid rgba(99, 102, 241, 0.18);
+        background: rgba(0, 113, 227, 0.08);
+        border: 1px solid rgba(0, 113, 227, 0.16);
         color: var(--text);
         line-height: 1.4;
         font-size: 0.95rem;
@@ -116,30 +113,31 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        background: rgba(255, 255, 255, 0.7);
+        background: rgba(255, 255, 255, 0.85);
         color: var(--text);
-        box-shadow: 0 10px 24px rgba(2, 6, 23, 0.10);
-        transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease, border-color 120ms ease;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+        transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
+          background 160ms ease, border-color 160ms ease;
       }
       .btn:hover {
         transform: translateY(-1px);
-        box-shadow: 0 16px 34px rgba(2, 6, 23, 0.14);
-        border-color: rgba(99, 102, 241, 0.22);
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.10);
+        border-color: rgba(0, 0, 0, 0.14);
       }
       .btn:active {
         transform: translateY(0);
       }
       .btn:focus-visible {
         outline: none;
-        box-shadow: var(--focus), 0 16px 34px rgba(2, 6, 23, 0.14);
+        box-shadow: var(--focus), 0 6px 18px rgba(0, 0, 0, 0.10);
       }
       .btn.secondary {
-        background: rgba(255, 255, 255, 0.65);
+        background: rgba(255, 255, 255, 0.85);
       }
       .btn.danger {
-        background: linear-gradient(135deg, rgba(239, 68, 68, 0.95), rgba(244, 63, 94, 0.9));
-        border-color: transparent;
-        color: #ffffff;
+        background: #ffffff;
+        border-color: rgba(201, 52, 45, 0.30);
+        color: #c9342d;
       }
       .ghost-btn {
         border: 1px solid var(--border);
@@ -151,22 +149,23 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        background: rgba(255, 255, 255, 0.65);
+        background: rgba(255, 255, 255, 0.85);
         color: var(--text);
         font-weight: 600;
         font-size: 18px;
         cursor: pointer;
-        box-shadow: 0 10px 24px rgba(2, 6, 23, 0.10);
-        transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease, border-color 120ms ease;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+        transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
+          background 160ms ease, border-color 160ms ease;
       }
       .ghost-btn:hover {
         transform: translateY(-1px);
-        box-shadow: 0 16px 34px rgba(2, 6, 23, 0.14);
-        border-color: rgba(99, 102, 241, 0.22);
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.10);
+        border-color: rgba(0, 0, 0, 0.14);
       }
       .ghost-btn:focus-visible {
         outline: none;
-        box-shadow: var(--focus), 0 16px 34px rgba(2, 6, 23, 0.14);
+        box-shadow: var(--focus), 0 6px 18px rgba(0, 0, 0, 0.10);
       }
       #view-logs .panel {
         max-width: 1100px;
@@ -176,7 +175,6 @@
         border: 1px solid var(--border);
         box-shadow: var(--shadow);
         padding: 1rem;
-        backdrop-filter: blur(10px);
       }
       #view-logs .grid {
         display: grid;
@@ -197,9 +195,8 @@
         border-radius: var(--radius-md);
         overflow: hidden;
         display: grid;
-        background: rgba(255, 255, 255, 0.78);
-        box-shadow: 0 14px 30px rgba(2, 6, 23, 0.10);
-        backdrop-filter: blur(10px);
+        background: #ffffff;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 12px 30px rgba(0, 0, 0, 0.06);
       }
       #view-logs details.item {
         display: block;
@@ -218,10 +215,10 @@
       }
       #view-logs .badge {
         font-weight: 800;
-        background: rgba(99, 102, 241, 0.10);
+        background: rgba(0, 113, 227, 0.08);
         color: #1e293b;
         border-radius: 999px;
-        border: 1px solid rgba(99, 102, 241, 0.18);
+        border: 1px solid rgba(0, 113, 227, 0.16);
         padding: 0.3rem 0.65rem;
         font-size: 0.8rem;
         white-space: nowrap;
@@ -247,14 +244,14 @@
       }
       #view-logs .title {
         font-weight: 800;
-        color: #0f172a;
+        color: var(--text);
         font-size: 0.95rem;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
       }
       #view-logs .sub {
-        color: #64748b;
+        color: var(--muted);
         font-size: 0.85rem;
       }
       #view-logs .actions {
@@ -268,8 +265,8 @@
         padding: 1rem;
       }
       #view-logs code {
-        background: rgba(15, 23, 42, 0.06);
-        padding: 0.12rem 0.38rem;
+        background: rgba(0, 0, 0, 0.06);
+        padding: 0.12rem 0.4rem;
         border-radius: 10px;
         font-size: 0.95em;
       }
