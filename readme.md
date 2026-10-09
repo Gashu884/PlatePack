@@ -118,6 +118,29 @@ Content-Type: text/html; charset=utf-8
 2. `PlatesPackerへ` からウェル選択・レイアウト設定・パッキングを実行
 3. 必要なら `Save Log` でログ保存、`保存したログ` から読み込み/JSONダウンロード
 
+## 増殖週の記録と保存
+
+- 入力プレート上部の `Growth week` に1〜5週目のボタンを常設しています。週を選んでウェルを押すと、その週番号を記録します。
+- 選択済みのウェルを別の週で押すと週番号を変更します。同じ週で押すと選択を解除します。行・列の一括選択も選択中の週を記録します。
+- パック後は各ウェルの右下に番号を表示します。PNG、TSVの `*_growth_week` 列、HTMLレポートにも週番号を出力します。
+- 入力、メモ、レイアウト、週番号、パック結果はブラウザへ自動保存し、再読み込み時に復元します。ブラウザの2種類の保存先に記録し、直前の下書きも保持します。
+- `Save Log` はブラウザとDBへの保存を試み、DBから読み戻して内容を確認します。同時にJSONバックアップをダウンロードします。保存に失敗した場合は失敗を表示します。
+- `Backup JSON` で任意の時点のデータを書き出し、`Restore JSON` またはDatabaseのインポートで復元できます。従来のversion 1ログも読み込み可能です。
+- ブラウザのデータ削除・端末故障に備えて、JSONバックアップは別の場所にも保管してください。ブラウザだけの保存は別端末に引き継がれません。
+- VercelのDB保存には既存のPostgreSQLを使用します（`POSTGRES_URL` / `POSTGRES_URL_NON_POOLING` / `DATABASE_URL`）。未設定・接続失敗の場合はDB保存成功と表示せず、`/tmp`の一時DBにも保存しません。`GET /api/storage-health` で利用可否を確認できます。
+- 英字フォントはCambriaを優先します。端末にCambriaがない場合はGeorgia等にフォールバックします。
+
+## 検証
+
+```bash
+python -m unittest discover -s backend/tests -v
+node --test tests/storage.test.cjs
+# ローカルサーバー起動後、Playwrightが利用可能な環境で:
+BASE_URL=http://127.0.0.1:8000 node tests/e2e.cjs
+```
+
+E2Eは週番号の切替、パック、再読み込み、ログ保存の照合、JSON復元、従来データの互換性、PNG/TSV、保存先が利用できない場合を検証します。Chromeを指定する場合は `CHROME_PATH` を設定してください。
+
 ## 開発メモ
 
 - HTML レポートは `backend/api/generate_html.py` の `build_html_report` で組み立てています。スタイルや構造を変更したい場合は同関数を編集してください。

@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from html import escape
 import re
 from typing import Dict, List, Optional, Set
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, conint, validator
 
 _WELL_RE = re.compile(r"^([A-Za-z]+)(\d+)$")
+GrowthWeek = conint(strict=True, ge=1, le=5)
 
 
 def _letters_to_index(value: str) -> int:
@@ -43,6 +44,9 @@ class SourcePlate(BaseModel):
     plate_id: str = Field(..., description="Identifier for the source plate.")
     wells: List[str] = Field(default_factory=list, description="Selected wells on the plate.")
     description: Optional[str] = Field(default=None, description="Optional free-form description.")
+    growth_weeks: Dict[str, GrowthWeek] = Field(
+        default_factory=dict, description="Week of observed growth for each selected source well (1–5)."
+    )
 
     @validator("wells", each_item=True)
     def _validate_well(cls, value: str) -> str:
@@ -51,6 +55,20 @@ class SourcePlate(BaseModel):
             raise ValueError(f"Invalid well label: {value}")
         return f"{info['row_label']}{info['col_label']}"
 
+    @validator("growth_weeks")
+    def _validate_growth_weeks(cls, value: dict, values) -> dict:
+        normalized = {}
+        selected = set(values.get("wells", []))
+        for well, week in value.items():
+            info = _parse_well(well)
+            if info is None:
+                raise ValueError(f"Invalid growth-week well label: {well}")
+            label = f"{info['row_label']}{info['col_label']}"
+            if label not in selected:
+                raise ValueError(f"Growth week references an unselected source well: {label}")
+            normalized[label] = week
+        return normalized
+
 
 class DestinationAssignment(BaseModel):
     well: str = Field(..., description="Destination well label, e.g. A1.")
@@ -58,6 +76,9 @@ class DestinationAssignment(BaseModel):
     source_well: Optional[str] = Field(default=None, description="Origin well label.")
     label: Optional[str] = Field(
         default=None, description="Custom label rendered inside the well cell."
+    )
+    growth_week: Optional[GrowthWeek] = Field(
+        default=None, description="Week of observed growth on the source well (1–5)."
     )
 
     @validator("well")
@@ -101,6 +122,7 @@ class PlanEntry(BaseModel):
     source_well: str
     destination_plate: str
     destination_well: str
+    growth_week: Optional[GrowthWeek] = Field(default=None)
 
     @validator("source_well", "destination_well")
     def _validate(cls, value: str) -> str:
@@ -125,7 +147,7 @@ class ReportRequest(BaseModel):
     def _default_run_date(cls, value: Optional[str]) -> str:
         if value:
             return value
-        return datetime.utcnow().isoformat(timespec="seconds") + "Z"
+        return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
     @validator("title")
     def _strip_title(cls, value: str) -> str:
@@ -172,6 +194,16 @@ def build_html_report(payload: ReportRequest) -> str:
         source_id: palette[idx % len(palette)]
         for idx, source_id in enumerate(sorted(legend_sources))
     }
+    growth_by_source = {
+        (src.plate_id, well): week
+        for src in payload.sources
+        for well, week in src.growth_weeks.items()
+    }
+
+    def assignment_week(assignment: DestinationAssignment) -> Optional[int]:
+        if assignment.growth_week is not None:
+            return assignment.growth_week
+        return growth_by_source.get((assignment.source_plate, assignment.source_well))
 
     def render_sources() -> str:
         if not payload.sources:
@@ -212,6 +244,7 @@ def build_html_report(payload: ReportRequest) -> str:
                 assignment = assignments.get((row_idx, col_idx))
                 cell_color = "#ffffff"
                 text = ""
+                week_html = ""
                 if assignment:
                     source_id = assignment.source_plate or ""
                     cell_color = color_by_source.get(source_id, "#e2e8f0")
@@ -221,7 +254,10 @@ def build_html_report(payload: ReportRequest) -> str:
                         text = escape(f"{assignment.source_plate} · {assignment.source_well}")
                     elif assignment.source_plate:
                         text = escape(assignment.source_plate)
-                cells.append(f"<td style=\"background:{cell_color};\">{text}</td>")
+                    week = assignment_week(assignment)
+                    if week is not None:
+                        week_html = f'<span class="growth-week" aria-label="Growth observed in week {week}">{week}</span>'
+                cells.append(f"<td class=\"well-cell\" style=\"background:{cell_color};\">{text}{week_html}</td>")
             body_rows.append(f"<tr><th scope=\"row\">{row_label}</th>{''.join(cells)}</tr>")
 
         return f"""
@@ -255,6 +291,7 @@ def build_html_report(payload: ReportRequest) -> str:
                                 source_well=assignment.source_well,
                                 destination_plate=plate.plate_id,
                                 destination_well=assignment.well,
+                                growth_week=assignment_week(assignment),
                             )
                         )
         if not plan_rows:
@@ -266,6 +303,7 @@ def build_html_report(payload: ReportRequest) -> str:
             f"<td>{escape(entry.source_well)}</td>"
             f"<td>{escape(entry.destination_plate)}</td>"
             f"<td>{escape(entry.destination_well)}</td>"
+            f"<td>{entry.growth_week if entry.growth_week is not None else growth_by_source.get((entry.source_plate, entry.source_well), '')}</td>"
             f"</tr>"
             for entry in plan_rows
         )
@@ -277,6 +315,7 @@ def build_html_report(payload: ReportRequest) -> str:
                   <th scope="col">Source Well</th>
                   <th scope="col">Destination Plate</th>
                   <th scope="col">Destination Well</th>
+                  <th scope="col">Growth Week</th>
                 </tr>
               </thead>
               <tbody>
@@ -302,7 +341,7 @@ def build_html_report(payload: ReportRequest) -> str:
     <style>
       :root {{
         color-scheme: light;
-        font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        font-family: Cambria, "Times New Roman", "Yu Mincho", serif;
       }}
       body {{
         margin: 0;
@@ -341,7 +380,7 @@ def build_html_report(payload: ReportRequest) -> str:
         border-collapse: collapse;
         background: #fff;
         box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
-        border-radius: 16px;
+        border-radius: 10px;
         overflow: hidden;
       }}
       thead {{
@@ -361,6 +400,21 @@ def build_html_report(payload: ReportRequest) -> str:
       }}
       td {{
         min-width: 72px;
+      }}
+      .well-cell {{
+        position: relative;
+        padding-bottom: 1.1rem;
+      }}
+      .growth-week {{
+        position: absolute;
+        right: 0.3rem;
+        bottom: 0.15rem;
+        font-size: 0.68rem;
+        line-height: 1;
+        color: #111827;
+        background: rgba(255, 255, 255, 0.9);
+        padding: 0.1rem 0.2rem;
+        border-radius: 2px;
       }}
       ul {{
         margin: 0;

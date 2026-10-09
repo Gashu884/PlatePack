@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -30,6 +31,9 @@ POSTGRES_DSN = (
 )
 
 _HAS_POSTGRES = bool(POSTGRES_DSN)
+psycopg = None
+dict_row = None
+Json = None
 if _HAS_POSTGRES:
     try:
         import psycopg  # type: ignore
@@ -39,7 +43,10 @@ if _HAS_POSTGRES:
         psycopg = None
         dict_row = None
         Json = None
-        _HAS_POSTGRES = False
+
+
+class StorageUnavailableError(RuntimeError):
+    """A storage failure with a safe, user-facing explanation."""
 
 
 def _is_vercel() -> bool:
@@ -47,9 +54,13 @@ def _is_vercel() -> bool:
 
 
 def _ensure_persistence_available() -> None:
+    if _HAS_POSTGRES and (psycopg is None or Json is None):
+        raise StorageUnavailableError(
+            "The persistent database is configured, but its driver is unavailable. Please contact the administrator."
+        )
     if _is_vercel() and not _HAS_POSTGRES:
-        raise RuntimeError(
-            "Persistent logs require Postgres on Vercel (set POSTGRES_URL or DATABASE_URL)."
+        raise StorageUnavailableError(
+            "Persistent storage is not configured on the server. Keep a downloaded backup until database storage is connected."
         )
 
 
@@ -69,24 +80,52 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
-def _connect() -> "sqlite3.Connection":
+@contextmanager
+def _connect():
     import sqlite3
 
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+    conn = None
+    try:
+        DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+        conn = sqlite3.connect(DB_PATH, timeout=10)
+        conn.row_factory = sqlite3.Row
+        # A successful commit flushes data to disk, and lock contention is retried.
+        conn.execute("PRAGMA synchronous = FULL")
+        with conn:
+            yield conn
+    except (sqlite3.Error, OSError) as exc:
+        raise StorageUnavailableError(
+            "Database storage is temporarily unavailable. Keep a downloaded backup and retry saving."
+        ) from exc
+    finally:
+        if conn is not None:
+            conn.close()
 
 
+@contextmanager
 def _pg_connect():
+    _ensure_persistence_available()
     if not _HAS_POSTGRES or POSTGRES_DSN is None:
-        raise RuntimeError("Postgres not configured")
-    # autocommit=True so DDL/DML is persisted in serverless environments without explicit commits
-    return psycopg.connect(POSTGRES_DSN, autocommit=True, row_factory=dict_row)
+        raise StorageUnavailableError("Persistent database storage is not configured.")
+    try:
+        # autocommit=True persists each statement before returning an acknowledgement.
+        with psycopg.connect(
+            POSTGRES_DSN, autocommit=True, row_factory=dict_row, connect_timeout=5
+        ) as conn:
+            yield conn
+    except StorageUnavailableError:
+        raise
+    except Exception as exc:
+        # Never expose connection strings, credentials, or provider errors to clients.
+        raise StorageUnavailableError(
+            "Database storage is temporarily unavailable. Keep a downloaded backup and retry saving."
+        ) from exc
 
 
 def init_db() -> bool:
-    if _is_vercel() and not _HAS_POSTGRES:
+    try:
+        _ensure_persistence_available()
+    except StorageUnavailableError:
         return False
     if _HAS_POSTGRES:
         try:
@@ -123,6 +162,44 @@ def init_db() -> bool:
     except Exception:
         # Allow app to run even when persistence is unavailable (e.g. read-only FS).
         return False
+
+
+def storage_health() -> Dict[str, Any]:
+    """Report the usable storage backend without claiming serverless /tmp is durable."""
+    backend = "postgres" if _HAS_POSTGRES else ("unconfigured" if _is_vercel() else "sqlite")
+    try:
+        _ensure_persistence_available()
+        if not init_db():
+            raise StorageUnavailableError(
+                "Database storage is temporarily unavailable. Keep a downloaded backup and retry saving."
+            )
+        # Check INSERT and read permissions, then roll back the probe so no log is retained.
+        probe_id = uuid4().hex
+        if _HAS_POSTGRES:
+            with _pg_connect() as conn:
+                with conn.transaction(force_rollback=True):
+                    conn.execute(
+                        "INSERT INTO logs (id, name, created_at, payload_json) VALUES (%s, %s, %s, %s)",
+                        (probe_id, "__storage_health__", _now_iso(), Json({})),
+                    )
+                    conn.execute("SELECT id FROM logs WHERE id = %s", (probe_id,)).fetchone()
+        else:
+            with _connect() as conn:
+                conn.execute("BEGIN IMMEDIATE")
+                conn.execute(
+                    "INSERT INTO logs (id, name, created_at, payload_json) VALUES (?, ?, ?, ?)",
+                    (probe_id, "__storage_health__", _now_iso(), "{}"),
+                )
+                conn.execute("SELECT id FROM logs WHERE id = ?", (probe_id,)).fetchone()
+                conn.rollback()
+    except StorageUnavailableError as exc:
+        return {"available": False, "durable": False, "backend": backend, "message": str(exc)}
+    return {
+        "available": True,
+        "durable": True,
+        "backend": backend,
+        "message": "Database storage is available." if _HAS_POSTGRES else "Local database storage is available.",
+    }
 
 
 def create_log(name: str, payload: Dict[str, Any]) -> LogSummary:

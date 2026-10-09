@@ -7,22 +7,21 @@
     <style>
       :root {
         color-scheme: light;
-        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, "Segoe UI", Roboto,
-          sans-serif;
+        font-family: "Cambria", Georgia, "Hiragino Sans", "Yu Gothic", serif;
         text-rendering: optimizeLegibility;
 
-        --bg: #f5f5f7;
-        --text: #1d1d1f;
-        --muted: #6e6e73;
+        --bg: #f3f5f7;
+        --text: #182638;
+        --muted: #607085;
         --panel: #ffffff;
-        --border: rgba(0, 0, 0, 0.10);
-        --shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 12px 34px rgba(0, 0, 0, 0.06);
-        --radius-lg: 20px;
-        --radius-md: 16px;
-        --radius-sm: 999px;
-        --focus: 0 0 0 4px rgba(0, 113, 227, 0.28);
-        --accent: #0071e3;
-        --accent-pressed: #0066cc;
+        --border: #d5dde5;
+        --shadow: 0 1px 2px rgba(24, 38, 56, 0.04), 0 6px 20px rgba(24, 38, 56, 0.04);
+        --radius-lg: 13px;
+        --radius-md: 10px;
+        --radius-sm: 7px;
+        --focus: 0 0 0 3px rgba(31, 94, 159, 0.23);
+        --accent: #205f9e;
+        --accent-pressed: #174a7d;
         --danger: #c9342d;
       }
       body {
@@ -30,6 +29,7 @@
         padding: clamp(1.1rem, 3vw, 2rem);
         color: var(--text);
         background: var(--bg);
+        line-height: 1.5;
       }
       header {
         display: grid;
@@ -104,6 +104,7 @@
         align-items: center;
       }
       .btn {
+        font-family: inherit;
         border: 1px solid var(--border);
         border-radius: var(--radius-sm);
         padding: 0.7rem 1rem;
@@ -120,16 +121,16 @@
           background 160ms ease, border-color 160ms ease;
       }
       .btn:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.10);
-        border-color: rgba(0, 0, 0, 0.14);
+        box-shadow: 0 1px 3px rgba(24, 38, 56, 0.08);
+        border-color: #9baec2;
+        background: #f3f7fb;
       }
       .btn:active {
         transform: translateY(0);
       }
       .btn:focus-visible {
         outline: none;
-        box-shadow: var(--focus), 0 6px 18px rgba(0, 0, 0, 0.10);
+        box-shadow: var(--focus);
       }
       .btn.secondary {
         background: rgba(255, 255, 255, 0.85);
@@ -140,6 +141,7 @@
         color: #c9342d;
       }
       .ghost-btn {
+        font-family: inherit;
         border: 1px solid var(--border);
         border-radius: var(--radius-sm);
         height: 30px;
@@ -159,13 +161,13 @@
           background 160ms ease, border-color 160ms ease;
       }
       .ghost-btn:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.10);
-        border-color: rgba(0, 0, 0, 0.14);
+        box-shadow: 0 1px 3px rgba(24, 38, 56, 0.08);
+        border-color: #9baec2;
+        background: #f3f7fb;
       }
       .ghost-btn:focus-visible {
         outline: none;
-        box-shadow: var(--focus), 0 6px 18px rgba(0, 0, 0, 0.10);
+        box-shadow: var(--focus);
       }
       #view-logs .panel {
         max-width: 1100px;
@@ -196,7 +198,7 @@
         overflow: hidden;
         display: grid;
         background: #ffffff;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 12px 30px rgba(0, 0, 0, 0.06);
+        box-shadow: 0 1px 2px rgba(24, 38, 56, 0.04);
       }
       #view-logs details.item {
         display: block;
@@ -217,7 +219,7 @@
         font-weight: 800;
         background: rgba(0, 113, 227, 0.08);
         color: #1e293b;
-        border-radius: 999px;
+        border-radius: 7px;
         border: 1px solid rgba(0, 113, 227, 0.16);
         padding: 0.3rem 0.65rem;
         font-size: 0.8rem;
@@ -267,7 +269,7 @@
       #view-logs code {
         background: rgba(0, 0, 0, 0.06);
         padding: 0.12rem 0.4rem;
-        border-radius: 10px;
+        border-radius: 7px;
         font-size: 0.95em;
       }
       @media (prefers-reduced-motion: reduce) {
@@ -303,6 +305,7 @@
       </main>
     </section>
 
+    <script src="/assets/storage.js?v=2"></script>
     <script>
       (function () {
         const API_LIST = "/api/logs";
@@ -313,7 +316,7 @@
         const importBtn = document.getElementById("importBtn");
         const importInput = document.getElementById("importInput");
         const migrateBtn = document.getElementById("migrateBtn");
-        const LOCAL_LOG_KEY = "PLATEPACK_LOCAL_LOGS_V1";
+        const storage = window.PlatePackStorage;
 
         if (!listEl || !emptyEl || !importBtn || !importInput) {
           return;
@@ -329,98 +332,138 @@
           }
         }
 
-        function safeParseJson(raw, fallback) {
-          try {
-            return JSON.parse(raw);
-          } catch {
-            return fallback;
+        function errorMessage(error) {
+          return error instanceof Error ? error.message : String(error || "保存処理に失敗しました。");
+        }
+
+        async function listLocalLogs() {
+          return await storage.readLogs();
+        }
+
+        async function writeLocalLogs(items) {
+          return await storage.writeLogs(items);
+        }
+
+        async function saveLocalLog(name, payload) {
+          return await storage.saveLog(name, payload);
+        }
+
+        async function getLocalLog(id) {
+          return await storage.getLog(id);
+        }
+
+        function canonicalJson(value) {
+          function sort(item) {
+            if (Array.isArray(item)) return item.map(sort);
+            if (item && typeof item === "object") {
+              return Object.fromEntries(Object.keys(item).sort().map(key => [key, sort(item[key])]));
+            }
+            return item;
           }
+          return JSON.stringify(sort(value));
         }
 
-        function listLocalLogs() {
-          try {
-            const raw = localStorage.getItem(LOCAL_LOG_KEY);
-            const parsed = raw ? safeParseJson(raw, []) : [];
-            const items = Array.isArray(parsed) ? parsed : [];
-            return items.filter((x) => x && typeof x === "object" && typeof x.id === "string");
-          } catch {
-            return [];
+        function validatePayload(payload) {
+          if (!payload || !Array.isArray(payload.plates) || !payload.plates.length || payload.plates.length > 999) {
+            throw new Error("PlatePackのJSON形式を確認してください。プレート情報が必要です。");
           }
-        }
-
-        function writeLocalLogs(items) {
-          try {
-            localStorage.setItem(LOCAL_LOG_KEY, JSON.stringify(items));
-          } catch {
-            // ignore quota / privacy errors
+          const isWell = well => typeof well === "string" && /^[A-H]([1-9]|1[0-2])$/.test(well);
+          const isWeek = week => Number.isInteger(week) && week >= 1 && week <= 5;
+          payload.plates.forEach(plate => {
+            if (!plate || !Array.isArray(plate.wells) || !plate.wells.every(isWell)) {
+              throw new Error("ウェル情報が不正です。");
+            }
+            if (plate.growthWeeks !== undefined && (!plate.growthWeeks || typeof plate.growthWeeks !== "object" || Array.isArray(plate.growthWeeks))) {
+              throw new Error("週番号の形式が不正です。");
+            }
+            Object.entries(plate.growthWeeks || {}).forEach(([well, week]) => {
+              if (!isWell(well) || !isWeek(week)) throw new Error("週番号は1〜5を指定してください。");
+            });
+          });
+          if (payload.packedPlates !== undefined) {
+            if (!Array.isArray(payload.packedPlates)) throw new Error("パック結果が不正です。");
+            payload.packedPlates.forEach(plate => {
+              if (!plate || !Array.isArray(plate.grid) || plate.grid.length !== 8 ||
+                  !plate.grid.every(row => Array.isArray(row) && row.length === 12)) {
+                throw new Error("パック結果のサイズが不正です。");
+              }
+              plate.grid.flat().forEach(cell => {
+                if (cell && (!isWell(cell.sourceWell) || typeof cell.sourcePlate !== "string" ||
+                    (cell.growthWeek != null && !isWeek(cell.growthWeek)))) {
+                  throw new Error("パック結果のウェル情報が不正です。");
+                }
+              });
+            });
           }
-        }
-
-        function saveLocalLog(name, payload) {
-          const id = `${Date.now()}_${Math.random().toString(16).slice(2)}`;
-          const created_at = new Date().toISOString();
-          const items = listLocalLogs();
-          items.unshift({ id, name: String(name || "Log"), created_at, payload: payload || {} });
-          writeLocalLogs(items.slice(0, 200));
-          return { id, name: String(name || "Log"), created_at };
-        }
-
-        function getLocalLog(id) {
-          const items = listLocalLogs();
-          return items.find((x) => x && typeof x === "object" && x.id === id) || null;
+          return payload;
         }
 
         async function deleteLog(source, id) {
           if (source === "local") {
-            const next = listLocalLogs().filter((x) => x.id !== id);
-            writeLocalLogs(next);
+            await storage.deleteLog(id);
             return;
           }
           const res = await fetch(API_ITEM(id), { method: "DELETE" });
-          if (!res.ok) throw new Error("delete failed");
+          if (!res.ok) throw new Error(`DBから削除できません。HTTP ${res.status}`);
         }
 
         async function createServerLog(name, payload) {
-          const res = await fetch(API_LIST, {
+          const created = await storage.fetchJson(API_LIST, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ name, payload }),
           });
-          if (!res.ok) throw new Error("create failed");
-          return await res.json();
+          if (!created?.id) throw new Error("DB保存の確認に失敗しました。");
+          const verified = await storage.fetchJson(API_ITEM(created.id));
+          if (canonicalJson(verified?.payload) !== canonicalJson(payload)) {
+            throw new Error("DBの保存内容が一致しません。LOCALのコピーを保持しています。");
+          }
+          return created;
+        }
+
+        async function migrateLocalToDb(entry) {
+          if (!entry?.id || !entry.payload) throw new Error("移行するログが見つかりません。");
+          await createServerLog(entry.name || "Log", entry.payload);
+          await storage.deleteLog(entry.id);
         }
 
         async function migrateAllLocalToDb() {
           if (!confirm("LOCALログをDBへ移行します（成功したものはLOCALから削除されます）。よろしいですか？")) return;
-          const local = listLocalLogs();
-          if (!local.length) return;
-          let ok = 0;
-          for (const item of local) {
-            try {
-              await createServerLog(item?.name || "Log", item?.payload || {});
-              ok += 1;
-            } catch {
-              // keep local copy
+          migrateBtn.disabled = true;
+          migrateBtn.textContent = "移行中…";
+          try {
+            const local = await listLocalLogs();
+            let ok = 0;
+            const errors = [];
+            for (const item of local) {
+              try {
+                await migrateLocalToDb(item);
+                ok += 1;
+              } catch (error) {
+                errors.push(errorMessage(error));
+              }
             }
+            await render();
+            showNotice(`移行を確認しました: ${ok}/${local.length} 件。` +
+              (errors.length ? `未移行のLOCALログを保持しています。${errors[0]}` : ""));
+          } catch (error) {
+            showNotice(`移行に失敗しました。LOCALログを保持しています。${errorMessage(error)}`);
+          } finally {
+            migrateBtn.disabled = false;
+            migrateBtn.textContent = "LOCAL→DB移行";
           }
-          if (ok > 0) {
-            writeLocalLogs(local.slice(ok));
-          }
-          alert(`移行完了: ${ok}/${local.length}`);
-          await render();
         }
 
         async function downloadLog(source, id, name) {
           let payload = null;
           if (source === "local") {
-            payload = getLocalLog(id)?.payload || null;
+            payload = (await getLocalLog(id))?.payload || null;
           } else {
-            const res = await fetch(API_ITEM(id));
-            if (!res.ok) throw new Error("fetch failed");
-            const data = await res.json();
+            const data = await storage.fetchJson(API_ITEM(id));
             payload = data?.payload || null;
           }
-          const blob = new Blob([JSON.stringify(payload || {}, null, 2)], { type: "application/json" });
+          if (!payload) throw new Error("ダウンロードするログが見つかりません。");
+          const blob = new Blob([JSON.stringify({ name: name || "Log", payload }, null, 2)], { type: "application/json" });
           const url = URL.createObjectURL(blob);
           const link = document.createElement("a");
           link.href = url;
@@ -433,15 +476,18 @@
 
         async function importJsonFile(file) {
           const text = await file.text();
-          const payload = safeParseJson(text, null);
-          if (!payload || typeof payload !== "object") throw new Error("invalid json");
-          const name = file.name.replace(/\\.json$/i, "") || "Imported";
-          try {
-            return await createServerLog(name, payload);
-          } catch {
-            saveLocalLog(name, payload);
-            return null;
+          const parsed = JSON.parse(text);
+          const payload = validatePayload(parsed?.payload || parsed);
+          const name = (typeof parsed?.name === "string" && parsed.name.trim()) || file.name.replace(/\.json$/i, "") || "Imported";
+          const results = await Promise.allSettled([saveLocalLog(name, payload), createServerLog(name, payload)]);
+          const localSaved = results[0].status === "fulfilled";
+          const serverSaved = results[1].status === "fulfilled";
+          if (!localSaved && !serverSaved) {
+            throw new Error(`保存できません。JSONファイルを保管してください。${errorMessage(results[0].reason)} ${errorMessage(results[1].reason)}`);
           }
+          if (localSaved && serverSaved) return "JSONを読み込み、DBとこのブラウザへの保存を確認しました。";
+          if (localSaved) return `このブラウザへの保存を確認しました。DB保存は失敗しています。${errorMessage(results[1].reason)} JSONファイルも保管してください。`;
+          return `DBへの保存を確認しました。ブラウザ保存は失敗しています。${errorMessage(results[0].reason)} JSONファイルも保管してください。`;
         }
 
         function showNotice(message) {
@@ -451,15 +497,15 @@
         }
 
         async function fetchServerLogs(limit = 60) {
-          const res = await fetch(`${API_LIST}?limit=${encodeURIComponent(String(limit))}`);
-          if (!res.ok) throw new Error("fetch list failed");
-          return await res.json();
+          const logs = await storage.fetchJson(`${API_LIST}?limit=${encodeURIComponent(String(limit))}`);
+          if (!Array.isArray(logs)) throw new Error("DBの一覧形式が不正です。");
+          return logs;
         }
 
         async function serverStatusOk() {
           try {
-            await fetch(`${API_LIST}?limit=1`);
-            return true;
+            const response = await fetch(`${API_LIST}?limit=1`);
+            return response.ok;
           } catch {
             return false;
           }
@@ -555,8 +601,8 @@
             dl.addEventListener("click", async () => {
               try {
                 await downloadLog(item?.source, item?.id, item?.name);
-              } catch {
-                alert("ダウンロードに失敗しました。");
+              } catch (error) {
+                showNotice(`ダウンロードに失敗しました。${errorMessage(error)}`);
               }
             });
 
@@ -568,15 +614,17 @@
               mig.textContent = "DBへ移行";
               mig.addEventListener("click", async () => {
                 if (!confirm("このLOCALログをDBへ移行します。よろしいですか？")) return;
+                mig.disabled = true;
                 try {
-                  const entry = getLocalLog(item?.id);
-                  if (!entry) throw new Error("not found");
-                  await createServerLog(entry.name || "Log", entry.payload || {});
-                  const next = listLocalLogs().filter((x) => x.id !== item?.id);
-                  writeLocalLogs(next);
+                  const entry = await getLocalLog(item?.id);
+                  if (!entry) throw new Error("ログが見つかりません。");
+                  await migrateLocalToDb(entry);
                   await render();
-                } catch {
-                  alert("移行に失敗しました。");
+                  showNotice("DBの保存内容を確認し、移行しました。");
+                } catch (error) {
+                  showNotice(`移行に失敗しました。LOCALログを保持しています。${errorMessage(error)}`);
+                } finally {
+                  mig.disabled = false;
                 }
               });
             }
@@ -590,8 +638,8 @@
               try {
                 await deleteLog(item?.source, item?.id);
                 await render();
-              } catch {
-                alert("削除に失敗しました。");
+              } catch (error) {
+                showNotice(`削除に失敗しました。${errorMessage(error)}`);
               }
             });
 
@@ -609,23 +657,24 @@
         }
 
         async function render() {
-          let serverLogs = [];
-          let ok = false;
-          try {
-            serverLogs = await fetchServerLogs();
-            ok = true;
-          } catch {
-            ok = false;
-          }
-
-          const local = listLocalLogs();
+          const results = await Promise.allSettled([fetchServerLogs(200), listLocalLogs()]);
+          const ok = results[0].status === "fulfilled";
+          const localOk = results[1].status === "fulfilled";
+          const serverLogs = ok ? results[0].value : [];
+          const local = localOk ? results[1].value : [];
           const items = normalizeItems(serverLogs, local);
           renderList(items, ok);
+          const messages = [];
           if (!ok) {
-            showNotice("DBへ接続できません。LOCALログのみ表示します。");
-          } else {
-            showNotice("");
+            messages.push(`DBへ接続できません。利用可能なLOCALログを表示します。${errorMessage(results[0].reason)}`);
           }
+          if (!localOk) messages.push(`ブラウザのログを読み込めません。保存済みデータを保護しています。${errorMessage(results[1].reason)}`);
+          if (!items.length && (!ok || !localOk)) {
+            emptyEl.textContent = "保存先の読み込みを確認してください。JSONバックアップからの読み込みも利用できます。";
+          } else {
+            emptyEl.textContent = "保存されたログがありません。";
+          }
+          showNotice(messages.join(" "));
 
           if (migrateBtn) {
             migrateBtn.style.display = ok && local.length ? "inline-flex" : "none";
@@ -638,19 +687,20 @@
           const file = importInput.files && importInput.files[0];
           importInput.value = "";
           if (!file) return;
+          importBtn.disabled = true;
           try {
-            await importJsonFile(file);
+            const message = await importJsonFile(file);
             await render();
-          } catch {
-            alert("JSONの読み込み/保存に失敗しました。");
+            showNotice(message);
+          } catch (error) {
+            showNotice(`JSONの読み込み/保存に失敗しました。${errorMessage(error)}`);
+          } finally {
+            importBtn.disabled = false;
           }
         });
 
-        serverStatusOk().then((ok) => {
-          if (migrateBtn) migrateBtn.style.display = ok ? "inline-flex" : "none";
-        });
-
-        render();
+        window.__platepack_logs_render = render;
+        render().catch(error => showNotice(`一覧を読み込めません。${errorMessage(error)}`));
       })();
     </script>
   </body>

@@ -7,23 +7,22 @@
     <style>
       :root {
         color-scheme: light;
-        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, "Segoe UI", Roboto,
-          sans-serif;
+        font-family: "Cambria", Georgia, "Hiragino Sans", "Yu Gothic", serif;
         text-rendering: optimizeLegibility;
 
-        --bg: #f5f5f7;
-        --text: #1d1d1f;
-        --muted: #6e6e73;
+        --bg: #f3f5f7;
+        --text: #182638;
+        --muted: #607085;
         --panel: #ffffff;
         --panel-solid: #ffffff;
-        --border: rgba(0, 0, 0, 0.10);
-        --shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 12px 34px rgba(0, 0, 0, 0.06);
-        --radius-lg: 20px;
-        --radius-md: 16px;
-        --radius-sm: 999px;
-        --focus: 0 0 0 4px rgba(0, 113, 227, 0.28);
-        --accent: #0071e3;
-        --accent-pressed: #0066cc;
+        --border: #d5dde5;
+        --shadow: 0 1px 2px rgba(24, 38, 56, 0.04), 0 6px 20px rgba(24, 38, 56, 0.04);
+        --radius-lg: 13px;
+        --radius-md: 10px;
+        --radius-sm: 7px;
+        --focus: 0 0 0 3px rgba(31, 94, 159, 0.23);
+        --accent: #205f9e;
+        --accent-pressed: #174a7d;
         --danger: #c9342d;
 
         --cell-size: 48px;
@@ -39,6 +38,7 @@
         padding: clamp(1.1rem, 3vw, 2rem);
         color: var(--text);
         background: var(--bg);
+        line-height: 1.5;
       }
       .page {
         display: grid;
@@ -55,17 +55,25 @@
         align-self: start;
       }
       .help-card {
-        background: var(--panel);
+        background: #f8fafc;
         border-radius: var(--radius-lg);
         padding: 1rem 1.05rem;
         border: 1px solid var(--border);
-        box-shadow: var(--shadow);
+        box-shadow: none;
         font-size: 0.9rem;
         color: #1e293b;
       }
       .help-card h2 {
         margin: 0 0 0.6rem;
         font-size: 1.05rem;
+      }
+      .help-card summary {
+        cursor: pointer;
+        font-size: 0.95rem;
+        font-weight: 700;
+      }
+      .help-card[open] summary {
+        margin-bottom: 0.75rem;
       }
       .help-card h3 {
         margin: 0.9rem 0 0.35rem;
@@ -81,7 +89,7 @@
       .help-card code {
         background: rgba(0, 0, 0, 0.06);
         padding: 0.12rem 0.4rem;
-        border-radius: 10px;
+        border-radius: 7px;
         font-size: 0.88em;
       }
       @media (max-width: 1200px) {
@@ -101,7 +109,7 @@
         }
       }
       header {
-        margin-bottom: 1.75rem;
+        margin-bottom: 1.5rem;
         display: grid;
         gap: 0.4rem;
       }
@@ -143,6 +151,7 @@
         margin: 0;
         font-size: clamp(1.9rem, 3vw, 2.4rem);
         letter-spacing: -0.02em;
+        font-weight: 700;
       }
       .muted {
         color: var(--muted);
@@ -202,6 +211,7 @@
         font-size: 18px;
       }
       button {
+        font-family: inherit;
         border: 1px solid var(--border);
         border-radius: var(--radius-sm);
         padding: 0.7rem 1.2rem;
@@ -212,35 +222,38 @@
         align-items: center;
         justify-content: center;
         gap: 0rem;
-        transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
-          background 160ms ease, border-color 160ms ease;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
-        background: rgba(255, 255, 255, 0.85);
+        transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+        box-shadow: 0 1px 1px rgba(24, 38, 56, 0.04);
+        background: #ffffff;
         color: var(--text);
       }
       button:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.10);
-        border-color: rgba(0, 0, 0, 0.14);
+        box-shadow: 0 1px 3px rgba(24, 38, 56, 0.08);
+        border-color: #9baec2;
+        background: #f3f7fb;
       }
       button:active {
         transform: translateY(0);
-        box-shadow: 0 12px 28px rgba(2, 6, 23, 0.12);
+        box-shadow: inset 0 1px 2px rgba(24, 38, 56, 0.10);
       }
       button:focus-visible {
         outline: none;
-        box-shadow: var(--focus), 0 6px 18px rgba(0, 0, 0, 0.10);
+        box-shadow: var(--focus);
       }
       button.primary {
         background: var(--accent);
         border-color: transparent;
         color: #ffffff;
       }
+      button.primary:hover,
+      button.success:hover {
+        background: var(--accent-pressed);
+      }
       button.primary:active {
         background: var(--accent-pressed);
       }
       button.ghost {
-        background: rgba(255, 255, 255, 0.7);
+        background: #ffffff;
       }
       button.success {
         background: var(--accent);
@@ -364,9 +377,9 @@
         height: var(--cell-size);
       }
       .header-btn {
-        border-radius: 10px;
+        border-radius: 7px;
         border: 1px solid rgba(15, 23, 42, 0.10);
-        background: rgba(0, 0, 0, 0.04);
+        background: #edf2f7;
         font-weight: 600;
         color: #1e293b;
         font-size: 0.8rem;
@@ -387,19 +400,19 @@
         justify-content: center;
       }
       .header-btn:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.10);
-        border-color: rgba(0, 0, 0, 0.14);
-        background: rgba(0, 0, 0, 0.06);
+        transform: none;
+        box-shadow: none;
+        border-color: #9baec2;
+        background: #e2eaf3;
       }
       #wellGrid {
         display: grid;
         row-gap: var(--gap);
       }
 .well-btn {
-  border-radius: 10px;
-  border: 1px solid rgba(15, 23, 42, 0.10);
-  background: rgba(255, 255, 255, 0.9);
+  border-radius: 7px;
+  border: 1px solid #d5dde5;
+  background: #ffffff;
   font-size: 0.9rem;
   width: var(--cell-size);
   height: var(--cell-size);
@@ -407,18 +420,21 @@
   align-items: center;
   justify-content: center;
   transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease, border-color 120ms ease;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  box-shadow: none;
+  position: relative;
+  padding: 0;
 }
 .well-btn:hover {
-  transform: translateY(-1px);
-  border-color: rgba(0, 0, 0, 0.14);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.10);
+  transform: none;
+  border-color: #809ab5;
+  box-shadow: none;
+  background: #edf3f9;
 }
 .well-btn.selected {
   background: var(--accent);
   color: #fff;
-  border-color: transparent;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.14);
+  border-color: var(--accent);
+  box-shadow: none;
 }
       .layout-container {
         position: relative;
@@ -488,6 +504,7 @@
         display: block;
       }
       .packed-table {
+        min-width: 622px;
         border-collapse: collapse;
         border-spacing: 0;
         background: #fff;
@@ -549,6 +566,17 @@
         display: grid;
         gap: 1rem;
         align-items: start;
+      }
+      .packed-table-wrap {
+        min-width: 0;
+        max-width: 100%;
+        overflow-x: auto;
+      }
+      .storage-notice {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.8rem;
+        line-height: 1.5;
       }
       @media (min-width: 960px) {
         .packed-layout {
@@ -775,11 +803,11 @@
         width: 100%;
         height: var(--pack-bar-height);
         min-height: var(--pack-bar-height);
-        border: none;
-        border-radius: 8px;
-        padding: 0 0.75rem;
+        border: 1px solid var(--border);
+        border-radius: 5px;
+        padding: 0.65rem 0.75rem;
         font-family: inherit;
-        background: #eef1f5;
+        background: #f8fafc;
         resize: none;
         box-sizing: border-box;
       }
@@ -981,7 +1009,7 @@
       #view-logs .badge {
         width: 44px;
         height: 44px;
-        border-radius: 999px;
+        border-radius: 7px;
         background: rgba(0, 113, 227, 0.08);
         border: 1px solid rgba(0, 113, 227, 0.16);
         display: grid;
@@ -1038,8 +1066,220 @@
       #view-logs code {
         background: rgba(0, 0, 0, 0.06);
         padding: 0.12rem 0.4rem;
-        border-radius: 10px;
+        border-radius: 7px;
         font-size: 0.95em;
+      }
+
+      /* Keep the frequently used growth-week controls beside the input plate. */
+      .week-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 0.75rem;
+        width: 100%;
+        max-width: var(--input-grid-width);
+        box-sizing: border-box;
+        padding: 0.45rem 0 0.6rem;
+        border-bottom: 1px solid #e3e9ef;
+      }
+      .week-label {
+        color: var(--muted);
+        font-size: 0.85rem;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .week-buttons {
+        display: flex;
+        flex-shrink: 0;
+        gap: 0.35rem;
+      }
+      .week-btn {
+        min-width: 48px;
+        height: 34px;
+        padding: 0 0.65rem;
+        border-radius: 6px;
+        font-size: 1rem;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        background: #f5f8fb;
+        box-shadow: none;
+      }
+      .week-btn[aria-pressed="true"] {
+        color: #ffffff;
+        background: var(--accent);
+        border-color: var(--accent);
+        box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.12);
+      }
+      .week-btn[aria-pressed="true"]:hover {
+        background: var(--accent-pressed);
+      }
+      .week-btn:focus-visible {
+        box-shadow: var(--focus);
+      }
+      .well-week,
+      .packed-cell .cell-week {
+        position: absolute;
+        inset: auto;
+        right: 3px;
+        bottom: 3px;
+        display: block;
+        width: auto;
+        height: auto;
+        padding: 0 2px;
+        border-radius: 2px;
+        font-size: 10px;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        line-height: 1.1;
+        pointer-events: none;
+      }
+      .well-week {
+        color: inherit;
+        background: rgba(255, 255, 255, 0.15);
+      }
+      .packed-cell .cell-week {
+        color: #182638;
+        background: rgba(255, 255, 255, 0.7);
+      }
+      .save-state {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.3rem 0.55rem;
+        color: #526579;
+        font-size: 0.85rem;
+        border: 1px solid #dbe3eb;
+        border-radius: 5px;
+        background: #f8fafc;
+      }
+      .save-state::before {
+        content: "";
+        flex: 0 0 6px;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #7c8a99;
+      }
+      .save-state[data-state="saved"] {
+        color: #236247;
+        background: #f1f8f4;
+        border-color: #cee4d7;
+      }
+      .save-state[data-state="saved"]::before {
+        background: #2d8a5d;
+      }
+      .save-state[data-state="saving"]::before {
+        background: #bb861f;
+      }
+      .save-state[data-state="error"] {
+        color: #a73930;
+        background: #fff5f4;
+        border-color: #edc9c5;
+      }
+      .save-state[data-state="error"]::before {
+        background: #c9342d;
+      }
+      #draftSaveStatus {
+        margin-left: auto;
+      }
+      select,
+      input,
+      textarea {
+        font-family: inherit;
+        font-size: inherit;
+      }
+      select {
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        background: #ffffff;
+        color: var(--text);
+        padding: 0.3rem 0.65rem;
+      }
+      select:focus-visible,
+      input:focus-visible,
+      textarea:focus-visible {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: var(--focus);
+      }
+      .input-controls-row {
+        max-width: 100%;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+      }
+      .input-controls-row button,
+      .layout-controls button,
+      .packed-controls button {
+        min-height: 34px;
+        padding: 0.35rem 0.8rem;
+      }
+      .output-panel-box {
+        border-color: var(--border);
+        background: #fafbfd;
+      }
+      .packed-panel-box {
+        box-shadow: none;
+        border-color: #d5dde5;
+      }
+      #logsLink {
+        color: var(--accent);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        background: #ffffff;
+        font-weight: 600;
+      }
+      #logsLink:hover {
+        border-color: #9baec2;
+        background: #f3f7fb;
+      }
+      #logsLink:focus-visible {
+        outline: none;
+        box-shadow: var(--focus);
+      }
+      @media (max-width: 700px) {
+        .panel {
+          padding: 1rem;
+          overflow-x: auto;
+        }
+        .week-toolbar {
+          gap: 0.45rem;
+          justify-content: space-between;
+        }
+        .week-buttons {
+          gap: 0.25rem;
+        }
+        .week-btn {
+          min-width: 38px;
+          padding: 0 0.4rem;
+          font-size: 0;
+        }
+        .week-btn::after {
+          content: attr(data-week);
+          font-size: 1rem;
+        }
+        .io-splits .split-inner {
+          min-width: 0;
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .input-layout,
+        .layout-side {
+          width: 100%;
+          overflow-x: auto;
+        }
+        .packed-layout {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .toolbar .controls label[for="plateCount"] {
+          font-size: 24px !important;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        button,
+        .btn,
+        .header-btn,
+        .well-btn {
+          transition: none;
+        }
       }
     </style>
   </head>
@@ -1059,23 +1299,24 @@
         </header>
 
         <div class="layout">
-      <div class="help-card">
-        <h2>使い方</h2>
+      <details class="help-card">
+        <summary>使い方・保存について</summary>
         <ol>
           <li><code>Number of Plates</code>で入力プレート枚数を設定（<code>Previous</code>/<code>Next</code>で移動）。</li>
-          <li>入力プレート：ウェルをクリックして選択（黒＝選択、もう一度で解除）。</li>
+          <li><code>Growth week</code>の1〜5週目を選び、ウェルをクリックして記録します。別の週で押すと週番号を変更、同じ週で押すと選択解除します。</li>
           <li><code>1A</code>ボタンで表示形式を切替（<code>1A ⇄ A1</code>）。出力にも反映されます。</li>
           <li><code>読み方向</code>で入力の読み順を切替。</li>
           <li>出力レイアウト：ウェルをクリックすると空ウェル（黒）として除外、もう一度で解除。</li>
           <li>区切り線（赤/青）をクリックして出力領域を分割。</li>
           <li><code>Packing</code>で実行 → 下の出力プレートに結果表示。</li>
           <li>結果プレートは<code>Previous</code>/<code>Next</code>で移動、<code>Download TSV</code>でTSV出力。</li>
+          <li>入力・週番号・パック結果はこのブラウザに自動保存します。<code>Save Log</code>はDB保存を確認し、JSONバックアップも作成します。<code>Restore JSON</code>で復元できます。</li>
         </ol>
         <h3>ヒント</h3>
         <ul>
           <li>出力レイアウトの行/列ラベルをクリックすると行/列まとめて空ウェルを切替できます。</li>
         </ul>
-      </div>
+      </details>
       <section class="panel">
         <div class="toolbar">
           <div class="controls">
@@ -1124,6 +1365,16 @@
 	                </div>
 	              </div>
 	
+                  <div class="week-toolbar" aria-label="増殖が見られた週">
+                    <span class="week-label">Growth week</span>
+                    <div class="week-buttons" role="group" aria-label="週目を選択">
+                      <button type="button" class="week-btn" data-week="1" aria-pressed="true">1 week</button>
+                      <button type="button" class="week-btn" data-week="2" aria-pressed="false">2 weeks</button>
+                      <button type="button" class="week-btn" data-week="3" aria-pressed="false">3 weeks</button>
+                      <button type="button" class="week-btn" data-week="4" aria-pressed="false">4 weeks</button>
+                      <button type="button" class="week-btn" data-week="5" aria-pressed="false">5 weeks</button>
+                    </div>
+                  </div>
 	              <div class="input-layout">
 	                <div class="input-grid">
 	                  <div class="column-header" id="columnHeader"></div>
@@ -1177,10 +1428,15 @@
 		            <button type="button" class="ghost" id="nextPackedBtn" disabled>Next</button>
 		            <button type="button" class="success" id="tsvBtn" disabled>Download TSV</button>
 		            <button type="button" class="success" id="pngBtn" disabled>Download PNG</button>
+                    <span id="draftSaveStatus" class="save-state" role="status" aria-live="polite" data-state="saving">保存を確認中…</span>
 	            <button type="button" class="success" id="saveLogBtn">Save Log</button>
+                    <button type="button" class="ghost" id="backupJsonBtn">Backup JSON</button>
+                    <button type="button" class="ghost" id="restoreJsonBtn">Restore JSON</button>
+                    <input type="file" id="restoreJsonInput" accept=".json,application/json" hidden />
 			            <a class="ghost" id="logsLink" href="/results" style="text-decoration:none; display:inline-flex; align-items:center; justify-content:center; height:30px; padding:0 0.6rem;">Database</a>
 			            </div>
 			          </div>
+          <p id="storageNotice" class="storage-notice">入力はこのブラウザに自動保存します。Save LogでDB保存を確認し、JSONバックアップも作成します。</p>
           <div class="packed-panel-box">
             <div class="packed-grid" id="packedGrid">
               <p class="muted">まだパッキング結果はありません。</p>
@@ -1194,6 +1450,7 @@
     </div>
     </section>
 
+    <script src="/assets/storage.js?v=2"></script>
     <script>
       const ROWS = ["A", "B", "C", "D", "E", "F", "G", "H"];
       const COLS = Array.from({ length: 12 }, (_, i) => i + 1);
@@ -1209,6 +1466,11 @@
       let blockedLayoutWells = new Set();
       let verticalDividers = new Set();
       let horizontalDividers = new Set();
+      let selectedGrowthWeek = 1;
+      let draftReady = false;
+      let lastDraftJson = "";
+      let draftRevision = 0;
+      let packedLayout = null;
 
       const plateCountSelect = document.getElementById("plateCount");
       const plateSummary = document.getElementById("plateSummary");
@@ -1238,7 +1500,7 @@
       let wellLabelMode = "colRow"; // "colRow" => 1A, "rowCol" => A1
 
       function createPlate(index) {
-        return { label: `Plate ${index}`, wells: new Set(), memo: "" };
+        return { label: `Plate ${index}`, wells: new Set(), growthWeeks: {}, memo: "" };
       }
 
       function getCurrentPlate() {
@@ -1264,6 +1526,11 @@
             plates.push(createPlate(i + 1));
           }
         } else if (count < plates.length) {
+          if (plates.slice(count).some(plate => plate.wells.size || plate.memo) &&
+              !confirm("削除するプレートに入力があります。プレート枚数を減らしますか？")) {
+            plateCountSelect.value = String(plates.length);
+            return;
+          }
           plates = plates.slice(0, count);
           currentPlateIndex = Math.min(currentPlateIndex, plates.length - 1);
         }
@@ -1324,7 +1591,7 @@
         const dims = inputDimensions();
         document.documentElement.style.setProperty(
           "--input-grid-width",
-          `${dims.header + COLS.length * dims.cell + (COLS.length - 1) * dims.gap}px`
+          `${dims.header + COLS.length * dims.cell + COLS.length * dims.gap}px`
         );
       }
 
@@ -1570,10 +1837,17 @@
         const plate = getCurrentPlate();
         (wellGrid ? wellGrid.querySelectorAll(".well-btn") : []).forEach((btn) => {
           const well = btn.dataset.well;
-          if (plate.wells.has(well)) {
-            btn.classList.add("selected");
-          } else {
-            btn.classList.remove("selected");
+          const selected = plate.wells.has(well);
+          btn.classList.toggle("selected", selected);
+          btn.setAttribute("aria-pressed", String(selected));
+          btn.textContent = formatWellLabel(well);
+          const week = plate.growthWeeks[well];
+          btn.setAttribute("aria-label", `${formatWellLabel(well)}${selected && week ? `・${week}週目` : ""}`);
+          if (selected && week) {
+            const badge = document.createElement("small");
+            badge.className = "well-week";
+            badge.textContent = week;
+            btn.appendChild(badge);
           }
         });
       }
@@ -1581,9 +1855,12 @@
       function renderPlate() {
         const plate = getCurrentPlate();
         plateTitle.textContent = plate.label;
-        plateSummary.innerHTML = `<span class="plate-highlight">${plate.label}</span> — ${plate.wells.size} wells selected · Plate ${
-          currentPlateIndex + 1
-        } of ${plates.length}`;
+        const highlight = document.createElement("span");
+        highlight.className = "plate-highlight";
+        highlight.textContent = plate.label;
+        plateSummary.replaceChildren(highlight, document.createTextNode(` — ${plate.wells.size} wells selected · Plate ${currentPlateIndex + 1} of ${plates.length}`));
+        prevPlateBtn.disabled = currentPlateIndex === 0;
+        nextPlateBtn.disabled = currentPlateIndex === plates.length - 1;
         if (plateMemoInput) {
           plateMemoInput.value = plate.memo || "";
         }
@@ -1592,16 +1869,20 @@
 
       function toggleWell(well) {
         const plate = getCurrentPlate();
-        if (plate.wells.has(well)) {
+        if (plate.wells.has(well) && plate.growthWeeks[well] === selectedGrowthWeek) {
           plate.wells.delete(well);
+          delete plate.growthWeeks[well];
         } else {
           plate.wells.add(well);
+          plate.growthWeeks[well] = selectedGrowthWeek;
         }
         renderPlate();
       }
 
       function clearPlate() {
+        if (getCurrentPlate().wells.size && !confirm("このプレートのウェル選択と週番号を消去しますか？")) return;
         getCurrentPlate().wells.clear();
+        getCurrentPlate().growthWeeks = {};
         renderPlate();
       }
 
@@ -1610,10 +1891,10 @@
         if (!ROWS.includes(upper)) return;
         const plate = getCurrentPlate();
         const wells = COLS.map((col) => `${upper}${col}`);
-        const allSelected = wells.every((well) => plate.wells.has(well));
+        const allSelected = wells.every((well) => plate.wells.has(well) && plate.growthWeeks[well] === selectedGrowthWeek);
         wells.forEach((well) => {
-          if (allSelected) plate.wells.delete(well);
-          else plate.wells.add(well);
+          if (allSelected) { plate.wells.delete(well); delete plate.growthWeeks[well]; }
+          else { plate.wells.add(well); plate.growthWeeks[well] = selectedGrowthWeek; }
         });
         renderPlate();
       }
@@ -1623,10 +1904,10 @@
         if (!Number.isInteger(num) || num < 1 || num > 12) return;
         const plate = getCurrentPlate();
         const wells = ROWS.map((row) => `${row}${num}`);
-        const allSelected = wells.every((well) => plate.wells.has(well));
+        const allSelected = wells.every((well) => plate.wells.has(well) && plate.growthWeeks[well] === selectedGrowthWeek);
         wells.forEach((well) => {
-          if (allSelected) plate.wells.delete(well);
-          else plate.wells.add(well);
+          if (allSelected) { plate.wells.delete(well); delete plate.growthWeeks[well]; }
+          else { plate.wells.add(well); plate.growthWeeks[well] = selectedGrowthWeek; }
         });
         renderPlate();
       }
@@ -1699,11 +1980,12 @@
           return {
             plate_id: `${String(index + 1).padStart(1, "0")}`,
             wells: wellsArray,
+            growth_weeks: { ...plate.growthWeeks },
           };
         });
 
         const flattened = sortedSources.flatMap((src) =>
-          src.wells.map((well) => ({ source_plate: src.plate_id, source_well: well }))
+          src.wells.map((well) => ({ source_plate: src.plate_id, source_well: well, growth_week: src.growth_weeks[well] || null }))
         );
 
         const placementOrder = buildDestinationOrder(order);
@@ -1723,6 +2005,7 @@
           orderedAssignments.push({
             source_plate: item.source_plate,
             source_well: item.source_well,
+            growth_week: item.growth_week,
             destination_plate: destPlateId,
             destination_well: destWell,
           });
@@ -1744,6 +2027,7 @@
                 well: assign.destination_well,
                 source_plate: assign.source_plate,
                 source_well: assign.source_well,
+                growth_week: assign.growth_week,
               })),
           });
         }
@@ -1758,6 +2042,7 @@
 
       async function pack() {
         try {
+          packLayoutBtn.disabled = true;
           tsvBtn.disabled = true;
           setStatus("");
           const order = layoutDirection;
@@ -1767,6 +2052,7 @@
             return;
           }
           const payload = buildPayload(order);
+          const packingLayout = { layoutDirection: order, verticalDividers: Array.from(verticalDividers), horizontalDividers: Array.from(horizontalDividers) };
           const selectionCount = payload.plan.length;
           if (selectionCount === 0) {
             setStatus("ウェルを選択してください。", true);
@@ -1816,16 +2102,21 @@
               grid[rowIdx][colIdx] = {
                 sourcePlate: assignment.source_plate,
                 sourceWell: assignment.source_well,
+                growthWeek: assignment.growth_week,
                 color: sourceColorMap.get(assignment.source_plate),
               };
             });
             return { id: plate.plate_id, grid, columns: destColumns };
           });
           currentPackedIndex = 0;
+          packedLayout = packingLayout;
           renderPacked();
+          persistCurrentDraft();
         } catch (error) {
           setStatus(error.message, true);
           tsvBtn.disabled = packedPlates.length === 0;
+        } finally {
+          packLayoutBtn.disabled = false;
         }
       }
 
@@ -1874,9 +2165,18 @@
       }
 
       function buildWellOrder() {
-        return buildDestinationOrder(layoutDirection, { includeBlockedWells: true }).map(
-          ({ rowIndex, colIndex }) => `${ROWS[rowIndex]}${COLS[colIndex]}`
-        );
+        const direction = packedLayout?.layoutDirection || layoutDirection;
+        const rows = buildSegments(8, new Set(packedLayout?.horizontalDividers || Array.from(horizontalDividers)));
+        const columns = buildSegments(12, new Set(packedLayout?.verticalDividers || Array.from(verticalDividers)));
+        const result = [];
+        rows.forEach(([r0, r1]) => columns.forEach(([c0, c1]) => {
+          if (direction === "column") {
+            for (let c = c0; c <= c1; c++) for (let r = r0; r <= r1; r++) result.push(`${ROWS[r]}${COLS[c]}`);
+          } else {
+            for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) result.push(`${ROWS[r]}${COLS[c]}`);
+          }
+        }));
+        return result;
       }
 
       function renderPacked() {
@@ -1926,6 +2226,13 @@
               label.style.background = color;
               label.style.boxShadow = shadowForColor(color);
               td.appendChild(label);
+              if (validGrowthWeek(cellData.growthWeek)) {
+                const week = document.createElement("small");
+                week.className = "cell-week";
+                week.textContent = cellData.growthWeek;
+                week.title = `増殖確認：${cellData.growthWeek}週目`;
+                td.appendChild(week);
+              }
             }
             tr.appendChild(td);
             cellMatrix[rowIndex][colIndex] = td;
@@ -2048,7 +2355,7 @@
         if (!maxRow) return;
         const maxCol = matrix[0].length;
         // vertical lines
-        verticalDividers.forEach((pos) => {
+        (packedLayout?.verticalDividers || Array.from(verticalDividers)).forEach((pos) => {
           const idx = pos - 1;
           if (idx < 0 || idx >= maxCol) return;
           matrix.forEach((row) => {
@@ -2060,7 +2367,7 @@
           });
         });
         // horizontal lines
-        horizontalDividers.forEach((pos) => {
+        (packedLayout?.horizontalDividers || Array.from(horizontalDividers)).forEach((pos) => {
           const idx = pos;
           if (idx < 0 || idx >= maxRow) return;
           const rowCells = matrix[idx];
@@ -2078,9 +2385,9 @@
           setStatus("パックされたプレートがありません。", true);
           return;
         }
-        const order = layoutDirection || "row";
+        const order = packedLayout?.layoutDirection || layoutDirection || "row";
         const wellOrder = buildWellOrder();
-        const header = ["well_position", ...packedPlates.map((plate, idx) => plate.id || `Output ${idx + 1}`)];
+        const header = ["well_position", ...packedPlates.flatMap((plate, idx) => [plate.id || `Output ${idx + 1}`, `${plate.id || `Output ${idx + 1}`}_growth_week`])];
         const lines = [header.join("\t")];
 
         wellOrder.forEach((wellId) => {
@@ -2088,13 +2395,13 @@
           if (!parsed) return;
           const rowIdx = ROWS.indexOf(parsed.row);
           const rowLabel = order === "column" ? formatWellDisplay(wellId) : wellId;
-          const rowValues = packedPlates.map((plate) => {
+          const rowValues = packedPlates.flatMap((plate) => {
             const columns = plate.columns && plate.columns.length ? plate.columns : COLS;
             const colIdx = columns.indexOf(parsed.col);
-            if (rowIdx === -1 || colIdx === -1) return "";
+            if (rowIdx === -1 || colIdx === -1) return ["", ""];
             const cellData = plate.grid[rowIdx]?.[colIdx];
-            if (!cellData) return "";
-            return `${cellData.sourcePlate}-${formatWellDisplay(cellData.sourceWell)}`;
+            if (!cellData) return ["", ""];
+            return [`${cellData.sourcePlate}-${formatWellDisplay(cellData.sourceWell)}`, cellData.growthWeek || ""];
           });
           lines.push([rowLabel, ...rowValues].join("\t"));
         });
@@ -2156,7 +2463,7 @@
         ctx.fillStyle = headerBg;
         ctx.fillRect(0, 0, headerW, headerH);
 
-        ctx.font = `600 ${Math.max(10, Math.round(headerH * 0.55))}px system-ui, -apple-system, Segoe UI, Roboto, sans-serif`;
+        ctx.font = `600 ${Math.max(10, Math.round(headerH * 0.55))}px Cambria, Georgia, serif`;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillStyle = textColor;
@@ -2191,8 +2498,14 @@
               ctx.rect(x, y, cellSize, cellSize);
               ctx.clip();
               ctx.fillStyle = "#1f2937";
-              ctx.font = `600 ${Math.max(9, Math.round(cellSize * 0.22))}px system-ui, -apple-system, Segoe UI, Roboto, sans-serif`;
+              ctx.font = `600 ${Math.max(9, Math.round(cellSize * 0.22))}px Cambria, Georgia, serif`;
               ctx.fillText(label, x + cellSize / 2, y + cellSize / 2);
+              if (validGrowthWeek(cellData.growthWeek)) {
+                ctx.font = `600 ${Math.max(8, Math.round(cellSize * 0.18))}px Cambria, Georgia, serif`;
+                ctx.textAlign = "right";
+                ctx.textBaseline = "bottom";
+                ctx.fillText(String(cellData.growthWeek), x + cellSize - 4, y + cellSize - 3);
+              }
               ctx.restore();
             }
           });
@@ -2265,152 +2578,216 @@
         }, "image/png");
       }
 
+      function validGrowthWeek(value) {
+        return Number.isInteger(value) && value >= 1 && value <= 5;
+      }
+
+      function updateWeekButtons() {
+        document.querySelectorAll(".week-btn").forEach(button => {
+          button.setAttribute("aria-pressed", String(Number(button.dataset.week) === selectedGrowthWeek));
+        });
+      }
+
       function buildLogSnapshot() {
         return {
-          version: 1,
-          plates: plates.map((plate) => ({
-            label: plate.label,
-            memo: plate.memo || "",
-            wells: Array.from(plate.wells || []),
+          version: 2,
+          plates: plates.map(plate => ({
+            label: plate.label, memo: plate.memo || "", wells: Array.from(plate.wells),
+            growthWeeks: { ...plate.growthWeeks },
           })),
-          currentPlateIndex,
-          inputReadDirection,
-          layoutDirection,
-          wellLabelMode,
+          currentPlateIndex, selectedGrowthWeek, inputReadDirection, layoutDirection, wellLabelMode,
           blockedLayoutWells: Array.from(blockedLayoutWells),
-          verticalDividers: Array.from(verticalDividers),
-          horizontalDividers: Array.from(horizontalDividers),
+          verticalDividers: Array.from(verticalDividers), horizontalDividers: Array.from(horizontalDividers),
+          packedPlates, currentPackedIndex, packedLayout,
+          sourceColorMap: Array.from(sourceColorMap.entries()),
         };
       }
 
-      const LOCAL_LOG_KEY = "PLATEPACK_LOCAL_LOGS_V1";
-
-      function safeParseJson(raw, fallback) {
-        try {
-          return JSON.parse(raw);
-        } catch {
-          return fallback;
+      function validateSnapshot(snapshot) {
+        if (!snapshot || !Array.isArray(snapshot.plates) || !snapshot.plates.length || snapshot.plates.length > 999) {
+          throw new Error("PlatePackのJSON形式を確認してください。現在の入力は保持しています。");
         }
-      }
-
-      function listLocalLogs() {
-        try {
-          const raw = localStorage.getItem(LOCAL_LOG_KEY);
-          const parsed = raw ? safeParseJson(raw, []) : [];
-          return Array.isArray(parsed) ? parsed : [];
-        } catch {
-          return [];
+        const isWell = well => typeof well === "string" && /^[A-H]([1-9]|1[0-2])$/.test(well);
+        snapshot.plates.forEach(plate => {
+          if (!plate || !Array.isArray(plate.wells) || !plate.wells.every(isWell)) throw new Error("ウェル情報が不正です。");
+          if (plate.growthWeeks !== undefined && (!plate.growthWeeks || typeof plate.growthWeeks !== "object" || Array.isArray(plate.growthWeeks))) {
+            throw new Error("週番号の形式が不正です。");
+          }
+          Object.entries(plate.growthWeeks || {}).forEach(([well, week]) => {
+            if (!isWell(well) || !validGrowthWeek(week)) throw new Error("週番号は1〜5を指定してください。");
+          });
+        });
+        if (snapshot.packedPlates !== undefined) {
+          if (!Array.isArray(snapshot.packedPlates)) throw new Error("パック結果が不正です。");
+          snapshot.packedPlates.forEach(plate => {
+            if (!plate || !Array.isArray(plate.grid) || plate.grid.length !== 8 ||
+                !plate.grid.every(row => Array.isArray(row) && row.length === 12)) throw new Error("パック結果のサイズが不正です。");
+            if ((plate.id != null && typeof plate.id !== "string") ||
+                (plate.columns !== undefined && (!Array.isArray(plate.columns) || plate.columns.length !== 12 || !plate.columns.every((column, index) => column === index + 1)))) {
+              throw new Error("パック結果の列情報が不正です。");
+            }
+            plate.grid.flat().forEach(cell => {
+              if (cell && (!isWell(cell.sourceWell) || typeof cell.sourcePlate !== "string" ||
+                  (cell.growthWeek != null && !validGrowthWeek(cell.growthWeek)) ||
+                  (cell.color != null && (typeof cell.color !== "string" || !/^#[0-9a-f]{6}$/i.test(cell.color))))) throw new Error("パック結果のウェル情報が不正です。");
+            });
+          });
         }
-      }
-
-      function writeLocalLogs(items) {
-        try {
-          localStorage.setItem(LOCAL_LOG_KEY, JSON.stringify(items));
-        } catch {
-          // ignore quota / privacy errors
+        if (snapshot.packedLayout != null) {
+          const layout = snapshot.packedLayout;
+          if (!layout || !["row", "column"].includes(layout.layoutDirection) ||
+              !Array.isArray(layout.verticalDividers) || !layout.verticalDividers.every(n => Number.isInteger(n) && n > 0 && n < 12) ||
+              !Array.isArray(layout.horizontalDividers) || !layout.horizontalDividers.every(n => Number.isInteger(n) && n > 0 && n < 8)) {
+            throw new Error("パック結果のレイアウトが不正です。");
+          }
         }
+        return snapshot;
       }
 
-      function saveLocalLog(name, payload) {
-        const id = `${Date.now()}_${Math.random().toString(16).slice(2)}`;
-        const created_at = new Date().toISOString();
-        const items = listLocalLogs();
-        items.unshift({ id, name: String(name || "Log"), created_at, payload: payload || {} });
-        writeLocalLogs(items.slice(0, 200));
-        return { id, name: String(name || "Log"), created_at };
-      }
-
-      function getLocalLog(id) {
-        const items = listLocalLogs();
-        return items.find((x) => x && typeof x === "object" && x.id === id) || null;
-      }
-
-      function applyLogSnapshot(snapshot) {
-        const nextPlates = Array.isArray(snapshot?.plates) ? snapshot.plates : [];
-        plates = nextPlates.map((p, idx) => ({
-          label: p?.label || `Plate ${idx + 1}`,
-          memo: p?.memo || "",
-          wells: new Set(Array.isArray(p?.wells) ? p.wells : []),
+      function applyLogSnapshot(rawSnapshot) {
+        const snapshot = validateSnapshot(rawSnapshot);
+        plates = snapshot.plates.map((plate, index) => ({
+          label: String(plate.label || `Plate ${index + 1}`), memo: String(plate.memo || ""),
+          wells: new Set(plate.wells),
+          growthWeeks: Object.fromEntries(Object.entries(plate.growthWeeks || {}).filter(([well]) => plate.wells.includes(well))),
         }));
-        if (!plates.length) plates = [createPlate(1)];
-        currentPlateIndex = Math.max(0, Math.min(Number(snapshot?.currentPlateIndex) || 0, plates.length - 1));
-        inputReadDirection = snapshot?.inputReadDirection === "column" ? "column" : "row";
-        layoutDirection = snapshot?.layoutDirection === "column" ? "column" : "row";
-        wellLabelMode = snapshot?.wellLabelMode === "rowCol" ? "rowCol" : "colRow";
-        blockedLayoutWells = new Set(Array.isArray(snapshot?.blockedLayoutWells) ? snapshot.blockedLayoutWells : []);
-        verticalDividers = new Set(Array.isArray(snapshot?.verticalDividers) ? snapshot.verticalDividers : []);
-        horizontalDividers = new Set(Array.isArray(snapshot?.horizontalDividers) ? snapshot.horizontalDividers : []);
-
+        currentPlateIndex = Math.max(0, Math.min(Math.floor(Number(snapshot.currentPlateIndex) || 0), plates.length - 1));
+        selectedGrowthWeek = validGrowthWeek(snapshot.selectedGrowthWeek) ? snapshot.selectedGrowthWeek : 1;
+        inputReadDirection = snapshot.inputReadDirection === "column" ? "column" : "row";
+        layoutDirection = snapshot.layoutDirection === "column" ? "column" : "row";
+        wellLabelMode = snapshot.wellLabelMode === "rowCol" ? "rowCol" : "colRow";
+        blockedLayoutWells = new Set((Array.isArray(snapshot.blockedLayoutWells) ? snapshot.blockedLayoutWells : []).filter(well => /^[A-H]([1-9]|1[0-2])$/.test(well)));
+        verticalDividers = new Set((Array.isArray(snapshot.verticalDividers) ? snapshot.verticalDividers : []).filter(n => Number.isInteger(n) && n > 0 && n < 12));
+        horizontalDividers = new Set((Array.isArray(snapshot.horizontalDividers) ? snapshot.horizontalDividers : []).filter(n => Number.isInteger(n) && n > 0 && n < 8));
+        packedPlates = snapshot.packedPlates || [];
+        currentPackedIndex = Math.max(0, Math.min(Math.floor(Number(snapshot.currentPackedIndex) || 0), Math.max(0, packedPlates.length - 1)));
+        packedLayout = snapshot.packedLayout || null;
+        sourceColorMap = new Map((Array.isArray(snapshot.sourceColorMap) ? snapshot.sourceColorMap : []).filter(entry =>
+          Array.isArray(entry) && entry.length === 2 && typeof entry[0] === "string" && /^#[0-9a-f]{6}$/i.test(entry[1])));
         ensurePlateOption(plates.length);
         plateCountSelect.value = String(plates.length);
-        renderGridStructure();
-        renderPlate();
-        updateLayoutButtons();
-        renderLayoutGrid();
-        setStatus("ログを読み込みました。");
+        renderGridStructure(); renderPlate(); updateWeekButtons(); updateLayoutButtons(); renderLayoutGrid(); renderPacked();
+      }
+
+      function setSaveState(message, state) {
+        const element = document.getElementById("draftSaveStatus");
+        element.textContent = message;
+        element.dataset.state = state;
+      }
+
+      function persistCurrentDraft() {
+        if (!draftReady) return;
+        const snapshot = buildLogSnapshot();
+        const json = JSON.stringify(snapshot);
+        if (json === lastDraftJson) return;
+        lastDraftJson = json;
+        const revision = ++draftRevision;
+        const record = { savedAt: Date.now(), snapshot };
+        let localSaved = false;
+        try { PlatePackStorage.writeDraftSync(record); localSaved = true; } catch {}
+        setSaveState(localSaved ? "自動保存済み · このブラウザ" : "自動保存中…", localSaved ? "saved" : "saving");
+        PlatePackStorage.writeDraft(record, localSaved).then(() => {
+          if (revision === draftRevision) setSaveState("自動保存済み · このブラウザ", "saved");
+        }).catch(error => {
+          if (revision !== draftRevision) return;
+          lastDraftJson = "";
+          setSaveState("自動保存失敗 · Backup JSONを保存", "error");
+          setStatus(error.message, true);
+        });
+      }
+
+      function downloadBackup(name = "PlatePack backup", payload = buildLogSnapshot()) {
+        const backup = { name, created_at: new Date().toISOString(), payload };
+        const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `platepack_backup_${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
+        document.body.appendChild(link); link.click(); link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+
+      function canonicalJson(value) {
+        if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+        if (value && typeof value === "object") return `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(",")}}`;
+        return JSON.stringify(value);
       }
 
       async function saveLog() {
+        const name = prompt("ログ名を入力してください:", `Log ${new Date().toLocaleString()}`)?.trim();
+        if (!name) return;
+        saveLogBtn.disabled = true;
+        const payload = buildLogSnapshot();
+        persistCurrentDraft();
+        downloadBackup(name, payload);
+        PlatePackStorage.requestPersistence();
+        setStatus("ログを保存中… JSONバックアップもダウンロードしています。");
+        let localOk = false;
+        let serverOk = false;
         try {
-          const defaultName = `Log ${new Date().toLocaleString()}`;
-          const name = prompt("ログ名を入力してください:", defaultName);
-          if (!name) return;
-          setStatus("ログを保存中...");
-          const payload = buildLogSnapshot();
-          try {
-            const res = await fetch("/api/logs", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ name, payload }),
-            });
-            const data = await res.json().catch(() => null);
-            if (!res.ok) {
-              const detail = data?.detail ? `: ${data.detail}` : "";
-              if (res.status === 503) {
-                const saved = saveLocalLog(name, payload);
-                setStatus(`サーバー保存できないためローカルに保存しました: ${saved.name}`);
-                return;
-              }
-              setStatus(`ログ保存に失敗しました (${res.status})${detail}`, true);
-              return;
-            }
-            setStatus(`ログ保存しました: ${data?.name || name}`);
-          } catch {
-            const saved = saveLocalLog(name, payload);
-            setStatus(`サーバー保存できないためローカルに保存しました: ${saved.name}`);
-          }
-        } catch (e) {
-          setStatus("ログ保存に失敗しました。", true);
-        }
+          await PlatePackStorage.saveLog(name, payload);
+          localOk = true;
+        } catch {}
+        try {
+          const saved = await PlatePackStorage.fetchJson("/api/logs", {
+            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, payload }),
+          });
+          if (!saved?.id) throw new Error("保存確認に失敗しました。");
+          const verified = await PlatePackStorage.fetchJson(`/api/logs/${encodeURIComponent(saved.id)}`);
+          if (canonicalJson(verified.payload) !== canonicalJson(payload)) throw new Error("保存内容が一致しません。");
+          serverOk = true;
+        } catch {}
+        finally { saveLogBtn.disabled = false; }
+        if (serverOk && localOk) setStatus(`ログ保存を確認しました: ${name}（DB・このブラウザ・JSONバックアップ）`);
+        else if (serverOk) setStatus(`DB保存を確認しました: ${name}。ブラウザ保存は失敗しました。JSONバックアップも保管してください。`, true);
+        else if (localOk) setStatus(`このブラウザに保存しました: ${name}。DBには保存できていません。JSONバックアップも保管してください。`, true);
+        else setStatus("DB・ブラウザとも保存に失敗しました。ダウンロードしたJSONバックアップを保管してください。", true);
       }
 
       async function loadLogFromQuery() {
-        const params = new URLSearchParams(window.location.search);
-        const logId = params.get("log");
+        const logId = new URLSearchParams(window.location.search).get("log");
         if (!logId) return;
         try {
-          setStatus("ログを読み込み中...");
-          if (logId.startsWith("local:")) {
-            const localId = logId.slice("local:".length);
-            const entry = getLocalLog(localId);
-            if (!entry?.payload) {
-              setStatus("ローカルログが見つかりません。", true);
-              return;
-            }
-            applyLogSnapshot(entry.payload);
-            return;
+          const entry = logId.startsWith("local:")
+            ? await PlatePackStorage.getLog(logId.slice(6))
+            : await PlatePackStorage.fetchJson(`/api/logs/${encodeURIComponent(logId)}`);
+          if (!entry?.payload) throw new Error("ログが見つかりません。");
+          applyLogSnapshot(entry.payload);
+          setStatus("ログを読み込みました。");
+          return true;
+        } catch (error) { setStatus(`ログ読み込みに失敗しました。${error.message}`, true); }
+      }
+
+      async function initializeWorkspace() {
+        const view = document.getElementById("view-plates");
+        view.inert = true;
+        try {
+          const draft = await PlatePackStorage.readDraft();
+          if (draft) {
+            applyLogSnapshot(draft.snapshot);
+            setSaveState("自動保存を復元済み · このブラウザ", "saved");
+          } else setSaveState("自動保存 · 入力待ち", "idle");
+        } catch (error) {
+          view.dataset.restoreError = "true";
+          setSaveState("復元に失敗 · 元の保存データを保持", "error");
+          setStatus(error.message, true);
+        } finally {
+          const selectedLogLoaded = await loadLogFromQuery();
+          if (selectedLogLoaded) {
+            delete view.dataset.restoreError;
+            setSaveState("ログを読込済み · 入力時に自動保存", "idle");
           }
-          const res = await fetch(`/api/logs/${encodeURIComponent(logId)}`);
-          const data = await res.json().catch(() => null);
-          if (!res.ok || !data?.payload) {
-            const detail = data?.detail ? `: ${data.detail}` : "";
-            setStatus(`ログ読み込みに失敗しました (${res.status})${detail}`, true);
-            return;
-          }
-          applyLogSnapshot(data.payload);
-        } catch {
-          setStatus("ログ読み込みに失敗しました。", true);
+          draftReady = view.dataset.restoreError !== "true";
+          lastDraftJson = JSON.stringify(buildLogSnapshot());
+          view.inert = false;
         }
+        PlatePackStorage.fetchJson("/api/storage-health").then(health => {
+          if (!health.available || !health.durable) {
+            document.getElementById("storageNotice").textContent = "DB保存は現在利用できません。このブラウザの自動保存に加え、Save LogでJSONバックアップを保管してください。";
+          }
+        }).catch(() => {
+          document.getElementById("storageNotice").textContent = "DBへの接続を確認できません。Save Logで保存結果を確認し、JSONバックアップも保管してください。";
+        });
       }
 
       // Event bindings
@@ -2423,8 +2800,8 @@
             return;
           }
           const num = Number(input);
-          if (!Number.isInteger(num) || num < 1) {
-            alert("Please enter a positive integer.");
+          if (!Number.isInteger(num) || num < 1 || num > 999) {
+            alert("Please enter a number from 1 to 999.");
             plateCountSelect.value = String(plates.length);
             return;
           }
@@ -2477,7 +2854,30 @@
       renderPlate();
       updateLayoutButtons();
       renderLayoutGrid();
-      loadLogFromQuery();
+      document.querySelectorAll(".week-btn").forEach(button => button.addEventListener("click", () => {
+        selectedGrowthWeek = Number(button.dataset.week);
+        updateWeekButtons();
+      }));
+      document.getElementById("backupJsonBtn").addEventListener("click", () => downloadBackup());
+      const restoreInput = document.getElementById("restoreJsonInput");
+      document.getElementById("restoreJsonBtn").addEventListener("click", () => restoreInput.click());
+      restoreInput.addEventListener("change", async () => {
+        const file = restoreInput.files[0];
+        restoreInput.value = "";
+        if (!file) return;
+        try {
+          const parsed = JSON.parse(await file.text());
+          const snapshot = validateSnapshot(parsed.payload || parsed);
+          if (plates.some(plate => plate.wells.size || plate.memo) && !confirm("JSONの内容を読み込みます。現在の入力を置き換えますか？")) return;
+          applyLogSnapshot(snapshot);
+          draftReady = true;
+          persistCurrentDraft();
+          setStatus("JSONバックアップを復元しました。");
+        } catch (error) { setStatus(`JSONを読み込めません。${error.message}`, true); }
+      });
+      ["click", "change", "input"].forEach(event => document.getElementById("view-plates").addEventListener(event, () => queueMicrotask(persistCurrentDraft)));
+      window.addEventListener("pagehide", persistCurrentDraft);
+      initializeWorkspace();
     </script>
 
     <script>
@@ -2487,13 +2887,12 @@
         const listEl = document.getElementById("list");
         const emptyEl = document.getElementById("empty");
         const noticeEl = document.getElementById("notice");
-        const clearAllBtn = document.getElementById("clearAllBtn");
         const importBtn = document.getElementById("importBtn");
         const importInput = document.getElementById("importInput");
         const migrateBtn = document.getElementById("migrateBtn");
-        const LOCAL_LOG_KEY = "PLATEPACK_LOCAL_LOGS_V1";
+        const storage = window.PlatePackStorage;
 
-        if (!listEl || !emptyEl || !clearAllBtn || !importBtn || !importInput) {
+        if (!listEl || !emptyEl || !importBtn || !importInput) {
           return;
         }
 
@@ -2507,229 +2906,210 @@
           }
         }
 
-        function safeParseJson(raw, fallback) {
-          try {
-            return JSON.parse(raw);
-          } catch {
-            return fallback;
+        function errorMessage(error) {
+          return error instanceof Error ? error.message : String(error || "保存処理に失敗しました。");
+        }
+
+        async function listLocalLogs() {
+          return await storage.readLogs();
+        }
+
+        async function writeLocalLogs(items) {
+          return await storage.writeLogs(items);
+        }
+
+        async function saveLocalLog(name, payload) {
+          return await storage.saveLog(name, payload);
+        }
+
+        async function getLocalLog(id) {
+          return await storage.getLog(id);
+        }
+
+        function canonicalJson(value) {
+          function sort(item) {
+            if (Array.isArray(item)) return item.map(sort);
+            if (item && typeof item === "object") {
+              return Object.fromEntries(Object.keys(item).sort().map(key => [key, sort(item[key])]));
+            }
+            return item;
           }
+          return JSON.stringify(sort(value));
         }
 
-        function listLocalLogs() {
-          try {
-            const raw = localStorage.getItem(LOCAL_LOG_KEY);
-            const parsed = raw ? safeParseJson(raw, []) : [];
-            const items = Array.isArray(parsed) ? parsed : [];
-            return items.filter((x) => x && typeof x === "object" && typeof x.id === "string");
-          } catch {
-            return [];
+        function validatePayload(payload) {
+          if (!payload || !Array.isArray(payload.plates) || !payload.plates.length || payload.plates.length > 999) {
+            throw new Error("PlatePackのJSON形式を確認してください。プレート情報が必要です。");
           }
-        }
-
-        function writeLocalLogs(items) {
-          try {
-            localStorage.setItem(LOCAL_LOG_KEY, JSON.stringify(items));
-          } catch {
-            // ignore quota / privacy errors
+          const isWell = well => typeof well === "string" && /^[A-H]([1-9]|1[0-2])$/.test(well);
+          const isWeek = week => Number.isInteger(week) && week >= 1 && week <= 5;
+          payload.plates.forEach(plate => {
+            if (!plate || !Array.isArray(plate.wells) || !plate.wells.every(isWell)) {
+              throw new Error("ウェル情報が不正です。");
+            }
+            if (plate.growthWeeks !== undefined && (!plate.growthWeeks || typeof plate.growthWeeks !== "object" || Array.isArray(plate.growthWeeks))) {
+              throw new Error("週番号の形式が不正です。");
+            }
+            Object.entries(plate.growthWeeks || {}).forEach(([well, week]) => {
+              if (!isWell(well) || !isWeek(week)) throw new Error("週番号は1〜5を指定してください。");
+            });
+          });
+          if (payload.packedPlates !== undefined) {
+            if (!Array.isArray(payload.packedPlates)) throw new Error("パック結果が不正です。");
+            payload.packedPlates.forEach(plate => {
+              if (!plate || !Array.isArray(plate.grid) || plate.grid.length !== 8 ||
+                  !plate.grid.every(row => Array.isArray(row) && row.length === 12)) {
+                throw new Error("パック結果のサイズが不正です。");
+              }
+              plate.grid.flat().forEach(cell => {
+                if (cell && (!isWell(cell.sourceWell) || typeof cell.sourcePlate !== "string" ||
+                    (cell.growthWeek != null && !isWeek(cell.growthWeek)))) {
+                  throw new Error("パック結果のウェル情報が不正です。");
+                }
+              });
+            });
           }
-        }
-
-        function saveLocalLog(name, payload) {
-          const id = `${Date.now()}_${Math.random().toString(16).slice(2)}`;
-          const created_at = new Date().toISOString();
-          const items = listLocalLogs();
-          items.unshift({ id, name: String(name || "Log"), created_at, payload: payload || {} });
-          writeLocalLogs(items.slice(0, 200));
-          return { id, name: String(name || "Log"), created_at };
-        }
-
-        function getLocalLog(id) {
-          const items = listLocalLogs();
-          return items.find((x) => x && typeof x === "object" && x.id === id) || null;
+          return payload;
         }
 
         async function deleteLog(source, id) {
           if (source === "local") {
-            const next = listLocalLogs().filter((x) => x.id !== id);
-            writeLocalLogs(next);
+            await storage.deleteLog(id);
             return;
           }
           const res = await fetch(API_ITEM(id), { method: "DELETE" });
-          if (!res.ok) throw new Error("delete failed");
+          if (!res.ok) throw new Error(`DBから削除できません。HTTP ${res.status}`);
         }
 
         async function createServerLog(name, payload) {
-          const res = await fetch(API_LIST, {
+          const created = await storage.fetchJson(API_LIST, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ name, payload }),
           });
-          if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            const msg = err?.detail ? String(err.detail) : `HTTP ${res.status}`;
-            throw new Error(msg);
+          if (!created?.id) throw new Error("DB保存の確認に失敗しました。");
+          const verified = await storage.fetchJson(API_ITEM(created.id));
+          if (canonicalJson(verified?.payload) !== canonicalJson(payload)) {
+            throw new Error("DBの保存内容が一致しません。LOCALのコピーを保持しています。");
           }
-          return res.json().catch(() => ({}));
+          return created;
         }
 
-        function downloadJson(filename, data) {
-          const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+        async function migrateLocalToDb(entry) {
+          if (!entry?.id || !entry.payload) throw new Error("移行するログが見つかりません。");
+          await createServerLog(entry.name || "Log", entry.payload);
+          await storage.deleteLog(entry.id);
+        }
+
+        async function migrateAllLocalToDb() {
+          if (!confirm("LOCALログをDBへ移行します（成功したものはLOCALから削除されます）。よろしいですか？")) return;
+          migrateBtn.disabled = true;
+          migrateBtn.textContent = "移行中…";
+          try {
+            const local = await listLocalLogs();
+            let ok = 0;
+            const errors = [];
+            for (const item of local) {
+              try {
+                await migrateLocalToDb(item);
+                ok += 1;
+              } catch (error) {
+                errors.push(errorMessage(error));
+              }
+            }
+            await render();
+            showNotice(`移行を確認しました: ${ok}/${local.length} 件。` +
+              (errors.length ? `未移行のLOCALログを保持しています。${errors[0]}` : ""));
+          } catch (error) {
+            showNotice(`移行に失敗しました。LOCALログを保持しています。${errorMessage(error)}`);
+          } finally {
+            migrateBtn.disabled = false;
+            migrateBtn.textContent = "LOCAL→DB移行";
+          }
+        }
+
+        async function downloadLog(source, id, name) {
+          let payload = null;
+          if (source === "local") {
+            payload = (await getLocalLog(id))?.payload || null;
+          } else {
+            const data = await storage.fetchJson(API_ITEM(id));
+            payload = data?.payload || null;
+          }
+          if (!payload) throw new Error("ダウンロードするログが見つかりません。");
+          const blob = new Blob([JSON.stringify({ name: name || "Log", payload }, null, 2)], { type: "application/json" });
           const url = URL.createObjectURL(blob);
           const link = document.createElement("a");
           link.href = url;
-          link.download = filename || "platepack_log.json";
+          link.download = `${String(name || "log").replaceAll(/[\\\\/:*?\"<>|]/g, "_")}.json`;
           document.body.appendChild(link);
           link.click();
           link.remove();
           URL.revokeObjectURL(url);
         }
 
-        async function downloadLog(source, id, name) {
-          if (source === "local") {
-            const entry = getLocalLog(id);
-            if (!entry) throw new Error("not found");
-            const safe = String(name || "log").replace(/[^a-zA-Z0-9_-]+/g, "_");
-            downloadJson(`platepack_log_${safe}_local_${id}.json`, {
-              id: entry.id,
-              name: entry.name,
-              created_at: entry.created_at,
-              payload: entry.payload || {},
-            });
+        async function importJsonFile(file) {
+          const text = await file.text();
+          const parsed = JSON.parse(text);
+          const payload = validatePayload(parsed?.payload || parsed);
+          const name = (typeof parsed?.name === "string" && parsed.name.trim()) || file.name.replace(/\.json$/i, "") || "Imported";
+          const results = await Promise.allSettled([saveLocalLog(name, payload), createServerLog(name, payload)]);
+          const localSaved = results[0].status === "fulfilled";
+          const serverSaved = results[1].status === "fulfilled";
+          if (!localSaved && !serverSaved) {
+            throw new Error(`保存できません。JSONファイルを保管してください。${errorMessage(results[0].reason)} ${errorMessage(results[1].reason)}`);
+          }
+          if (localSaved && serverSaved) return "JSONを読み込み、DBとこのブラウザへの保存を確認しました。";
+          if (localSaved) return `このブラウザへの保存を確認しました。DB保存は失敗しています。${errorMessage(results[1].reason)} JSONファイルも保管してください。`;
+          return `DBへの保存を確認しました。ブラウザ保存は失敗しています。${errorMessage(results[0].reason)} JSONファイルも保管してください。`;
+        }
+
+        function showNotice(message) {
+          if (!noticeEl) return;
+          noticeEl.textContent = message;
+          noticeEl.style.display = message ? "block" : "none";
+        }
+
+        async function fetchServerLogs(limit = 60) {
+          const logs = await storage.fetchJson(`${API_LIST}?limit=${encodeURIComponent(String(limit))}`);
+          if (!Array.isArray(logs)) throw new Error("DBの一覧形式が不正です。");
+          return logs;
+        }
+
+        async function serverStatusOk() {
+          try {
+            const response = await fetch(`${API_LIST}?limit=1`);
+            return response.ok;
+          } catch {
+            return false;
+          }
+        }
+
+        function normalizeItems(serverLogs, localLogs) {
+          const serverItems = Array.isArray(serverLogs) ? serverLogs : [];
+          const localItems = Array.isArray(localLogs) ? localLogs : [];
+          const mappedServer = serverItems
+            .filter((x) => x && typeof x === "object" && typeof x.id === "string")
+            .map((x) => ({ ...x, source: "db" }));
+          const mappedLocal = localItems
+            .filter((x) => x && typeof x === "object" && typeof x.id === "string")
+            .map((x) => ({ ...x, source: "local" }));
+          return [...mappedServer, ...mappedLocal].sort((a, b) =>
+            String(b.created_at || "").localeCompare(String(a.created_at || ""))
+          );
+        }
+
+        function renderEmpty(show) {
+          emptyEl.style.display = show ? "block" : "none";
+        }
+
+        function renderList(items, serverOk) {
+          listEl.innerHTML = "";
+          if (!items.length) {
+            renderEmpty(true);
             return;
           }
-          const res = await fetch(API_ITEM(id));
-          if (!res.ok) throw new Error("fetch failed");
-          const data = await res.json();
-          const safe = String(name || "log").replace(/[^a-zA-Z0-9_-]+/g, "_");
-          downloadJson(`platepack_log_${safe}_${id}.json`, data);
-        }
-
-        function readFileAsText(file) {
-          return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(String(reader.result || ""));
-            reader.onerror = () => reject(reader.error || new Error("read failed"));
-            reader.readAsText(file);
-          });
-        }
-
-        async function importJsonFile(file) {
-          const text = await readFileAsText(file);
-          const parsed = JSON.parse(text);
-          const payload =
-            parsed && typeof parsed === "object" && parsed.payload && typeof parsed.payload === "object"
-              ? parsed.payload
-              : parsed && typeof parsed === "object"
-                ? parsed
-                : null;
-          if (!payload || typeof payload !== "object") {
-            throw new Error("invalid payload");
-          }
-          const defaultName =
-            (parsed && typeof parsed === "object" && typeof parsed.name === "string" && parsed.name.trim()) ||
-            (file?.name ? file.name.replace(/\\.json$/i, "") : "") ||
-            `Imported ${new Date().toLocaleString()}`;
-          const name = prompt("ログ名を入力してください:", defaultName);
-          if (!name) return;
-          try {
-            await createServerLog(name, payload);
-          } catch {
-            saveLocalLog(name, payload);
-          }
-        }
-
-        async function migrateLocalToDb(entry) {
-          if (!entry || typeof entry !== "object") throw new Error("invalid entry");
-          const id = String(entry.id || "");
-          if (!id) throw new Error("missing id");
-          await createServerLog(String(entry.name || "Log"), entry.payload || {});
-          const next = listLocalLogs().filter((x) => x.id !== id);
-          writeLocalLogs(next);
-        }
-
-        async function migrateAllLocalToDb() {
-          const local = listLocalLogs();
-          if (!local.length) return;
-          if (!confirm(`LOCALログ ${local.length} 件をDBへ移行します。よろしいですか？`)) return;
-          if (migrateBtn) {
-            migrateBtn.disabled = true;
-            migrateBtn.textContent = "移行中...";
-          }
-          let okCount = 0;
-          for (const entry of local) {
-            try {
-              await migrateLocalToDb(entry);
-              okCount += 1;
-            } catch {
-              break;
-            }
-          }
-          if (migrateBtn) {
-            migrateBtn.disabled = false;
-            migrateBtn.textContent = "LOCAL→DB移行";
-          }
-          alert(`移行しました: ${okCount} 件`);
-          await render();
-        }
-
-        async function render() {
-          listEl.innerHTML = "";
-          emptyEl.style.display = "none";
-          if (noticeEl) noticeEl.style.display = "none";
-
-          let serverItems = [];
-          let serverError = "";
-          let serverOk = false;
-          try {
-            const res = await fetch(API_LIST);
-            if (!res.ok) {
-              const err = await res.json().catch(() => ({}));
-              serverError = err?.detail || `HTTP ${res.status}`;
-              serverItems = [];
-            } else {
-              serverItems = (await res.json()) || [];
-              if (!Array.isArray(serverItems)) serverItems = [];
-              serverOk = true;
-            }
-          } catch (e) {
-            serverItems = [];
-            serverError = e && typeof e === "object" && "message" in e ? String(e.message || "") : "";
-            serverOk = false;
-          }
-
-          const localItems = listLocalLogs()
-            .map((x) => ({
-              source: "local",
-              id: x.id,
-              name: x.name || "Log",
-              created_at: x.created_at || "",
-            }))
-            .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
-
-          const normalizedServer = serverItems.map((x) => ({
-            source: "server",
-            id: x?.id || "",
-            name: x?.name || "Log",
-            created_at: x?.created_at || "",
-          }));
-
-          if (migrateBtn) {
-            migrateBtn.style.display = serverOk && localItems.length ? "inline-flex" : "none";
-            migrateBtn.disabled = false;
-            migrateBtn.textContent = "LOCAL→DB移行";
-          }
-
-          if (noticeEl && serverError) {
-            noticeEl.textContent =
-              "サーバー側の永続DBが未設定/利用不可のため、このページではブラウザ内のローカルログを表示・保存します。" +
-              (serverError ? ` (${serverError})` : "");
-            noticeEl.style.display = "block";
-          }
-
-          const items = [...normalizedServer, ...localItems].filter((x) => x.id);
-          listEl.innerHTML = "";
-          emptyEl.style.display = items.length ? "none" : "block";
-          if (!items.length) return;
+          renderEmpty(false);
 
           items.forEach((item) => {
             const card = document.createElement("details");
@@ -2738,7 +3118,7 @@
             const summary = document.createElement("summary");
             summary.className = "item-summary";
 
-            const badge = document.createElement("div");
+            const badge = document.createElement("span");
             badge.className = "badge";
             badge.textContent = item?.source === "local" ? "LOCAL" : "DB";
 
@@ -2795,8 +3175,8 @@
             dl.addEventListener("click", async () => {
               try {
                 await downloadLog(item?.source, item?.id, item?.name);
-              } catch {
-                alert("ダウンロードに失敗しました。");
+              } catch (error) {
+                showNotice(`ダウンロードに失敗しました。${errorMessage(error)}`);
               }
             });
 
@@ -2808,14 +3188,17 @@
               mig.textContent = "DBへ移行";
               mig.addEventListener("click", async () => {
                 if (!confirm("このLOCALログをDBへ移行します。よろしいですか？")) return;
+                mig.disabled = true;
                 try {
-                  const entry = getLocalLog(item?.id);
-                  if (!entry) throw new Error("not found");
+                  const entry = await getLocalLog(item?.id);
+                  if (!entry) throw new Error("ログが見つかりません。");
                   await migrateLocalToDb(entry);
                   await render();
-                } catch (e) {
-                  const msg = e && typeof e === "object" && "message" in e ? String(e.message || "") : "";
-                  alert(`移行に失敗しました。${msg ? ` (${msg})` : ""}`);
+                  showNotice("DBの保存内容を確認し、移行しました。");
+                } catch (error) {
+                  showNotice(`移行に失敗しました。LOCALログを保持しています。${errorMessage(error)}`);
+                } finally {
+                  mig.disabled = false;
                 }
               });
             }
@@ -2823,14 +3206,14 @@
             const del = document.createElement("button");
             del.type = "button";
             del.className = "btn danger";
-            del.textContent = "削除";
+            del.textContent = "Delete";
             del.addEventListener("click", async () => {
-              if (!confirm("このログを削除します。よろしいですか？")) return;
+              if (!confirm("削除します。よろしいですか？")) return;
               try {
                 await deleteLog(item?.source, item?.id);
                 await render();
-              } catch {
-                alert("削除に失敗しました。");
+              } catch (error) {
+                showNotice(`削除に失敗しました。${errorMessage(error)}`);
               }
             });
 
@@ -2839,13 +3222,6 @@
             if (mig) actions.appendChild(mig);
             actions.appendChild(del);
 
-            const row = document.createElement("div");
-            row.className = "row";
-            const idTag = document.createElement("div");
-            idTag.className = "sub";
-            idTag.textContent = `id: ${item?.id || ""}`;
-            row.appendChild(idTag);
-            meta.appendChild(row);
             meta.appendChild(actions);
 
             card.appendChild(summary);
@@ -2854,9 +3230,30 @@
           });
         }
 
-        clearAllBtn.addEventListener("click", () => {
-          alert("全削除は未対応です（DB永続化のため）。個別に削除してください。");
-        });
+        async function render() {
+          const results = await Promise.allSettled([fetchServerLogs(200), listLocalLogs()]);
+          const ok = results[0].status === "fulfilled";
+          const localOk = results[1].status === "fulfilled";
+          const serverLogs = ok ? results[0].value : [];
+          const local = localOk ? results[1].value : [];
+          const items = normalizeItems(serverLogs, local);
+          renderList(items, ok);
+          const messages = [];
+          if (!ok) {
+            messages.push(`DBへ接続できません。利用可能なLOCALログを表示します。${errorMessage(results[0].reason)}`);
+          }
+          if (!localOk) messages.push(`ブラウザのログを読み込めません。保存済みデータを保護しています。${errorMessage(results[1].reason)}`);
+          if (!items.length && (!ok || !localOk)) {
+            emptyEl.textContent = "保存先の読み込みを確認してください。JSONバックアップからの読み込みも利用できます。";
+          } else {
+            emptyEl.textContent = "保存されたログがありません。";
+          }
+          showNotice(messages.join(" "));
+
+          if (migrateBtn) {
+            migrateBtn.style.display = ok && local.length ? "inline-flex" : "none";
+          }
+        }
 
         importBtn.addEventListener("click", () => importInput.click());
         if (migrateBtn) migrateBtn.addEventListener("click", migrateAllLocalToDb);
@@ -2864,11 +3261,15 @@
           const file = importInput.files && importInput.files[0];
           importInput.value = "";
           if (!file) return;
+          importBtn.disabled = true;
           try {
-            await importJsonFile(file);
+            const message = await importJsonFile(file);
             await render();
-          } catch {
-            alert("JSONの読み込み/保存に失敗しました。");
+            showNotice(message);
+          } catch (error) {
+            showNotice(`JSONの読み込み/保存に失敗しました。${errorMessage(error)}`);
+          } finally {
+            importBtn.disabled = false;
           }
         });
 

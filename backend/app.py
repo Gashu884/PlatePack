@@ -5,15 +5,15 @@ from __future__ import annotations
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Response
-from fastapi.responses import HTMLResponse
-from pydantic import BaseModel, Field
+from fastapi.responses import FileResponse, HTMLResponse
+from pydantic import BaseModel, Field, field_validator
 
 try:
     from backend.api.generate_html import ReportRequest, build_html_report, sample_payload
-    from backend.api.logs_db import create_log, delete_log, get_log, init_db, list_logs
+    from backend.api.logs_db import create_log, delete_log, get_log, init_db, list_logs, storage_health
 except ModuleNotFoundError:  # pragma: no cover
     from api.generate_html import ReportRequest, build_html_report, sample_payload
-    from api.logs_db import create_log, delete_log, get_log, init_db, list_logs
+    from api.logs_db import create_log, delete_log, get_log, init_db, list_logs, storage_health
 
 app = FastAPI(
     title="PlatePack HTML API",
@@ -31,6 +31,14 @@ class LogCreateRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=120)
     payload: dict = Field(default_factory=dict)
 
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("Log name must not be blank.")
+        return cleaned
+
 
 class LogSummaryResponse(BaseModel):
     id: str
@@ -40,6 +48,13 @@ class LogSummaryResponse(BaseModel):
 
 class LogEntryResponse(LogSummaryResponse):
     payload: dict
+
+
+class StorageHealthResponse(BaseModel):
+    available: bool
+    durable: bool
+    backend: str
+    message: str
 
 
 @app.on_event("startup")
@@ -69,6 +84,19 @@ def serve_plates() -> HTMLResponse:
 def serve_results() -> HTMLResponse:
     """Return the Database page."""
     return _serve_html(DATABASE_HTML_PATH, "frontend/database.html")
+
+
+@app.get("/assets/storage.js")
+def serve_storage_script() -> FileResponse:
+    script_path = ROOT_DIR / "frontend" / "storage.js"
+    if not script_path.exists():
+        raise HTTPException(status_code=404, detail="Storage script not found.")
+    return FileResponse(script_path, media_type="text/javascript; charset=utf-8")
+
+
+@app.get("/api/storage-health", response_model=StorageHealthResponse)
+def api_storage_health() -> StorageHealthResponse:
+    return StorageHealthResponse(**storage_health())
 
 
 @app.get("/api/logs", response_model=list[LogSummaryResponse])
