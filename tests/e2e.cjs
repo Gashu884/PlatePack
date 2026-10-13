@@ -66,9 +66,9 @@ let runningBrowser;
   assert.equal(backup.payload.plates[0].growthWeeks.A5, 5);
   await page.waitForFunction(() => document.getElementById('status').textContent.includes('DB・このブラウザ'));
   await page.goto(`${base}/results`);
-  await page.waitForFunction(() => document.querySelectorAll('.item').length >= 2);
-  const localLog = page.locator('.item').filter({ has: page.locator('.badge', { hasText: 'LOCAL' }) }).filter({ hasText: 'E2E growth log' }).first();
-  await localLog.locator('summary').click(); await localLog.getByRole('link', { name: 'Packerで開く' }).click(); await ready();
+  await page.waitForFunction(() => document.querySelectorAll('.file-row').length >= 2);
+  const localLog = page.locator('.file-row[data-key^="local:"]').filter({ hasText: 'E2E growth log' }).first();
+  await localLog.getByRole('button', { name: '開く' }).click(); await ready();
   assert.equal(await well('A5').locator('.well-week').textContent(), '5');
 
   // Legacy version-1 data remains readable without inventing a growth week.

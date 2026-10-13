@@ -339,15 +339,23 @@ def build_html_report(payload: ReportRequest) -> str:
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{escape(payload.title)}</title>
     <style>
+      @font-face {{
+        font-family: "Oxanium";
+        src: url("/assets/fonts/Oxanium-Variable.ttf") format("truetype");
+        font-weight: 200 800;
+        font-style: normal;
+        font-display: swap;
+      }}
       :root {{
         color-scheme: light;
-        font-family: Cambria, "Times New Roman", "Yu Mincho", serif;
+        font-family: "Oxanium", "Hiragino Sans", "Yu Gothic", sans-serif;
       }}
       body {{
         margin: 0;
         padding: 2.5rem clamp(1.5rem, 5vw, 4rem);
         background: #f4f6fb;
         color: #1f2937;
+        font-weight: 600;
       }}
       header {{
         margin-bottom: 2rem;
@@ -355,6 +363,9 @@ def build_html_report(payload: ReportRequest) -> str:
       h1 {{
         margin: 0;
         font-size: clamp(1.8rem, 3vw, 2.4rem);
+      }}
+      h1, h2, h3, th, strong {{
+        font-weight: 700;
       }}
       .meta {{
         margin-top: 0.75rem;
@@ -396,7 +407,7 @@ def build_html_report(payload: ReportRequest) -> str:
       tbody th {{
         background: #f1f5f9;
         text-align: left;
-        font-weight: 600;
+        font-weight: 700;
       }}
       td {{
         min-width: 72px;

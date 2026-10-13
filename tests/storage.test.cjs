@@ -7,11 +7,15 @@ const vm = require("node:vm");
 const SOURCE = fs.readFileSync(path.join(__dirname, "../frontend/storage.js"), "utf8");
 const LOGS = "PLATEPACK_LOGS_V2";
 const LEGACY = "PLATEPACK_LOCAL_LOGS_V1";
+const FOLDERS = "PLATEPACK_FOLDERS_V1";
 const DRAFT = "PLATEPACK_DRAFT_V2";
 const PREVIOUS = "PLATEPACK_DRAFT_PREVIOUS_V2";
 const clone = value => value === undefined ? undefined : JSON.parse(JSON.stringify(value));
 const entry = id => ({ id, name: `Log ${id}`, created_at: "2026-10-09T00:00:00Z", payload: { id, plates: [] } });
 const draft = (savedAt, label) => ({ savedAt, snapshot: { plates: [{ label, wells: ["A1"], growthWeeks: { A1: 3 } }] } });
+const migrated = items => items.map(item => ({ ...item, project_id: item.project_id || "default-project" }));
+const person = (id, name = id) => ({ id, name, kind: "person", parent_id: null, created_at: "2026-10-09T00:00:00Z" });
+const project = (id, parent_id, name = id) => ({ id, name, kind: "project", parent_id, created_at: "2026-10-09T00:00:00Z" });
 
 function createSharedLocks() {
   const queues = new Map();
@@ -125,7 +129,7 @@ test("legacy logs migrate without truncating old entries or their payloads", asy
   await storage.saveLog("New", { growthWeeks: { A1: 4 } });
   const logs = clone(await storage.readLogs());
   assert.equal(logs.length, 76);
-  assert.deepEqual(logs.slice(1), originals);
+  assert.deepEqual(logs.slice(1), migrated(originals));
   assert.equal(JSON.parse(local.get(LEGACY)).length, 76);
 });
 
@@ -152,7 +156,7 @@ test("simultaneous saves in two tabs preserve both logs using a shared browser l
 test("corrupt local logs recover from the valid IndexedDB copy", async () => {
   const originals = [entry("good")];
   const { storage } = createStorage({ localData: { [LOGS]: "{broken" }, databaseData: { [LOGS]: { savedAt: 20, items: originals } } });
-  assert.deepEqual(clone(await storage.readLogs()), originals);
+  assert.deepEqual(clone(await storage.readLogs()), migrated(originals));
 });
 
 test("corrupt existing logs block replacement when no valid copy is available", async () => {
@@ -268,4 +272,181 @@ test("failure of both draft stores rejects and retains the previous valid draft"
   await assert.rejects(storage.writeDraft(draft(200, "Updated")), /自動保存できません/);
   assert.deepEqual(JSON.parse(local.get(DRAFT)), old);
   assert.deepEqual(database.get(DRAFT), old);
+});
+
+test("legacy reads assign a default project idempotently without rewriting original data", async () => {
+  const originals = [entry("old")];
+  const { storage, local, database } = createStorage({ localData: { [LEGACY]: originals } });
+  const raw = local.get(LEGACY);
+  assert.deepEqual(clone(await storage.readLogs()), migrated(originals));
+  assert.deepEqual(clone(await storage.readLogs()), migrated(originals));
+  assert.equal((await storage.getLog("old")).project_id, "default-project");
+  assert.equal(local.get(LEGACY), raw);
+  assert.equal(local.has(LOGS), false);
+  assert.equal(database.has(LOGS), false);
+});
+
+test("default researcher and project folders appear once on an empty browser", async () => {
+  const { storage } = createStorage();
+  const first = clone(await storage.readFolders());
+  assert.deepEqual(first.map(folder => [folder.id, folder.name, folder.kind, folder.parent_id]), [
+    ["default-person", "研究者 1", "person", null],
+    ["default-project", "プロジェクト 1", "project", "default-person"],
+  ]);
+  assert.deepEqual(clone(await storage.readFolders()), first);
+});
+
+test("folder creation, renaming, and project moves retain valid hierarchy", async () => {
+  const { storage } = createStorage();
+  const first = await storage.createFolder(" Alice ", "person");
+  const second = await storage.createFolder("Bob", "person");
+  const folder = await storage.createFolder("Experiment", "project", first.id);
+  const changed = await storage.updateFolder(folder.id, { name: "Experiment 2", parent_id: second.id });
+  assert.equal(changed.name, "Experiment 2");
+  assert.equal(changed.parent_id, second.id);
+  assert.equal(changed.created_at, folder.created_at);
+  assert.ok(Date.parse(changed.updated_at) > Date.parse(folder.created_at));
+  assert.equal((await storage.readFolders()).length, 5);
+});
+
+test("invalid folder destinations are rejected without changing saved folders", async () => {
+  const { storage, local, database } = createStorage();
+  const valid = await storage.createFolder("Experiment", "project", "default-person");
+  const originalLocal = local.get(FOLDERS);
+  const originalDatabase = clone(database.get(FOLDERS));
+  await assert.rejects(storage.createFolder("Nested", "project", valid.id), /研究者フォルダ/);
+  await assert.rejects(storage.createFolder("Bad root", "person", "default-person"), /形式が不正/);
+  await assert.rejects(storage.updateFolder("default-person", { parent_id: valid.id }), /形式が不正/);
+  await assert.rejects(storage.updateFolder(valid.id, { parent_id: "missing" }), /研究者フォルダ/);
+  await assert.rejects(storage.updateFolder(valid.id, { kind: "person" }), /変更できない/);
+  await assert.rejects(storage.createFolder("x".repeat(121), "person"), /1〜120文字/);
+  await assert.rejects(storage.createFolder("Bad ID", "person", null, "id/unsupported"), /形式が不正/);
+  assert.equal(local.get(FOLDERS), originalLocal);
+  assert.deepEqual(database.get(FOLDERS), originalDatabase);
+});
+
+test("caller-provided folder IDs make repeated offline creation idempotent", async () => {
+  const { storage } = createStorage();
+  const first = await storage.createFolder("Researcher", "person", null, "stable-id");
+  assert.deepEqual(clone(await storage.createFolder("Researcher", "person", null, "stable-id")), clone(first));
+  assert.equal((await storage.readFolders()).filter(folder => folder.id === "stable-id").length, 1);
+  await assert.rejects(storage.createFolder("Other researcher", "person", null, "stable-id"), /同じID/);
+});
+
+test("remote folders merge into the offline tree and become valid local log destinations", async () => {
+  const { storage } = createStorage();
+  const offline = await storage.createFolder("Offline researcher", "person", null, "offline");
+  const incoming = [person("remote"), project("remote-project", "remote")];
+  await storage.mergeFolders(incoming);
+  const folders = await storage.readFolders();
+  assert.ok(folders.some(folder => folder.id === offline.id));
+  const saved = await storage.saveLog("Remote project log", { plates: [] }, "remote-project");
+  assert.equal(saved.project_id, "remote-project");
+  await assert.rejects(storage.saveLog("Bad target", {}, "remote"), /プロジェクトが見つかりません/);
+});
+
+test("remote folder merge preserves newer edits while accepting unstamped API responses", async () => {
+  const { storage } = createStorage();
+  await storage.mergeFolders([person("remote")]);
+  const updated = await storage.updateFolder("remote", { name: "Newest local" });
+  await storage.mergeFolders([{ ...person("remote", "Stale server"), updated_at: "2026-10-08T00:00:00Z" }]);
+  assert.equal((await storage.readFolders()).find(folder => folder.id === "remote").name, updated.name);
+  await storage.mergeFolders([person("remote", "Confirmed API response")]);
+  assert.equal((await storage.readFolders()).find(folder => folder.id === "remote").name, "Confirmed API response");
+});
+
+test("simultaneous folder creations in separate tabs preserve the shared tree", async () => {
+  const local = new Map();
+  const database = new Map();
+  const locks = createSharedLocks();
+  const first = createStorage({ sharedLocal: local, sharedDatabase: database, locks, uuidPrefix: "tab1" }).storage;
+  const second = createStorage({ sharedLocal: local, sharedDatabase: database, locks, uuidPrefix: "tab2" }).storage;
+  const created = await Promise.all([first.createFolder("Alice", "person"), second.createFolder("Bob", "person")]);
+  assert.deepEqual(new Set((await first.readFolders()).map(folder => folder.id)), new Set(["default-person", "default-project", ...created.map(folder => folder.id)]));
+});
+
+test("moving and renaming a log preserve the complete payload and original creation time", async () => {
+  const { storage } = createStorage();
+  const folder = await storage.createFolder("Experiment", "project", "default-person");
+  const payload = { plates: [{ label: "Plate", wells: ["A1"], growthWeeks: { A1: 5 } }], packedPlates: [{ cells: ["A1"] }], notes: "Keep me", extra: { arbitrary: [1, 2, 3] } };
+  const saved = await storage.saveLog("Original", payload);
+  payload.notes = "Changed after save";
+  const moved = await storage.updateLog(saved.id, { name: "Moved", project_id: folder.id });
+  assert.equal(moved.id, saved.id);
+  assert.equal(moved.created_at, saved.created_at);
+  assert.equal(moved.project_id, folder.id);
+  assert.deepEqual(clone(moved.payload), clone(saved.payload));
+  assert.equal(moved.payload.notes, "Keep me");
+  assert.ok(Date.parse(moved.updated_at) > Date.parse(saved.created_at));
+  moved.payload.notes = "Changed returned value";
+  assert.equal((await storage.getLog(saved.id)).payload.notes, "Keep me");
+});
+
+test("copying a log preserves its original and deep copies all payload fields", async () => {
+  const { storage } = createStorage();
+  const folder = await storage.createFolder("Experiment", "project", "default-person");
+  const saved = await storage.saveLog("Original", { plates: [{ growthWeeks: { A1: 4 } }], metadata: { nested: ["value"] } });
+  const copied = await storage.copyLog(saved.id, folder.id);
+  assert.notEqual(copied.id, saved.id);
+  assert.equal(copied.project_id, folder.id);
+  assert.deepEqual(clone(copied.payload), clone(saved.payload));
+  assert.deepEqual(clone(await storage.getLog(saved.id)), clone(saved));
+  copied.payload.metadata.nested.push("changed");
+  assert.deepEqual(clone((await storage.getLog(copied.id)).payload.metadata.nested), ["value"]);
+  assert.equal((await storage.readLogs()).length, 2);
+});
+
+test("log replicas choose the newest entry edit even when an older edit has a newer envelope", async () => {
+  const old = { ...entry("same"), name: "Old", project_id: "default-project", updated_at: "2026-10-09T01:00:00Z" };
+  const updated = { ...old, name: "Moved", project_id: "other-project", updated_at: "2026-10-09T02:00:00Z" };
+  const { storage } = createStorage({ localData: { [LOGS]: { savedAt: 300, items: [old] } }, databaseData: { [LOGS]: { savedAt: 200, items: [updated] } } });
+  assert.deepEqual(clone(await storage.getLog("same")), updated);
+});
+
+test("a failed move or copy leaves both original log replicas untouched", async () => {
+  const old = { ...entry("original"), project_id: "default-project" };
+  const record = { savedAt: 300, items: [old] };
+  const { storage, local, database } = createStorage({ localData: { [LOGS]: record }, databaseData: { [LOGS]: record }, localFailures: [LOGS], databaseFailures: [LOGS] });
+  await assert.rejects(storage.updateLog(old.id, { name: "Changed" }), /保存できません/);
+  await assert.rejects(storage.copyLog(old.id, "default-project"), /保存できません/);
+  assert.deepEqual(JSON.parse(local.get(LOGS)), record);
+  assert.deepEqual(database.get(LOGS), record);
+});
+
+test("folder saves survive either store failure and reject when neither verifies", async () => {
+  const localBlocked = createStorage({ localFailures: [FOLDERS] });
+  const idbFolder = await localBlocked.storage.createFolder("IDB researcher", "person");
+  assert.ok(localBlocked.database.get(FOLDERS).items.some(folder => folder.id === idbFolder.id));
+  const databaseBlocked = createStorage({ databaseFailures: [FOLDERS] });
+  const localFolder = await databaseBlocked.storage.createFolder("Local researcher", "person");
+  assert.ok(JSON.parse(databaseBlocked.local.get(FOLDERS)).items.some(folder => folder.id === localFolder.id));
+  const blocked = createStorage({ localFailures: [FOLDERS], databaseFailures: [FOLDERS] });
+  await assert.rejects(blocked.storage.createFolder("Unsaved", "person"), /フォルダを保存できません/);
+  assert.equal(blocked.local.has(FOLDERS), false);
+  assert.equal(blocked.database.has(FOLDERS), false);
+});
+
+test("corrupt folder copies are protected instead of being replaced by defaults", async () => {
+  const bad = { savedAt: 200, items: [project("orphan", "missing-person")] };
+  const { storage, local, database } = createStorage({ localData: { [FOLDERS]: "{raw folder data" }, databaseData: { [FOLDERS]: bad } });
+  await assert.rejects(storage.readFolders(), /研究者フォルダ/);
+  await assert.rejects(storage.createFolder("New", "person"), /研究者フォルダ/);
+  assert.equal(local.get(FOLDERS), "{raw folder data");
+  assert.deepEqual(database.get(FOLDERS), bad);
+});
+
+test("simultaneous log move and copy across tabs retain both records and all payload data", async () => {
+  const local = new Map();
+  const database = new Map();
+  const locks = createSharedLocks();
+  const first = createStorage({ sharedLocal: local, sharedDatabase: database, locks, uuidPrefix: "tab1" }).storage;
+  const second = createStorage({ sharedLocal: local, sharedDatabase: database, locks, uuidPrefix: "tab2" }).storage;
+  const folder = await first.createFolder("Experiment", "project", "default-person");
+  const saved = await first.saveLog("Original", { plates: [{ growthWeeks: { A1: 5 } }], extra: [1, 2] });
+  const [moved, copied] = await Promise.all([first.updateLog(saved.id, { project_id: folder.id }), second.copyLog(saved.id, "default-project")]);
+  const logs = await first.readLogs();
+  assert.equal(logs.length, 2);
+  assert.equal((await first.getLog(moved.id)).project_id, folder.id);
+  assert.equal((await first.getLog(copied.id)).project_id, "default-project");
+  assert.deepEqual(clone(moved.payload), clone(copied.payload));
 });

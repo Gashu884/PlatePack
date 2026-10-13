@@ -1,0 +1,70 @@
+/* Oxanium is bundled under SIL OFL 1.1; see fonts/OFL-Oxanium.txt. */
+@font-face {
+  font-family: "Oxanium";
+  src: url("./fonts/Oxanium-Variable.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+}
+
+:root {
+  --font-ui: "Oxanium", "Hiragino Sans", "Yu Gothic", "Noto Sans JP", system-ui, sans-serif;
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-rendering: optimizeLegibility;
+}
+
+body,
+button,
+input,
+select,
+textarea,
+code {
+  font-family: var(--font-ui);
+  font-variant-numeric: tabular-nums;
+}
+
+body,
+input,
+select,
+textarea {
+  font-weight: 600;
+}
+
+button,
+.btn,
+.ghost-btn,
+.header-btn,
+.well-btn,
+.week-btn,
+.plate-highlight,
+.packed-info,
+.packed-table th,
+.packed-cell > span,
+.layout-cell,
+.layout-header {
+  font-weight: 700;
+}
+
+button,
+.btn,
+.ghost-btn,
+.week-btn {
+  letter-spacing: 0.015em;
+}
+
+.well-btn,
+.header-btn,
+.packed-cell,
+.packed-cell > span,
+.layout-cell,
+.layout-header {
+  letter-spacing: 0;
+}
+
+h1,
+h2,
+h3 {
+  font-weight: 700;
+}

@@ -4,10 +4,11 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>PlatePack</title>
+    <link rel="preload" href="/assets/fonts/Oxanium-Variable.ttf" as="font" type="font/ttf" crossorigin />
     <style>
       :root {
         color-scheme: light;
-        font-family: "Cambria", Georgia, "Hiragino Sans", "Yu Gothic", serif;
+        font-family: var(--font-ui);
         text-rendering: optimizeLegibility;
 
         --bg: #f3f5f7;
@@ -1282,6 +1283,7 @@
         }
       }
     </style>
+    <link rel="stylesheet" href="/assets/typography.css?v=1" />
   </head>
   <body>
     <section id="view-plates">
@@ -1437,6 +1439,10 @@
 			            </div>
 			          </div>
           <p id="storageNotice" class="storage-notice">入力はこのブラウザに自動保存します。Save LogでDB保存を確認し、JSONバックアップも作成します。</p>
+          <div class="save-target" style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;font-size:0.85rem;">
+            <label for="saveProjectSelect">保存先プロジェクト</label>
+            <select id="saveProjectSelect" style="max-width:100%;min-width:240px;"><option value="default-project">研究者 1 / プロジェクト 1</option></select>
+          </div>
           <div class="packed-panel-box">
             <div class="packed-grid" id="packedGrid">
               <p class="muted">まだパッキング結果はありません。</p>
@@ -1450,7 +1456,7 @@
     </div>
     </section>
 
-    <script src="/assets/storage.js?v=2"></script>
+    <script src="/assets/storage.js?v=3"></script>
     <script>
       const ROWS = ["A", "B", "C", "D", "E", "F", "G", "H"];
       const COLS = Array.from({ length: 12 }, (_, i) => i + 1);
@@ -1467,6 +1473,7 @@
       let verticalDividers = new Set();
       let horizontalDividers = new Set();
       let selectedGrowthWeek = 1;
+      let currentSaveProjectId = "default-project";
       let draftReady = false;
       let lastDraftJson = "";
       let draftRevision = 0;
@@ -2417,12 +2424,13 @@
         URL.revokeObjectURL(url);
       }
 
-      function exportPackedPng() {
+      async function exportPackedPng() {
         if (!packedPlates.length) {
           setStatus("パックされたプレートがありません。", true);
           return;
         }
         setStatus("");
+        try { await document.fonts.load('700 12px Oxanium'); } catch {}
         const STORAGE_KEY = "platepack_saved_pngs_v1";
         const plate = packedPlates[currentPackedIndex];
         const destColumns = plate.columns && plate.columns.length ? plate.columns : COLS;
@@ -2463,7 +2471,7 @@
         ctx.fillStyle = headerBg;
         ctx.fillRect(0, 0, headerW, headerH);
 
-        ctx.font = `600 ${Math.max(10, Math.round(headerH * 0.55))}px Cambria, Georgia, serif`;
+        ctx.font = `700 ${Math.max(10, Math.round(headerH * 0.55))}px Oxanium, "Hiragino Sans", "Yu Gothic", sans-serif`;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillStyle = textColor;
@@ -2498,10 +2506,10 @@
               ctx.rect(x, y, cellSize, cellSize);
               ctx.clip();
               ctx.fillStyle = "#1f2937";
-              ctx.font = `600 ${Math.max(9, Math.round(cellSize * 0.22))}px Cambria, Georgia, serif`;
+              ctx.font = `700 ${Math.max(9, Math.round(cellSize * 0.22))}px Oxanium, "Hiragino Sans", "Yu Gothic", sans-serif`;
               ctx.fillText(label, x + cellSize / 2, y + cellSize / 2);
               if (validGrowthWeek(cellData.growthWeek)) {
-                ctx.font = `600 ${Math.max(8, Math.round(cellSize * 0.18))}px Cambria, Georgia, serif`;
+                ctx.font = `700 ${Math.max(8, Math.round(cellSize * 0.18))}px Oxanium, "Hiragino Sans", "Yu Gothic", sans-serif`;
                 ctx.textAlign = "right";
                 ctx.textBaseline = "bottom";
                 ctx.fillText(String(cellData.growthWeek), x + cellSize - 4, y + cellSize - 3);
@@ -2595,7 +2603,7 @@
             label: plate.label, memo: plate.memo || "", wells: Array.from(plate.wells),
             growthWeeks: { ...plate.growthWeeks },
           })),
-          currentPlateIndex, selectedGrowthWeek, inputReadDirection, layoutDirection, wellLabelMode,
+          currentPlateIndex, selectedGrowthWeek, currentSaveProjectId, inputReadDirection, layoutDirection, wellLabelMode,
           blockedLayoutWells: Array.from(blockedLayoutWells),
           verticalDividers: Array.from(verticalDividers), horizontalDividers: Array.from(horizontalDividers),
           packedPlates, currentPackedIndex, packedLayout,
@@ -2653,6 +2661,7 @@
         }));
         currentPlateIndex = Math.max(0, Math.min(Math.floor(Number(snapshot.currentPlateIndex) || 0), plates.length - 1));
         selectedGrowthWeek = validGrowthWeek(snapshot.selectedGrowthWeek) ? snapshot.selectedGrowthWeek : 1;
+        currentSaveProjectId = typeof snapshot.currentSaveProjectId === "string" ? snapshot.currentSaveProjectId : "default-project";
         inputReadDirection = snapshot.inputReadDirection === "column" ? "column" : "row";
         layoutDirection = snapshot.layoutDirection === "column" ? "column" : "row";
         wellLabelMode = snapshot.wellLabelMode === "rowCol" ? "rowCol" : "colRow";
@@ -2662,6 +2671,8 @@
         packedPlates = snapshot.packedPlates || [];
         currentPackedIndex = Math.max(0, Math.min(Math.floor(Number(snapshot.currentPackedIndex) || 0), Math.max(0, packedPlates.length - 1)));
         packedLayout = snapshot.packedLayout || null;
+        const projectSelect = document.getElementById("saveProjectSelect");
+        if (Array.from(projectSelect.options).some(option => option.value === currentSaveProjectId)) projectSelect.value = currentSaveProjectId;
         sourceColorMap = new Map((Array.isArray(snapshot.sourceColorMap) ? snapshot.sourceColorMap : []).filter(entry =>
           Array.isArray(entry) && entry.length === 2 && typeof entry[0] === "string" && /^#[0-9a-f]{6}$/i.test(entry[1])));
         ensurePlateOption(plates.length);
@@ -2718,6 +2729,7 @@
         if (!name) return;
         saveLogBtn.disabled = true;
         const payload = buildLogSnapshot();
+        const projectId = currentSaveProjectId;
         persistCurrentDraft();
         downloadBackup(name, payload);
         PlatePackStorage.requestPersistence();
@@ -2725,16 +2737,16 @@
         let localOk = false;
         let serverOk = false;
         try {
-          await PlatePackStorage.saveLog(name, payload);
+          await PlatePackStorage.saveLog(name, payload, projectId);
           localOk = true;
         } catch {}
         try {
           const saved = await PlatePackStorage.fetchJson("/api/logs", {
-            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, payload }),
+            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, payload, project_id: projectId }),
           });
           if (!saved?.id) throw new Error("保存確認に失敗しました。");
           const verified = await PlatePackStorage.fetchJson(`/api/logs/${encodeURIComponent(saved.id)}`);
-          if (canonicalJson(verified.payload) !== canonicalJson(payload)) throw new Error("保存内容が一致しません。");
+          if (canonicalJson(verified.payload) !== canonicalJson(payload) || verified.project_id !== projectId) throw new Error("保存内容が一致しません。");
           serverOk = true;
         } catch {}
         finally { saveLogBtn.disabled = false; }
@@ -2753,9 +2765,33 @@
             : await PlatePackStorage.fetchJson(`/api/logs/${encodeURIComponent(logId)}`);
           if (!entry?.payload) throw new Error("ログが見つかりません。");
           applyLogSnapshot(entry.payload);
+          currentSaveProjectId = entry.project_id || "default-project";
           setStatus("ログを読み込みました。");
           return true;
         } catch (error) { setStatus(`ログ読み込みに失敗しました。${error.message}`, true); }
+      }
+
+      async function loadSaveProjects() {
+        const results = await Promise.allSettled([PlatePackStorage.readFolders(), PlatePackStorage.fetchJson("/api/folders")]);
+        const allFolders = new Map();
+        if (results[0].status === "fulfilled") results[0].value.forEach(folder => allFolders.set(folder.id, folder));
+        if (results[1].status === "fulfilled" && Array.isArray(results[1].value)) {
+          results[1].value.forEach(folder => allFolders.set(folder.id, folder));
+          try { await PlatePackStorage.mergeFolders(results[1].value); } catch {}
+        }
+        const select = document.getElementById("saveProjectSelect");
+        select.replaceChildren();
+        Array.from(allFolders.values()).filter(folder => folder.kind === "project").forEach(project => {
+          const option = document.createElement("option");
+          option.value = project.id;
+          option.textContent = (allFolders.get(project.parent_id)?.name || "人") + " / " + project.name;
+          select.appendChild(option);
+        });
+        if (!select.options.length) {
+          const option = document.createElement("option"); option.value = "default-project"; option.textContent = "研究者 1 / プロジェクト 1"; select.appendChild(option);
+        }
+        if (Array.from(select.options).some(option => option.value === currentSaveProjectId)) select.value = currentSaveProjectId;
+        else { select.value = "default-project"; currentSaveProjectId = select.value || select.options[0].value; select.value = currentSaveProjectId; }
       }
 
       async function initializeWorkspace() {
@@ -2781,6 +2817,7 @@
           lastDraftJson = JSON.stringify(buildLogSnapshot());
           view.inert = false;
         }
+        loadSaveProjects().catch(() => {});
         PlatePackStorage.fetchJson("/api/storage-health").then(health => {
           if (!health.available || !health.durable) {
             document.getElementById("storageNotice").textContent = "DB保存は現在利用できません。このブラウザの自動保存に加え、Save LogでJSONバックアップを保管してください。";
@@ -2791,6 +2828,7 @@
       }
 
       // Event bindings
+      document.getElementById("saveProjectSelect").addEventListener("change", event => { currentSaveProjectId = event.target.value; });
       plateCountSelect.addEventListener("change", (e) => {
         const value = e.target.value;
         if (value === "custom") {

@@ -1,0 +1,13 @@
+Oxanium variable font
+Designer: Severin Meyer
+Copyright 2019 The Oxanium Project Authors
+License: SIL Open Font License 1.1 (OFL-Oxanium.txt)
+
+Downloaded on 2026-10-14 from the official Google Fonts repository:
+https://github.com/google/fonts/tree/main/ofl/oxanium
+https://raw.githubusercontent.com/google/fonts/main/ofl/oxanium/Oxanium%5Bwght%5D.ttf
+https://raw.githubusercontent.com/google/fonts/main/ofl/oxanium/OFL.txt
+
+The original variable TrueType font is unchanged. Its weight range is 200-800.
+Font SHA-256: 2ce01d946e1e1ffc8d7eecfffbda8623bedd63eaf811a20488c4b69af45babb0
+License SHA-256: fe17c0f2581d71b4e1ea7e636e7f4877c29223e11bb1dd1a871e8c3f2a86336b
