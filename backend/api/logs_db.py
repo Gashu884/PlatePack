@@ -6,7 +6,7 @@ import json
 import os
 import re
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -85,6 +85,7 @@ def _ensure_persistence_available() -> None:
 
 @dataclass(frozen=True)
 class LogSummary:
+    record_type: str = field(default="plate", kw_only=True)
     id: str
     name: str
     created_at: str
@@ -196,7 +197,7 @@ def _initialize(conn) -> None:
     )
     now = _now_iso()
     for folder_id, name, kind, parent_id in (
-        (DEFAULT_PERSON_ID, "研究者 1", "person", None),
+        (DEFAULT_PERSON_ID, "メンバー 1", "person", None),
         (DEFAULT_PROJECT_ID, "プロジェクト 1", "project", DEFAULT_PERSON_ID),
     ):
         _execute(
@@ -246,6 +247,7 @@ def init_db() -> bool:
 def _summary(row) -> LogSummary:
     return LogSummary(
         id=row["id"], name=row["name"], created_at=row["created_at"],
+        record_type=(row["record_type"] or "plate") if "record_type" in row.keys() else "plate",
         project_id=row["project_id"], updated_at=row["updated_at"] or row["created_at"],
     )
 
@@ -405,8 +407,10 @@ def list_logs(limit: int = 50, project_id: Optional[str] = None, offset: int = 0
             project = _require_project(conn, project_id)
             condition = " WHERE project_id = ?"
             parameters = (project,)
+        kind_value = "payload_json->>'recordType'" if _HAS_POSTGRES else "CASE WHEN json_valid(payload_json) THEN json_extract(payload_json, '$.recordType') ELSE NULL END"
+        kind_sql = "CASE WHEN (" + kind_value + ") = 'electrophoresis' THEN 'electrophoresis' ELSE 'plate' END"
         rows = _execute(conn,
-                        "SELECT id, name, created_at, project_id, updated_at FROM logs" + condition +
+                        "SELECT id, name, created_at, project_id, updated_at, " + kind_sql + " AS record_type FROM logs" + condition +
                         " ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?", parameters + (bounded, start)).fetchall()
     return [_summary(row) for row in rows]
 
@@ -422,7 +426,7 @@ def get_log(log_id: str) -> Optional[LogEntry]:
     if not isinstance(payload, dict):
         payload = {}
     summary = _summary(row)
-    return LogEntry(summary.id, summary.name, summary.created_at, summary.project_id, summary.updated_at, payload)
+    return LogEntry(summary.id, summary.name, summary.created_at, summary.project_id, summary.updated_at, payload, record_type="electrophoresis" if payload.get("recordType") == "electrophoresis" else "plate")
 
 
 def update_log(log_id: str, name: Optional[str] = None, project_id: Optional[str] = None) -> Optional[LogSummary]:

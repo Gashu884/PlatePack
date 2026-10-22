@@ -1,70 +1,15 @@
-/* Oxanium is bundled under SIL OFL 1.1; see fonts/OFL-Oxanium.txt. */
-@font-face {
-  font-family: "Oxanium";
-  src: url("./fonts/Oxanium-Variable.ttf") format("truetype");
-  font-style: normal;
-  font-weight: 200 800;
-  font-display: swap;
-}
-
-:root {
-  --font-ui: "Oxanium", "Hiragino Sans", "Yu Gothic", "Noto Sans JP", system-ui, sans-serif;
-  font-family: var(--font-ui);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  text-rendering: optimizeLegibility;
-}
-
-body,
-button,
-input,
-select,
-textarea,
-code {
-  font-family: var(--font-ui);
-  font-variant-numeric: tabular-nums;
-}
-
-body,
-input,
-select,
-textarea {
-  font-weight: 600;
-}
-
-button,
-.btn,
-.ghost-btn,
-.header-btn,
-.well-btn,
-.week-btn,
-.plate-highlight,
-.packed-info,
-.packed-table th,
-.packed-cell > span,
-.layout-cell,
-.layout-header {
-  font-weight: 700;
-}
-
-button,
-.btn,
-.ghost-btn,
-.week-btn {
-  letter-spacing: 0.015em;
-}
-
-.well-btn,
-.header-btn,
-.packed-cell,
-.packed-cell > span,
-.layout-cell,
-.layout-header {
-  letter-spacing: 0;
-}
-
-h1,
-h2,
-h3 {
-  font-weight: 700;
-}
+/* Shared five-step type scale; keep Japanese and Latin in familiar system fonts. */
+:root { --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Yu Gothic UI", "Yu Gothic", "Meiryo", sans-serif; --text-xl:28px; --text-lg:22px; --text-md:16px; --text-sm:14px; --text-xs:12px; font-family:var(--font-ui);font-size:16px;font-variant-numeric:tabular-nums; }
+body,button,input,select,textarea,code,.mono{font-family:var(--font-ui);font-variant-numeric:tabular-nums}
+body,input,select,textarea{font-weight:400}button,h1,h2,h3,strong,b{font-weight:600}
+body{line-height:1.6}button,input,select,textarea{font-size:14px}h1{font-size:28px}h2{font-size:22px}h3{font-size:16px}small{font-size:12px}
+.well-btn.selected[data-phase="1"],.week-btn[data-week="1"]{--phase-bg:#d8eafa;--phase-edge:#286594}
+.well-btn.selected[data-phase="2"],.week-btn[data-week="2"]{--phase-bg:#d6eee2;--phase-edge:#28734f}
+.well-btn.selected[data-phase="3"],.week-btn[data-week="3"]{--phase-bg:#fff0c7;--phase-edge:#94671b}
+.well-btn.selected[data-phase="4"],.week-btn[data-week="4"]{--phase-bg:#eddef6;--phase-edge:#78529a}
+.well-btn.selected[data-phase="5"],.week-btn[data-week="5"]{--phase-bg:#f9dfd9;--phase-edge:#a34e3c}
+.well-btn.selected[data-phase],.week-btn[data-week]{background:var(--phase-bg)!important;border-color:var(--phase-edge)!important;color:#182638!important}
+.week-btn[aria-pressed="true"]{outline:2px solid var(--phase-edge);outline-offset:2px}
+.well-week,.cell-week{font-size:12px!important}
+.project-create{max-width:440px;width:90%;border:1px solid #cbd5e1;border-radius:12px;padding:24px;color:#182638;background:white}
+.project-create label{display:block;margin:16px 0}.project-create input,.project-create select{width:100%;box-sizing:border-box;padding:10px}.project-create .actions{display:flex;gap:12px;justify-content:flex-end}.project-create::backdrop{background:#18263866}

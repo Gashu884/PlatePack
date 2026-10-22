@@ -96,12 +96,12 @@ async function poll(description, read, predicate, timeout = 15000) {
     assert((await page.locator('#fileList thead th').count()) >= 4, 'Files must be presented in a table with metadata columns');
 
     const typography = await page.evaluate(async () => {
-      const faces = await document.fonts.load('700 16px Oxanium');
+      await document.fonts.ready;
       const style = getComputedStyle(document.body);
-      return { loaded: faces.length, family: style.fontFamily, weight: Number(style.fontWeight) };
+      return { family: style.fontFamily, weight: Number(style.fontWeight), size: parseFloat(style.fontSize) };
     });
-    assert(typography.loaded > 0, 'Bundled Oxanium font must load');
-    assert(typography.family.includes('Oxanium') && typography.weight >= 600, 'The bold digital font must apply to the Database UI');
+    assert([12,14,16,22,28].includes(typography.size), 'Use the shared five-step font-size scale');
+    assert(!typography.family.includes('Oxanium') && /system|Segoe|Hiragino/.test(typography.family), 'Use familiar system fonts for Japanese and Latin text');
 
     // Create the first researcher and project through the actual prompt controls.
     await promptButton('#newPersonBtn', `${prefix} Person A`);
@@ -297,7 +297,7 @@ async function poll(description, read, predicate, timeout = 15000) {
     }
 
     assert.deepEqual(errors, [], `Database JavaScript errors: ${errors.join('\n')}`);
-    console.log('Database E2E: table navigation, researcher/project creation, rename, keyboard copy/cut/paste, Move, drag-and-drop, local files, JSON validation, reload, bundled font, and Packer save destination under a pending request passed.');
+    console.log('Database E2E: table navigation, researcher/project creation, rename, keyboard copy/cut/paste, Move, drag-and-drop, local files, JSON validation, reload, system fonts, and Packer save destination under a pending request passed.');
   } finally {
     try {
       if (context) {

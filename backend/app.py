@@ -51,6 +51,7 @@ class LogCreateRequest(BaseModel):
 
 
 class LogSummaryResponse(BaseModel):
+    record_type: str = "plate"
     id: str
     name: str
     created_at: str
@@ -270,3 +271,11 @@ def generate_html(payload: ReportRequest) -> Response:
 def get_sample_payload() -> ReportRequest:
     """Return sample JSON payload to bootstrap clients."""
     return sample_payload()
+
+
+from backend.gel.routes import router as electrophoresis_router
+app.include_router(electrophoresis_router)
+
+@app.get("/electrophoresis", response_class=HTMLResponse)
+def serve_electrophoresis():
+    return _serve_html(ROOT_DIR / "frontend" / "electrophoresis.html", "Electrophoresis")

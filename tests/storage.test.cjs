@@ -290,7 +290,7 @@ test("default researcher and project folders appear once on an empty browser", a
   const { storage } = createStorage();
   const first = clone(await storage.readFolders());
   assert.deepEqual(first.map(folder => [folder.id, folder.name, folder.kind, folder.parent_id]), [
-    ["default-person", "研究者 1", "person", null],
+    ["default-person", "メンバー 1", "person", null],
     ["default-project", "プロジェクト 1", "project", "default-person"],
   ]);
   assert.deepEqual(clone(await storage.readFolders()), first);

@@ -11,7 +11,7 @@ window.PlatePackStorage = (() => {
   const timestamp = () => (lastTimestamp = Math.max(Date.now(), lastTimestamp + 1));
   const DEFAULT_PROJECT = "default-project";
   const DEFAULT_FOLDERS = [
-    { id: "default-person", name: "研究者 1", kind: "person", parent_id: null, created_at: "1970-01-01T00:00:00.000Z" },
+    { id: "default-person", name: "メンバー 1", kind: "person", parent_id: null, created_at: "1970-01-01T00:00:00.000Z" },
     { id: DEFAULT_PROJECT, name: "プロジェクト 1", kind: "project", parent_id: "default-person", created_at: "1970-01-01T00:00:00.000Z" },
   ];
   const clone = value => JSON.parse(JSON.stringify(value));

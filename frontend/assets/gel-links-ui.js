@@ -1,5 +1,5 @@
 /* PlatePack dialog: choose an ROI, then a source or packed well. */
-window.PlatePackGelLinkUI = function ({getSnapshot,getState,setState}) {
+window.PlatePackGelLinkUI = function ({getSnapshot,getState,setState,onApply}) {
   const core=window.PlatePackGelLinks, esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const dialog=document.createElement('dialog');dialog.id='gelLinkDialog';
   dialog.innerHTML=`<div class="gl-top"><h2>電気泳動ROIとウェルの対応</h2><button type="button" data-el="close">閉じる</button></div>
@@ -76,8 +76,10 @@ window.PlatePackGelLinkUI = function ({getSnapshot,getState,setState}) {
   $('unlink').onclick=()=>run(()=>{const s=JSON.parse(JSON.stringify(getState())),r=s.gels.find(g=>g.sha256===hash).rois.find(r=>r.id===roiId);r.binding=null;r.skipped=false;apply(s);message('対応を解除しました。ROI番号は残っています。')});
   $('skip').onchange=()=>run(()=>{const s=JSON.parse(JSON.stringify(getState())),r=s.gels.find(g=>g.sha256===hash).rois.find(r=>r.id===roiId);r.skipped=$('skip').checked;if(r.skipped)r.binding=null;apply(s);message(r.skipped?'空レーンとして記録しました。GelPoolへの書き出し時に除外します。':'空レーン指定を解除しました。')});
   $('undo').onclick=()=>{if(undo.length){setState(undo.pop());render();message('直前の対応変更を戻しました。')}};
-  $('export').onclick=()=>run(()=>{const result=core.exportSession(getState(),getSnapshot(),sessions.get(hash),hash);download(selectedGel().name.replace(/\.[^.]+$/,'')+'_platepack_gelpool.json',JSON.stringify(result,null,2),'application/json');message('GelPool用JSONを書き出しました。GelPoolで開くと対応と分注計算が更新されます。')});
+  $('export').onclick=()=>run(()=>{const result=core.exportSession(getState(),getSnapshot(),sessions.get(hash),hash);if(onApply){onApply(result);dialog.close();return}download(selectedGel().name.replace(/\.[^.]+$/,'')+'_platepack_gelpool.json',JSON.stringify(result,null,2),'application/json');message('GelPool用JSONを書き出しました。GelPoolで開くと対応と分注計算が更新されます。')});
   $('csv').onclick=()=>run(()=>{const state=getState(),snapshot=getSnapshot();const rows=[['image','sha256','roi_number','detection','area','plate_kind','plate','well','source_plate','source_well','sample_id','mapping_status']];for(const g of state.gels)for(const r of g.rois){const b=r.binding;rows.push([g.name,g.sha256,r.id,status(r),r.area,b?.kind,b?.plateKey,b?.well,b?.sourcePlate,b?.sourceWell,b?core.sampleId(state,b):'',r.skipped?'空レーン（除外）':core.bindingError(snapshot,b)||'対応済み'])}const cell=v=>{let t=String(v??'');if(typeof v!=='number'&&/^[=+@-]/.test(t))t="'"+t;return '"'+t.replace(/"/g,'""')+'"'};download('PlatePack_ROI_mapping.csv','\ufeff'+rows.map(r=>r.map(cell).join(',')).join('\r\n'),'text/csv;charset=utf-8');message('未指定・未検出も含む対応一覧を書き出しました。')});
-  document.getElementById('gelLinkBtn').onclick=()=>{undo=[];if(!getState())setState(core.empty(crypto.randomUUID()));plateOptions();if(!$('plate').options.length){$('kind').value='source';plateOptions()}render();message('ROIを選んで、対応するウェルをクリックしてください。');dialog.showModal()};
-  return {refresh:updateSummary};
+  function openDialog(){undo=[];if(!getState())setState(core.empty(crypto.randomUUID()));plateOptions();if(!$('plate').options.length){$('kind').value='source';plateOptions()}render();message('ROIを選んで、対応するウェルをクリックしてください。');dialog.showModal()};
+  document.getElementById('gelLinkBtn').onclick=openDialog;
+  if(onApply){$('gel').parentElement.hidden=true;$('import').hidden=true;$('export').textContent='対応を解析に適用';dialog.querySelector('.gl-top + p').textContent='画像のROIを選び、対応するウェルをクリックしてください。未検出ROIも指定できます。';dialog.querySelector('.gl-tools + .gl-muted').textContent='対応を解析に適用するとサンプルIDが確定します。同じ元ウェルの再PCRは同じ検体として集計します。';}
+  return {refresh:updateSummary,open(session){if(!getState())setState(core.empty(crypto.randomUUID()));sessions.set(session.image.sha256,session);hash=session.image.sha256;setState(core.importSession(getState(),session));openDialog();}};
 };

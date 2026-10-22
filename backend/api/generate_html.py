@@ -45,7 +45,7 @@ class SourcePlate(BaseModel):
     wells: List[str] = Field(default_factory=list, description="Selected wells on the plate.")
     description: Optional[str] = Field(default=None, description="Optional free-form description.")
     growth_weeks: Dict[str, GrowthWeek] = Field(
-        default_factory=dict, description="Week of observed growth for each selected source well (1–5)."
+        default_factory=dict, description="Growth phase of each selected source well (1–5)."
     )
 
     @validator("wells", each_item=True)
@@ -62,10 +62,10 @@ class SourcePlate(BaseModel):
         for well, week in value.items():
             info = _parse_well(well)
             if info is None:
-                raise ValueError(f"Invalid growth-week well label: {well}")
+                raise ValueError(f"Invalid growth-phase well label: {well}")
             label = f"{info['row_label']}{info['col_label']}"
             if label not in selected:
-                raise ValueError(f"Growth week references an unselected source well: {label}")
+                raise ValueError(f"Growth phase references an unselected source well: {label}")
             normalized[label] = week
         return normalized
 
@@ -78,7 +78,7 @@ class DestinationAssignment(BaseModel):
         default=None, description="Custom label rendered inside the well cell."
     )
     growth_week: Optional[GrowthWeek] = Field(
-        default=None, description="Week of observed growth on the source well (1–5)."
+        default=None, description="Growth phase of the source well (1–5)."
     )
 
     @validator("well")
@@ -256,7 +256,7 @@ def build_html_report(payload: ReportRequest) -> str:
                         text = escape(assignment.source_plate)
                     week = assignment_week(assignment)
                     if week is not None:
-                        week_html = f'<span class="growth-week" aria-label="Growth observed in week {week}">{week}</span>'
+                        week_html = f'<span class="growth-week" aria-label="Growth phase {week}">{week}</span>'
                 cells.append(f"<td class=\"well-cell\" style=\"background:{cell_color};\">{text}{week_html}</td>")
             body_rows.append(f"<tr><th scope=\"row\">{row_label}</th>{''.join(cells)}</tr>")
 
@@ -315,7 +315,7 @@ def build_html_report(payload: ReportRequest) -> str:
                   <th scope="col">Source Well</th>
                   <th scope="col">Destination Plate</th>
                   <th scope="col">Destination Well</th>
-                  <th scope="col">Growth Week</th>
+                  <th scope="col">Growth phase</th>
                 </tr>
               </thead>
               <tbody>
@@ -339,16 +339,9 @@ def build_html_report(payload: ReportRequest) -> str:
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{escape(payload.title)}</title>
     <style>
-      @font-face {{
-        font-family: "Oxanium";
-        src: url("/assets/fonts/Oxanium-Variable.ttf") format("truetype");
-        font-weight: 200 800;
-        font-style: normal;
-        font-display: swap;
-      }}
       :root {{
         color-scheme: light;
-        font-family: "Oxanium", "Hiragino Sans", "Yu Gothic", sans-serif;
+        font-family: system-ui, "Hiragino Sans", "Yu Gothic", sans-serif;
       }}
       body {{
         margin: 0;
@@ -362,7 +355,7 @@ def build_html_report(payload: ReportRequest) -> str:
       }}
       h1 {{
         margin: 0;
-        font-size: clamp(1.8rem, 3vw, 2.4rem);
+        font-size: 28px;
       }}
       h1, h2, h3, th, strong {{
         font-weight: 700;
@@ -373,7 +366,7 @@ def build_html_report(payload: ReportRequest) -> str:
         flex-wrap: wrap;
         gap: 1.25rem;
         color: #4b5563;
-        font-size: 0.95rem;
+        font-size: 16px;
       }}
       section {{
         margin-bottom: 2.5rem;
@@ -402,7 +395,7 @@ def build_html_report(payload: ReportRequest) -> str:
         padding: 0.65rem;
         text-align: center;
         border-bottom: 1px solid #e5e7eb;
-        font-size: 0.9rem;
+        font-size: 14px;
       }}
       tbody th {{
         background: #f1f5f9;
@@ -420,7 +413,7 @@ def build_html_report(payload: ReportRequest) -> str:
         position: absolute;
         right: 0.3rem;
         bottom: 0.15rem;
-        font-size: 0.68rem;
+        font-size: 12px;
         line-height: 1;
         color: #111827;
         background: rgba(255, 255, 255, 0.9);
@@ -442,7 +435,7 @@ def build_html_report(payload: ReportRequest) -> str:
         display: inline-flex;
         align-items: center;
         gap: 0.5rem;
-        font-size: 0.95rem;
+        font-size: 16px;
       }}
       .source-list {{
         list-style: none;
@@ -470,7 +463,7 @@ def build_html_report(payload: ReportRequest) -> str:
       footer {{
         margin-top: 3rem;
         text-align: right;
-        font-size: 0.85rem;
+        font-size: 14px;
         color: #6b7280;
       }}
     </style>

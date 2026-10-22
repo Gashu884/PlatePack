@@ -35,7 +35,7 @@
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString('ja-JP', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
   };
-  const projectPath = project => (folder(project.parent_id)?.name || '人') + ' / ' + project.name;
+  const projectPath = project => (folder(project.parent_id)?.name || 'メンバー') + ' / ' + project.name;
   function element(tag, className, text) {
     const item = document.createElement(tag);
     if (className) item.className = className;
@@ -212,9 +212,9 @@
     }
     updateSelection();
   }
-  function openItem(item) {
+  async function openItem(item) {
     if (item.source === 'folder') return navigate(item.id);
-    location.href = '/plates?log=' + encodeURIComponent(item.source === 'local' ? 'local:' + item.id : item.id);
+    try { const entry=await getEntry(item); location.href = (entry.payload.electrophoresis ? '/electrophoresis?log=' : '/plates?log=') + encodeURIComponent(item.source === 'local' ? 'local:' + item.id : item.id); } catch(e) { message(e.message,true); }
   }
   function renderList() {
     visibleItems = getVisibleItems();
@@ -228,7 +228,7 @@
       const name = element('div','name-cell');
       name.append(item.source === 'folder' ? element('span','folder-icon') : element('span','file-icon','96'), element('span','name-text',item.name));
       nameCell.append(name);
-      const kind = item.source === 'folder' ? (item.kind === 'person' ? '人物フォルダ' : 'プロジェクト') : 'プレートデータ';
+      const kind = item.source === 'folder' ? (item.kind === 'person' ? 'メンバーフォルダ' : 'プロジェクト') : ((item.record_type==='electrophoresis'||item.payload?.electrophoresis) ? '泳動解析・プレート' : 'プレートデータ');
       const badgeCell = element('td');
       if (item.source !== 'folder') badgeCell.append(element('span','storage-badge' + (item.source === 'local' ? ' local' : ''),item.source === 'local' ? 'ブラウザ' : 'DB'));
       else badgeCell.textContent = '—';
@@ -292,8 +292,8 @@
   }
   async function createFolder(kind) {
     const parent = kind === 'person' ? null : (folder(currentFolder)?.kind === 'person' ? currentFolder : folder(currentFolder)?.parent_id);
-    if (kind === 'project' && !parent) return message('先に人物フォルダを開いてください。',true);
-    const name = prompt(kind === 'person' ? '人物フォルダの名前' : 'プロジェクトの名前',kind === 'person' ? '新しい人' : '新しいプロジェクト')?.trim();
+    if (kind === 'project' && !parent) return message('先にメンバーフォルダを開いてください。',true);
+    const name = prompt(kind === 'person' ? 'メンバーフォルダの名前' : 'プロジェクトの名前',kind === 'person' ? '新しいメンバー' : '新しいプロジェクト')?.trim();
     if (!name) return;
     await action(async () => {
       const id = crypto.randomUUID();
@@ -431,10 +431,10 @@
         snapshot.plates.forEach(plate => {
           if (!plate || !Array.isArray(plate.wells) || !plate.wells.every(isWell)) throw new Error("ウェル情報が不正です。");
           if (plate.growthWeeks !== undefined && (!plate.growthWeeks || typeof plate.growthWeeks !== "object" || Array.isArray(plate.growthWeeks))) {
-            throw new Error("週番号の形式が不正です。");
+            throw new Error("フェーズ番号の形式が不正です。");
           }
           Object.entries(plate.growthWeeks || {}).forEach(([well, week]) => {
-            if (!isWell(well) || !validGrowthWeek(week)) throw new Error("週番号は1〜5を指定してください。");
+            if (!isWell(well) || !validGrowthWeek(week)) throw new Error("フェーズ番号は1〜5を指定してください。");
           });
         });
         if (snapshot.packedPlates !== undefined) {

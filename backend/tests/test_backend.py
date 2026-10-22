@@ -42,7 +42,7 @@ class GrowthWeekTests(unittest.TestCase):
         for week in range(1, 6):
             with self.subTest(week=week):
                 html = build_html_report(ReportRequest(**report_payload(week)))
-                self.assertIn(f'aria-label="Growth observed in week {week}">{week}</span>', html)
+                self.assertIn(f'aria-label="Growth phase {week}">{week}</span>', html)
                 self.assertIn(f"<td>A1</td><td>{week}</td>", html)
 
     def test_source_metadata_is_normalized_and_used_for_report(self):
@@ -51,7 +51,7 @@ class GrowthWeekTests(unittest.TestCase):
         payload = ReportRequest(**raw)
         self.assertEqual(payload.sources[0].growth_weeks, {"A1": 3})
         html = build_html_report(payload)
-        self.assertIn('aria-label="Growth observed in week 3">3</span>', html)
+        self.assertIn('aria-label="Growth phase 3">3</span>', html)
         self.assertIn("<td>A1</td><td>3</td>", html)
 
     def test_explicit_plan_week_is_preserved(self):
@@ -61,7 +61,7 @@ class GrowthWeekTests(unittest.TestCase):
             "destination_plate": "DEST-001", "destination_well": "A1", "growth_week": 5,
         }]
         html = build_html_report(ReportRequest(**raw))
-        self.assertIn("<th scope=\"col\">Growth Week</th>", html)
+        self.assertIn("<th scope=\"col\">Growth phase</th>", html)
         self.assertIn("<td>A1</td><td>5</td>", html)
 
     def test_invalid_week_values_are_rejected_in_all_locations(self):

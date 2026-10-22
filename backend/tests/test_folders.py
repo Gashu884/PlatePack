@@ -63,7 +63,7 @@ class FolderTests(unittest.TestCase):
 
     def test_default_folder_names_and_idempotent_reinitialization(self):
         folders = {folder.id: folder for folder in logs_db.list_folders()}
-        self.assertEqual(folders[logs_db.DEFAULT_PERSON_ID].name, "研究者 1")
+        self.assertEqual(folders[logs_db.DEFAULT_PERSON_ID].name, "メンバー 1")
         self.assertEqual(folders[logs_db.DEFAULT_PROJECT_ID].name, "プロジェクト 1")
         self.assertEqual(folders[logs_db.DEFAULT_PROJECT_ID].parent_id, logs_db.DEFAULT_PERSON_ID)
         project = self.make_project()

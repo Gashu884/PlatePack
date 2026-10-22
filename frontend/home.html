@@ -4,7 +4,6 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>PlatePack</title>
-    <link rel="preload" href="/assets/fonts/Oxanium-Variable.ttf" as="font" type="font/ttf" crossorigin />
     <style>
       :root {
         color-scheme: light;
@@ -42,7 +41,7 @@
       }
       #view-home h1 {
         margin: 0;
-        font-size: clamp(1.9rem, 3vw, 2.4rem);
+        font-size: 28px;
         letter-spacing: -0.02em;
       }
       #view-home .muted {
@@ -71,7 +70,7 @@
       }
       #view-home .card h2 {
         margin: 0;
-        font-size: 1.2rem;
+        font-size: 22px;
         letter-spacing: -0.01em;
       }
       #view-home .card p {
@@ -83,7 +82,7 @@
         background: rgba(0, 0, 0, 0.06);
         padding: 0.12rem 0.4rem;
         border-radius: 7px;
-        font-size: 0.95em;
+        font-size: 16px;
       }
       #view-home .card-link {
         cursor: pointer;
@@ -116,7 +115,7 @@
       <div class="shell">
         <header>
           <h1>PlatePack</h1>
-          <p class="muted">プレートのwell選択 → 出力レイアウト → パッキング結果の保存</p>
+          <p class="muted">プレート配置・泳動解析・プール計画を、ひとつの記録に。</p>
         </header>
 
         <div class="cards">
@@ -124,9 +123,10 @@
             <h2>Packer</h2>
             <p>入力プレートのwellを選択し、出力レイアウトに空well/区切り線を設定してパッキングします。</p>
           </a>
+          <a class="card card-link" href="/electrophoresis"><h2>Electrophoresis</h2><p>泳動画像の登録、ROI検出、ウェル対応、輝度測定、プール量の計算を行います。</p></a>
           <a class="card card-link" href="/results">
             <h2>Database</h2>
-            <p><code>Save Log</code>で保存した入力/出力レイアウト設定を一覧・読み込みできます。</p>
+            <p>メンバー・プロジェクトごとに、プレート配置と泳動解析の記録を確認できます。</p>
           </a>
         </div>
       </div>
