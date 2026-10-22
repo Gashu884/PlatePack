@@ -1431,7 +1431,8 @@
 		            <button type="button" class="success" id="tsvBtn" disabled>Download TSV</button>
 		            <button type="button" class="success" id="pngBtn" disabled>Download PNG</button>
                     <span id="draftSaveStatus" class="save-state" role="status" aria-live="polite" data-state="saving">保存を確認中…</span>
-	            <button type="button" class="success" id="saveLogBtn">Save Log</button>
+	            <button type="button" class="ghost" id="gelLinkBtn">電気泳動ROIと対応づけ</button><span id="gelLinkSummary"></span>
+                    <button type="button" class="success" id="saveLogBtn">Save Log</button>
                     <button type="button" class="ghost" id="backupJsonBtn">Backup JSON</button>
                     <button type="button" class="ghost" id="restoreJsonBtn">Restore JSON</button>
                     <input type="file" id="restoreJsonInput" accept=".json,application/json" hidden />
@@ -1456,6 +1457,9 @@
     </div>
     </section>
 
+    <link rel="stylesheet" href="/assets/gel-links.css">
+    <script src="/assets/gel-links-core.js"></script>
+    <script src="/assets/gel-links-ui.js"></script>
     <script src="/assets/storage.js?v=3"></script>
     <script>
       const ROWS = ["A", "B", "C", "D", "E", "F", "G", "H"];
@@ -1478,6 +1482,7 @@
       let lastDraftJson = "";
       let draftRevision = 0;
       let packedLayout = null;
+      let gelLinks = null;
 
       const plateCountSelect = document.getElementById("plateCount");
       const plateSummary = document.getElementById("plateSummary");
@@ -1507,7 +1512,7 @@
       let wellLabelMode = "colRow"; // "colRow" => 1A, "rowCol" => A1
 
       function createPlate(index) {
-        return { label: `Plate ${index}`, wells: new Set(), growthWeeks: {}, memo: "" };
+        return { uid: crypto.randomUUID(), label: `Plate ${index}`, wells: new Set(), growthWeeks: {}, memo: "" };
       }
 
       function getCurrentPlate() {
@@ -2599,8 +2604,9 @@
       function buildLogSnapshot() {
         return {
           version: 2,
+          gelLinks,
           plates: plates.map(plate => ({
-            label: plate.label, memo: plate.memo || "", wells: Array.from(plate.wells),
+            uid: plate.uid, label: plate.label, memo: plate.memo || "", wells: Array.from(plate.wells),
             growthWeeks: { ...plate.growthWeeks },
           })),
           currentPlateIndex, selectedGrowthWeek, currentSaveProjectId, inputReadDirection, layoutDirection, wellLabelMode,
@@ -2649,13 +2655,19 @@
             throw new Error("パック結果のレイアウトが不正です。");
           }
         }
+        if(snapshot.plates.some(p=>p.uid!==undefined && (typeof p.uid!=="string" || !/^[\w-]{1,80}$/.test(p.uid))))throw new Error("プレート識別子が不正です。");
+        const plateUids=snapshot.plates.map(p=>p.uid).filter(Boolean);
+        if(new Set(plateUids).size!==plateUids.length)throw new Error("プレート識別子が重複しています。");
+        PlatePackGelLinks.validate(snapshot.gelLinks);
         return snapshot;
       }
 
       function applyLogSnapshot(rawSnapshot) {
         const snapshot = validateSnapshot(rawSnapshot);
+        gelLinks = snapshot.gelLinks ? JSON.parse(JSON.stringify(snapshot.gelLinks)) : null;
+        gelLinkUI.refresh();
         plates = snapshot.plates.map((plate, index) => ({
-          label: String(plate.label || `Plate ${index + 1}`), memo: String(plate.memo || ""),
+          uid: plate.uid || crypto.randomUUID(), label: String(plate.label || `Plate ${index + 1}`), memo: String(plate.memo || ""),
           wells: new Set(plate.wells),
           growthWeeks: Object.fromEntries(Object.entries(plate.growthWeeks || {}).filter(([well]) => plate.wells.includes(well))),
         }));
@@ -2679,6 +2691,12 @@
         plateCountSelect.value = String(plates.length);
         renderGridStructure(); renderPlate(); updateWeekButtons(); updateLayoutButtons(); renderLayoutGrid(); renderPacked();
       }
+
+      const gelLinkUI = PlatePackGelLinkUI({
+        getSnapshot: buildLogSnapshot,
+        getState: () => gelLinks,
+        setState: value => { PlatePackGelLinks.validate(value); gelLinks=value; persistCurrentDraft(); },
+      });
 
       function setSaveState(message, state) {
         const element = document.getElementById("draftSaveStatus");
