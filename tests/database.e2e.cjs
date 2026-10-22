@@ -70,7 +70,11 @@ async function poll(description, read, predicate, timeout = 15000) {
         return path.at(-1)?.dataset.folderId === folderId;
       }, id);
     }
+    async function revealAction(selector) {
+      if (!(await page.locator(selector).isVisible())) await page.locator('.ui-menu > summary').click();
+    }
     async function promptButton(selector, answer) {
+      await revealAction(selector);
       answers.push(answer);
       await page.locator(selector).click();
       await poll(`prompt ${selector} was handled`, async () => answers.length, length => length === 0);
@@ -155,6 +159,7 @@ async function poll(description, read, predicate, timeout = 15000) {
 
     // The explicit Move control and drag-and-drop use the same safe metadata move.
     await file('db', original.id).click();
+    await revealAction('#moveProjectSelect');
     await page.locator('#moveProjectSelect').selectOption(projectB.id);
     await page.locator('#moveBtn').click();
     await waitForServerProject(original.id, projectB.id);
@@ -201,15 +206,19 @@ async function poll(description, read, predicate, timeout = 15000) {
     await promptButton('#renameBtn', `${prefix} Local renamed`);
     await waitForLocal(local.id, item => item?.name === `${prefix} Local renamed`);
     await file('local', local.id).click();
+    await revealAction('#cutBtn');
     await page.locator('#cutBtn').click();
     await openFolder(projectB.id, personB.id);
+    await revealAction('#pasteBtn');
     await page.locator('#pasteBtn').click();
     await waitForLocal(local.id, item => item?.project_id === projectB.id);
     await file('local', local.id).waitFor();
     await file('local', local.id).click();
+    await revealAction('#copyBtn');
     await page.locator('#copyBtn').click();
     const beforeLocalCopy = new Set((await page.evaluate(() => window.PlatePackStorage.readLogs())).map(item => item.id));
     await openFolder(projectA.id, personA.id);
+    await revealAction('#pasteBtn');
     await page.locator('#pasteBtn').click();
     const localCopies = await poll('local paste created a distinct copy',
       () => page.evaluate(() => window.PlatePackStorage.readLogs()),
@@ -258,6 +267,7 @@ async function poll(description, read, predicate, timeout = 15000) {
       return !document.getElementById('view-plates')?.inert && select?.value === source &&
         [...select.options].some(option => option.value === target);
     }, { source: projectA.id, target: projectB.id });
+    await page.getByRole('button', { name: '保存', exact: true }).click();
     await page.locator('#saveProjectSelect').selectOption(projectB.id);
     const saveName = `${prefix} Packer saved to B`;
     let releasePost;

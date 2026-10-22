@@ -1284,7 +1284,8 @@
       #storageNotice:empty { display: none; }
     </style>
     <link rel="stylesheet" href="/assets/typography.css?v=1" />
-  </head>
+  <link rel="stylesheet" href="/assets/workspace-ui.css">
+</head>
   <body>
     <section id="view-plates">
     <div class="page">
@@ -2104,6 +2105,7 @@
           currentPackedIndex = 0;
           packedLayout = packingLayout;
           renderPacked();
+          window.dispatchEvent(new Event("platepack:packed"));
           persistCurrentDraft();
         } catch (error) {
           setStatus(error.message, true);
@@ -3350,5 +3352,6 @@
         window.addEventListener("popstate", () => setActiveView(keyFromPathname(window.location.pathname)));
       })();
     </script>
-  </body>
+  <script src="/assets/workspace-ui.js"></script>
+</body>
 </html>

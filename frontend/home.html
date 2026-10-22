@@ -109,7 +109,8 @@
       }
     </style>
     <link rel="stylesheet" href="/assets/typography.css?v=1" />
-  </head>
+  <link rel="stylesheet" href="/assets/workspace-ui.css">
+</head>
   <body>
     <section id="view-home">
       <div class="shell">
@@ -119,17 +120,18 @@
         </header>
 
         <div class="cards">
-          <a class="card card-link" href="/plates">
+          <a class="card card-link" href="/plates" data-help="ウェルを選び、出力プレートへ配置します。">
             <h2>Packer</h2>
 
           </a>
-          <a class="card card-link" href="/electrophoresis"><h2>Electrophoresis</h2></a>
-          <a class="card card-link" href="/results">
+          <a class="card card-link" href="/electrophoresis" data-help="泳動画像のROIを測定し、プール量を計算します。"><h2>Electrophoresis</h2></a>
+          <a class="card card-link" href="/results" data-help="メンバー・プロジェクトごとの記録を開きます。">
             <h2>Database</h2>
 
           </a>
         </div>
       </div>
     </section>
-  </body>
+  <script src="/assets/workspace-ui.js"></script>
+</body>
 </html>
