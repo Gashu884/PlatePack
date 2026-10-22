@@ -20,7 +20,7 @@ window.Electro = (() => {
     if(!bytes.length||bytes.length>96*1024*1024)throw Error('ファイルは96 MB以下にしてください。');
     const key=await hash(bytes);let exists=false;
     try{await request('/api/electrophoresis/blobs/'+key);exists=true}catch{}
-    if(!exists){const count=Math.ceil(bytes.length/CHUNK);for(let i=0;i<count;i++){el('busy').textContent=`ファイルを登録しています… ${i+1} / ${count}`;await request(`/api/electrophoresis/blobs/${key}/chunks/${i}`,{data:b64(bytes.subarray(i*CHUNK,(i+1)*CHUNK))},'PUT')}await request(`/api/electrophoresis/blobs/${key}/complete`,{size:bytes.length,chunks:count});}
+    if(!exists){const count=Math.ceil(bytes.length/CHUNK);for(let i=0;i<count;i++){el('busy').textContent=`登録中… ${i+1} / ${count}`;await request(`/api/electrophoresis/blobs/${key}/chunks/${i}`,{data:b64(bytes.subarray(i*CHUNK,(i+1)*CHUNK))},'PUT')}await request(`/api/electrophoresis/blobs/${key}/complete`,{size:bytes.length,chunks:count});}
     await idb('put','blob:'+key,bytes).catch(()=>{});return key;
   }
   async function getBlob(key){
@@ -43,11 +43,11 @@ window.Electro = (() => {
     saving=saving.catch(()=>{}).then(()=>idb('put','draft',snapshot));
     try{await saving}catch{toast('下書きの自動保存ができません。実験一式JSONを保存してください。')}
   }
-  async function guarded(fn){if(running)return;running=true;el('busy').hidden=false;el('busy').textContent='処理しています…';try{return await fn()}catch(e){toast(e.message);el('recordStatus').textContent=e.message;console.error(e)}finally{running=false;el('busy').hidden=true}}
+  async function guarded(fn){if(running)return;running=true;el('busy').hidden=false;el('busy').textContent='処理中…';try{return await fn()}catch(e){toast(e.message);el('recordStatus').textContent=e.message;console.error(e)}finally{running=false;el('busy').hidden=true}}
   function render(){
     if(!state)return;sync();if(record.confirmed?.signature!==signature())record.confirmed=null;
     const measured=ElectrophoresisChecks.measured(state);
-    el('measurementStatus').textContent=measured?'測定済み':'ROI・対応を確認後、輝度測定を押してください（表示はプレビュー）';
+    el('measurementStatus').textContent=measured?'測定済み':'未測定（プレビュー）';
     el('exportAll').disabled=!measured;el('exportPCR').disabled=!measured;el('exportPool').disabled=!record.confirmed;el('exportConfirmed').disabled=!record.confirmed;
     el('runSelect').replaceChildren(...record.sessions.map(s=>new Option(s.image.name,s.image.sha256)));el('runSelect').value=active||'';
     el('saveExperiment').disabled=!record.plate;el('gelLinkBtn').disabled=!record.plate;el('measureAll').disabled=!record.plate;
@@ -76,7 +76,7 @@ window.Electro = (() => {
     const project=el('projectSelect').value;files=[];
     let offset=0;while(true){const batch=await request(`/api/logs?limit=1000&offset=${offset}&project_id=${encodeURIComponent(project)}`);files.push(...batch.map(f=>({...f,ref:f.id})));if(batch.length<1000)break;offset+=1000;}
     const local=await PlatePackStorage.readLogs();files.push(...local.filter(f=>f.project_id===project).map(f=>({...f,ref:'local:'+f.id})));
-    el('plateRecord').replaceChildren(new Option('保存済みのプレート・実験を選択',''),...files.map(f=>new Option(f.name+(f.ref.startsWith('local:')?'（ブラウザ）':''),f.ref)));
+    el('plateRecord').replaceChildren(new Option('選択',''),...files.map(f=>new Option(f.name+(f.ref.startsWith('local:')?'（ブラウザ）':''),f.ref)));
   }
   async function entry(ref){return ref.startsWith('local:')?PlatePackStorage.getLog(ref.slice(6)):request('/api/logs/'+encodeURIComponent(ref))}
   function ensurePlate(plate){
@@ -89,11 +89,11 @@ window.Electro = (() => {
     const e=await entry(ref);if(!e)throw Error('データが見つかりません。');el('viewPlate').href='/plates?log='+encodeURIComponent(ref);el('viewPlate').hidden=false;
     if(e.payload.electrophoresis?.blob){
       const stored=JSON.parse(new TextDecoder().decode(await getBlob(e.payload.electrophoresis.blob)));stored.projectId=e.project_id;await restoreRecord(stored);dirty=false;
-      el('recordStatus').textContent='Databaseから元画像・ROI・測定・プール計画を復元しました。';return;
+      el('recordStatus').textContent='DB読込済み';return;
     }
     if(record.sessions.length)throw Error('画像を登録済みです。別のプレートで開始する場合は実験を保存してからHomeから新しく開いてください。');
     record.plate=ensurePlate(e.payload);record.plateRef=ref;record.plateName=e.name;el('gelLinkBtn').disabled=false;record.links=PlatePackGelLinks.empty(crypto.randomUUID());
-    el('recordStatus').textContent='プレートを読み込みました：'+e.name;await autosave();
+    el('recordStatus').textContent='プレート：'+e.name;await autosave();
   }
   async function restoreRecord(value){
     if(value.version!==1||!Array.isArray(value.sessions)||value.sessions.length>32)throw Error('実験一式JSONの形式が不正です。');
@@ -128,7 +128,7 @@ window.Electro = (() => {
     if(state.config.markers.some(m=>!m.confirmed))throw Error('各段の500 bpマーカーの位置・積分範囲を確認してください。');
     const q=await api('/api/measure',{sha256:state.image.sha256,config:state.config});
     if(q.markerResults.some(m=>!m.valid))throw Error('500 bpマーカーに微弱・飽和・複数ピークなどがあります。ROIと積分範囲を確認してください。');
-    state.quantification=q;state.measuredConfig=ElectrophoresisChecks.key(state.config);state.measuredVersion=q.version;state.measuredAt=new Date().toISOString();invalidate();render();await autosave();toast('この泳動の全ROIを測定しました。未検出も含めて保存します。');
+    state.quantification=q;state.measuredConfig=ElectrophoresisChecks.key(state.config);state.measuredVersion=q.version;state.measuredAt=new Date().toISOString();invalidate();render();await autosave();toast('測定完了');
   }
   async function plan(){
     sync();if(!record.sessions.length)throw Error('泳動画像を登録してください。');
@@ -138,8 +138,8 @@ window.Electro = (() => {
     proposal={signature:snapshot,plan:data};showPlan(data);el('planDialog').showModal();
   }
   function showPlan(p){
-    el('planSummary').innerHTML=p.plans.map(t=>`<div class="plan-card"><h3>${esc(t.group)}</h3><p>${t.count}検体 / ${fmt(t.total,1)} µL<br>有効測定 ${t.measuredCount}検体<br>輝度面積：平均 ${fmt(t.areaMean,1)} / 中央値 ${fmt(t.areaMedian,1)}<br>500 bp補正値：平均 ${fmt(t.mean,4)} / 中央値 ${fmt(t.median,4)}</p></div>`).join('')+p.blockers.map(t=>`<p>${esc(t)}</p>`).join('');
-    el('planRows').innerHTML=p.samples.map(r=>`<tr data-used="${r.used}"><td>${esc(r.group)}</td><td>${esc(r.well||'未指定')} / #${r.lane}</td><td>${esc(r.imageName)}<small>${p.records.filter(x=>x.sampleId===r.sampleId).length}回の測定履歴</small></td><td>${fmt(r.relativeToMedian,3)}</td><td>${fmt(r.volume,1)}</td><td>${fmt(r.roundingErrorPct,2)}</td><td>${esc(r.error||r.choice)}</td></tr>`).join('');
+    el('planSummary').innerHTML=p.plans.map(t=>`<div class="plan-card"><h3>${esc(t.group)}</h3><p>${t.count}検体 / ${fmt(t.total,1)} µL<br>有効測定 ${t.measuredCount}検体<br>面積 平均 ${fmt(t.areaMean,1)} / 中央値 ${fmt(t.areaMedian,1)}<br>500 bp補正 平均 ${fmt(t.mean,4)} / 中央値 ${fmt(t.median,4)}</p></div>`).join('')+p.blockers.map(t=>`<p>${esc(t)}</p>`).join('');
+    el('planRows').innerHTML=p.samples.map(r=>`<tr data-used="${r.used}"><td>${esc(r.group)}</td><td>${esc(r.well||'未指定')} / #${r.lane}</td><td>${esc(r.imageName)}<small>${p.records.filter(x=>x.sampleId===r.sampleId).length}回測定</small></td><td>${fmt(r.relativeToMedian,3)}</td><td>${fmt(r.volume,1)}</td><td>${fmt(r.roundingErrorPct,2)}</td><td>${esc(r.error||r.choice)}</td></tr>`).join('');
     el('confirmPlan').disabled=!p.ready;el('exportConfirmed').disabled=!record.confirmed;
   }
   function exportPlan(){
@@ -156,7 +156,7 @@ window.Electro = (() => {
     const payload={...copy(snapshot.plate),recordType:'electrophoresis',electrophoresis:{version:1,blob:key,images:snapshot.sessions.map(s=>({name:s.image.name,sha256:s.image.sha256})),confirmed:!!snapshot.confirmed}};
     const saved=await request('/api/logs',{name,payload,project_id:project}),verified=await request('/api/logs/'+encodeURIComponent(saved.id));
     if(verified.project_id!==project||JSON.stringify(verified.payload.electrophoresis)!==JSON.stringify(payload.electrophoresis))throw Error('保存の照合に失敗しました。実験一式JSONを保存してください。');
-    dirty=false;el('recordStatus').textContent='Databaseに保存・照合済み：'+name+'（元画像・ROI・ウェル対応・測定・プール計画）';
+    dirty=false;el('recordStatus').textContent='DB保存済み：'+name;
     history.replaceState(null,'','/electrophoresis?log='+encodeURIComponent(saved.id));el('viewPlate').href='/plates?log='+encodeURIComponent(saved.id);el('viewPlate').hidden=false;await loadFiles();await autosave();dirty=false;
   }
   async function backup(){sync();const full=copy(record);for(const s of full.sessions)s.raw=b64(await getBlob(s.image.sha256));download(record.name+'_experiment.json',JSON.stringify(full),'application/json')}
@@ -172,17 +172,17 @@ window.Electro = (() => {
     el('assignGroups').onclick=()=>guarded(assignGroups);el('measureAll').onclick=()=>guarded(measure);
     el('reviewPlan').onclick=()=>guarded(plan);el('register').onclick=()=>guarded(plan);
     el('closePlan').onclick=()=>el('planDialog').close();
-    el('confirmPlan').onclick=()=>guarded(async()=>{if(!proposal||proposal.signature!==signature())throw Error('設定が変わりました。プール案を再計算してください。');record.confirmed={...copy(proposal),at:new Date().toISOString()};render();await autosave();el('recordStatus').textContent='プール案を確定しました。Databaseへ保存すると確定内容も記録されます。';el('planDialog').close()});
+    el('confirmPlan').onclick=()=>guarded(async()=>{if(!proposal||proposal.signature!==signature())throw Error('設定が変わりました。プール案を再計算してください。');record.confirmed={...copy(proposal),at:new Date().toISOString()};render();await autosave();el('recordStatus').textContent='プール確定 · DB未保存';el('planDialog').close()});
     el('exportPool').onclick=()=>guarded(exportPlan);el('exportConfirmed').onclick=()=>guarded(exportPlan);
     el('downloadOriginal').onclick=()=>guarded(async()=>{if(state)download(state.image.name,await getBlob(state.image.sha256),'application/octet-stream')});
     el('saveExperiment').onclick=()=>guarded(saveRecord);el('backupExperiment').onclick=()=>guarded(backup);
-    el('restoreExperiment').onchange=e=>guarded(async()=>{const f=e.target.files[0];if(!f)return;if(f.size>160*1024*1024)throw Error('実験一式JSONは160 MB以下にしてください。');if(dirty&&!confirm('現在の作業を置き換えます。保存済みですか？'))return;await restoreRecord(JSON.parse(await f.text()));el('recordStatus').textContent='実験一式を復元しました。'});
+    el('restoreExperiment').onchange=e=>guarded(async()=>{const f=e.target.files[0];if(!f)return;if(f.size>160*1024*1024)throw Error('実験一式JSONは160 MB以下にしてください。');if(dirty&&!confirm('現在の作業を置き換えます。保存済みですか？'))return;await restoreRecord(JSON.parse(await f.text()));el('recordStatus').textContent='復元済み'});
     el('save').onclick=()=>guarded(async()=>{if(!state)return;const out=copy(state);out.raw=b64(await getBlob(state.image.sha256));download(prefix()+'_gelpool.json',JSON.stringify(out),'application/json')});
     el('sessionFile').onchange=e=>guarded(async()=>{const f=e.target.files[0];if(!f)return;if(!record.plate)throw Error('先にプレートを選択してください。');const s=JSON.parse(await f.text());if(record.sessions.length>=32&&!record.sessions.some(x=>x.image.sha256===s.image?.sha256))throw Error('1実験は32画像までです。');await adopt(await api('/api/restore',s));invalidate()});
     el('mapping').hidden=true; // identities are assigned through the plate dialog only
     window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue=''}});
     for(const id of ['exportAll','exportPCR','exportPool','measureAll','gelLinkBtn','saveExperiment'])el(id).disabled=true;
-    await guarded(async()=>{await loadProjects();const ref=new URLSearchParams(location.search).get('log');if(ref){await openEntry(ref);return;}const draft=await idb('get','draft');if(draft?.sessions?.length){el('recordStatus').textContent='前回の下書きがあります。';const restore=document.createElement('button');restore.textContent='前回の下書きを復元';restore.onclick=()=>guarded(()=>restoreRecord(draft));el('recordStatus').append(' ',restore)} });
+    await guarded(async()=>{await loadProjects();const ref=new URLSearchParams(location.search).get('log');if(ref){await openEntry(ref);return;}const draft=await idb('get','draft');if(draft?.sessions?.length){el('recordStatus').textContent='下書きあり';const restore=document.createElement('button');restore.textContent='復元';restore.onclick=()=>guarded(()=>restoreRecord(draft));el('recordStatus').append(' ',restore)} });
   }
   return {api,autosave,render,download,start};
 })();

@@ -254,7 +254,7 @@
       $('list').append(row);
     });
     $('empty').hidden = visibleItems.length > 0;
-    $('empty').textContent = $('searchInput').value ? '一致するデータがありません。' : 'このフォルダにはまだデータがありません。';
+    $('empty').textContent = $('searchInput').value ? '該当なし' : 'データなし';
     $('itemCount').textContent = visibleItems.length + '件';
     updateSelection();
   }
@@ -265,7 +265,7 @@
       row.setAttribute('aria-selected',String(selected.has(row.dataset.key)));
     });
     const chosen = selectedLogs();
-    $('selectionInfo').textContent = selected.size ? selected.size + '件を選択' : visibleItems.length + '件';
+    $('selectionInfo').textContent = selected.size ? selected.size + '件選択' : visibleItems.length + '件';
     ['copyBtn','cutBtn','downloadBtn','deleteBtn'].forEach(id => $(id).disabled = busy || !chosen.length);
     $('migrateBtn').disabled = busy || !serverOnline || !chosen.some(item => item.source === 'local');
     $('moveBtn').disabled = busy || !chosen.length || !$('moveProjectSelect').value;
@@ -351,7 +351,7 @@
     if (!keys.length) return;
     writeClipboard({mode,keys});
     updateSelection();
-    message(keys.length + '件を' + (mode === 'cut' ? '切り取り' : 'コピー') + 'ました。移動先のプロジェクトでペーストしてください。');
+    message(keys.length + '件を' + (mode === 'cut' ? '切り取り' : 'コピー') + 'ました。');
   }
   function paste() {
     readClipboard();

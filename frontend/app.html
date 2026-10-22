@@ -1281,6 +1281,7 @@
           transition: none;
         }
       }
+      #storageNotice:empty { display: none; }
     </style>
     <link rel="stylesheet" href="/assets/typography.css?v=1" />
   </head>
@@ -1290,38 +1291,17 @@
       <div class="page-main">
         <header>
           <h1><a class="page-title-link" href="/">PlatePack</a></h1>
-          <nav class="breadcrumb" aria-label="Breadcrumb">
-            <a href="/">Home</a>
-            <span class="sep">/</span>
-            <span aria-current="page">Packer</span>
-          </nav>
+
           <p class="page-subtitle">Packer</p>
-          <p class="muted">抽出するwellをクリックし、パッキング結果を新しいプレートとして表示します。</p>
+
         </header>
 
         <div class="layout">
-      <details class="help-card">
-        <summary>使い方・保存について</summary>
-        <ol>
-          <li><code>Number of Plates</code>で入力プレート枚数を設定（<code>Previous</code>/<code>Next</code>で移動）。</li>
-          <li><code>Growth phase</code>の1〜5のフェーズを選び、ウェルをクリックして記録します。別のフェーズで押すとフェーズ番号を変更、同じフェーズで押すと選択解除します。</li>
-          <li><code>1A</code>ボタンで表示形式を切替（<code>1A ⇄ A1</code>）。出力にも反映されます。</li>
-          <li><code>読み方向</code>で入力の読み順を切替。</li>
-          <li>出力レイアウト：ウェルをクリックすると空ウェル（黒）として除外、もう一度で解除。</li>
-          <li>区切り線（赤/青）をクリックして出力領域を分割。</li>
-          <li><code>Packing</code>で実行 → 下の出力プレートに結果表示。</li>
-          <li>結果プレートは<code>Previous</code>/<code>Next</code>で移動、<code>Download TSV</code>でTSV出力。</li>
-          <li>入力・フェーズ番号・パック結果はこのブラウザに自動保存します。<code>Save Log</code>はDB保存を確認し、JSONバックアップも作成します。<code>Restore JSON</code>で復元できます。</li>
-        </ol>
-        <h3>ヒント</h3>
-        <ul>
-          <li>出力レイアウトの行/列ラベルをクリックすると行/列まとめて空ウェルを切替できます。</li>
-        </ul>
-      </details>
+
       <section class="panel">
         <div class="toolbar">
           <div class="controls">
-            <label for="plateCount">Number of Plates</label>
+            <label for="plateCount">プレート数</label>
             <select id="plateCount">
               <option value="1">1</option>
               <option value="2">2</option>
@@ -1333,14 +1313,14 @@
               <option value="8">8</option>
               <option value="9">9</option>
               <option value="10">10</option>
-              <option value="custom">Custom…</option>
+              <option value="custom">指定…</option>
           </select>
         </div>
         </div>
 
         <div class="split-gap" aria-hidden="true"></div>
 
-          <div class="plate-summary" id="plateSummary">Plate 1 — 0 wells selected · Plate 1 of 1</div>
+          <div class="plate-summary" id="plateSummary">Plate 1 · 0選択 · 1/1</div>
         <span id="plateTitle" style="display:none;"></span>
         <div class="title-row" style="margin-top:0;"></div>
 
@@ -1350,22 +1330,22 @@
 	              <div class="layout-controls">
 	                <span class="label">入力レイアウト</span>
 	              </div>
-	
+
 	              <div
 	                class="input-controls-row"
 	                style="width: var(--input-grid-width); display:flex; justify-content:space-between; align-items:center; margin:0.25rem 0 0.4rem;"
 	              >
 	                <div class="input-controls-left" style="display:flex; gap:0.5rem; align-items:center;">
-	                  <button type="button" class="ghost" id="prevPlateBtn">Previous</button>
-	                  <button type="button" class="ghost" id="nextPlateBtn">Next</button>
+	                  <button type="button" class="ghost" id="prevPlateBtn" aria-label="前の入力プレート" title="前の入力プレート">←</button>
+	                  <button type="button" class="ghost" id="nextPlateBtn" aria-label="次の入力プレート" title="次の入力プレート">→</button>
 	                </div>
 	                <div class="input-controls-right" style="display:flex; gap:0.5rem; align-items:center;">
 	                  <button type="button" class="ghost" id="wellLabelBtn">1A</button>
-	                  <button type="button" class="ghost" id="inputDirectionBtn">読み方向：→</button>
-	                  <button type="button" class="accent-btn" id="clearPlateBtn">Clear</button>
+	                  <button type="button" class="ghost" id="inputDirectionBtn">読取順 →</button>
+	                  <button type="button" class="accent-btn" id="clearPlateBtn">クリア</button>
 	                </div>
 	              </div>
-	
+
                   <div class="week-toolbar" aria-label="増殖確認フェーズ">
                     <span class="week-label">Growth phase</span>
                     <div class="week-buttons" role="group" aria-label="フェーズを選択">
@@ -1382,11 +1362,11 @@
 	                  <div id="wellGrid"></div>
 	                </div>
 	              </div>
-	
+
 	              <div class="memo-below" style="width: var(--input-grid-width); margin-top:0.6rem;">
 	                <div class="memo-field" style="display:flex; align-items:center; gap:0.5rem;">
 	                  <label for="plateMemo">メモ</label>
-	                  <textarea id="plateMemo" placeholder="メモ記入欄"></textarea>
+	                  <textarea id="plateMemo"></textarea>
 	                </div>
 	              </div>
 	            </div>
@@ -1399,18 +1379,18 @@
 	                </div>
 	                <div class="split-gap" style="height:20px;" aria-hidden="true"></div>
 	                <div class="layout-controls" style="margin-top:0.25rem;">
-	                  <button type="button" class="ghost" id="directionBtn">整列方向：→</button>
+	                  <button type="button" class="ghost" id="directionBtn">配置順 →</button>
 	                  <div style="flex:1 1 auto"></div>
-	                  <button type="button" class="accent-btn" id="layoutClearBtn">Clear</button>
+	                  <button type="button" class="accent-btn" id="layoutClearBtn">クリア</button>
 	                </div>
 	                <div class="layout-side">
 	                  <div class="layout-container" id="layoutContainer">
 	                    <div id="layoutGrid"></div>
 	                  </div>
 	                </div>
-	
+
 	                <div class="pack-bar">
-	                  <button type="button" class="primary" id="packLayoutBtn">Packing</button>
+	                  <button type="button" class="primary" id="packLayoutBtn">配置</button>
 	                </div>
 	              </div>
 	            </div>
@@ -1423,29 +1403,29 @@
       <section class="panel">
         <div class="packed-section">
 	          <div class="packed-header">
-	            <div class="packed-info" id="packedSummary">Packed Plate 0 of 0</div>
+	            <div class="packed-info" id="packedSummary">出力 0/0</div>
 		            <div class="packed-controls">
-		              <button type="button" class="ghost" id="prevPackedBtn" disabled>Previous</button>
-		            <button type="button" class="ghost" id="nextPackedBtn" disabled>Next</button>
-		            <button type="button" class="success" id="tsvBtn" disabled>Download TSV</button>
-		            <button type="button" class="success" id="pngBtn" disabled>Download PNG</button>
+		              <button type="button" class="ghost" id="prevPackedBtn" aria-label="前の出力プレート" title="前の出力プレート" disabled>←</button>
+		            <button type="button" class="ghost" id="nextPackedBtn" aria-label="次の出力プレート" title="次の出力プレート" disabled>→</button>
+		            <button type="button" class="success" id="tsvBtn" disabled>TSV ↓</button>
+		            <button type="button" class="success" id="pngBtn" disabled>PNG ↓</button>
                     <span id="draftSaveStatus" class="save-state" role="status" aria-live="polite" data-state="saving">保存を確認中…</span>
-	            <button type="button" class="ghost" id="gelLinkBtn">電気泳動ROIと対応づけ</button><span id="gelLinkSummary"></span>
-                    <button type="button" class="success" id="saveLogBtn">Save Log</button>
-                    <button type="button" class="ghost" id="backupJsonBtn">Backup JSON</button>
-                    <button type="button" class="ghost" id="restoreJsonBtn">Restore JSON</button>
+	            <button type="button" class="ghost" id="gelLinkBtn">ROI対応</button><span id="gelLinkSummary"></span>
+                    <button type="button" class="success" id="saveLogBtn">DB保存</button>
+                    <button type="button" class="ghost" id="backupJsonBtn">JSON ↓</button>
+                    <button type="button" class="ghost" id="restoreJsonBtn">JSONを開く</button>
                     <input type="file" id="restoreJsonInput" accept=".json,application/json" hidden />
 			            <a class="ghost" id="logsLink" href="/results" style="text-decoration:none; display:inline-flex; align-items:center; justify-content:center; height:30px; padding:0 0.6rem;">Database</a>
 			            </div>
 			          </div>
-          <p id="storageNotice" class="storage-notice">入力はこのブラウザに自動保存します。Save LogでDB保存を確認し、JSONバックアップも作成します。</p>
+          <p id="storageNotice" class="storage-notice"></p>
           <div class="save-target" style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;font-size: 14px;">
-            <label for="saveProjectSelect">保存先プロジェクト</label>
-            <select id="saveProjectSelect" style="max-width:100%;min-width:240px;"><option value="default-project">メンバー 1 / プロジェクト 1</option></select><button type="button" id="createSaveProject" class="ghost">＋ 新規プロジェクト</button>
+            <label for="saveProjectSelect">プロジェクト</label>
+            <select id="saveProjectSelect" style="max-width:100%;min-width:240px;"><option value="default-project">メンバー 1 / プロジェクト 1</option></select><button type="button" id="createSaveProject" class="ghost">＋ 新規</button>
           </div>
           <div class="packed-panel-box">
             <div class="packed-grid" id="packedGrid">
-              <p class="muted">まだパッキング結果はありません。</p>
+              <p class="muted">未配置</p>
             </div>
           </div>
         </div>
@@ -1619,10 +1599,10 @@
 
       function updateLayoutButtons() {
         if (directionBtn) {
-          directionBtn.textContent = layoutDirection === "row" ? "整列方向：→" : "整列方向：↓";
+          directionBtn.textContent = layoutDirection === "row" ? "配置順 →" : "配置順 ↓";
         }
         if (inputDirectionBtn) {
-          inputDirectionBtn.textContent = inputReadDirection === "row" ? "読み方向：→" : "読み方向：↓";
+          inputDirectionBtn.textContent = inputReadDirection === "row" ? "読取順 →" : "読取順 ↓";
         }
         if (wellLabelBtn) {
           wellLabelBtn.textContent = wellLabelMode === "rowCol" ? "A1" : "1A";
@@ -1871,7 +1851,7 @@
         const highlight = document.createElement("span");
         highlight.className = "plate-highlight";
         highlight.textContent = plate.label;
-        plateSummary.replaceChildren(highlight, document.createTextNode(` — ${plate.wells.size} wells selected · Plate ${currentPlateIndex + 1} of ${plates.length}`));
+        plateSummary.replaceChildren(highlight, document.createTextNode(` · ${plate.wells.size}選択 · ${currentPlateIndex + 1}/${plates.length}`));
         prevPlateBtn.disabled = currentPlateIndex === 0;
         nextPlateBtn.disabled = currentPlateIndex === plates.length - 1;
         if (plateMemoInput) {
@@ -2194,8 +2174,8 @@
 
       function renderPacked() {
         if (packedPlates.length === 0) {
-          packedSummary.textContent = "Packed Plate 0 of 0";
-          packedGrid.innerHTML = "<p class='muted'>まだパッキング結果はありません。</p>";
+          packedSummary.textContent = "出力 0/0";
+          packedGrid.innerHTML = "<p class='muted'>未配置</p>";
           prevPackedBtn.disabled = true;
           nextPackedBtn.disabled = true;
           tsvBtn.disabled = true;
@@ -2204,7 +2184,7 @@
         }
         const plate = packedPlates[currentPackedIndex];
         const destColumns = plate.columns && plate.columns.length ? plate.columns : COLS;
-        packedSummary.textContent = `Packed Plate ${currentPackedIndex + 1} of ${packedPlates.length}`;
+        packedSummary.textContent = `出力 ${currentPackedIndex + 1}/${packedPlates.length}`;
 
         const table = document.createElement("table");
         table.className = "packed-table";
@@ -2715,13 +2695,13 @@
         const record = { savedAt: Date.now(), snapshot };
         let localSaved = false;
         try { PlatePackStorage.writeDraftSync(record); localSaved = true; } catch {}
-        setSaveState(localSaved ? "自動保存済み · このブラウザ" : "自動保存中…", localSaved ? "saved" : "saving");
+        setSaveState(localSaved ? "ブラウザ保存済み" : "自動保存中…", localSaved ? "saved" : "saving");
         PlatePackStorage.writeDraft(record, localSaved).then(() => {
-          if (revision === draftRevision) setSaveState("自動保存済み · このブラウザ", "saved");
+          if (revision === draftRevision) setSaveState("ブラウザ保存済み", "saved");
         }).catch(error => {
           if (revision !== draftRevision) return;
           lastDraftJson = "";
-          setSaveState("自動保存失敗 · Backup JSONを保存", "error");
+          setSaveState("自動保存失敗 · JSONを保存してください", "error");
           setStatus(error.message, true);
         });
       }
@@ -2752,7 +2732,7 @@
         persistCurrentDraft();
         downloadBackup(name, payload);
         PlatePackStorage.requestPersistence();
-        setStatus("ログを保存中… JSONバックアップもダウンロードしています。");
+        setStatus("DB保存中 · JSON出力中…");
         let localOk = false;
         let serverOk = false;
         try {
@@ -2769,7 +2749,7 @@
           serverOk = true;
         } catch {}
         finally { saveLogBtn.disabled = false; }
-        if (serverOk && localOk) setStatus(`ログ保存を確認しました: ${name}（DB・このブラウザ・JSONバックアップ）`);
+        if (serverOk && localOk) setStatus(`保存済み：${name}（DB・ブラウザ・JSON）`);
         else if (serverOk) setStatus(`DB保存を確認しました: ${name}。ブラウザ保存は失敗しました。JSONバックアップも保管してください。`, true);
         else if (localOk) setStatus(`このブラウザに保存しました: ${name}。DBには保存できていません。JSONバックアップも保管してください。`, true);
         else setStatus("DB・ブラウザとも保存に失敗しました。ダウンロードしたJSONバックアップを保管してください。", true);
@@ -2825,8 +2805,8 @@
           const draft = await PlatePackStorage.readDraft();
           if (draft) {
             applyLogSnapshot(draft.snapshot);
-            setSaveState("自動保存を復元済み · このブラウザ", "saved");
-          } else setSaveState("自動保存 · 入力待ち", "idle");
+            setSaveState("下書き復元済み", "saved");
+          } else setSaveState("", "idle");
         } catch (error) {
           view.dataset.restoreError = "true";
           setSaveState("復元に失敗 · 元の保存データを保持", "error");
@@ -2835,7 +2815,7 @@
           const selectedLogLoaded = await loadLogFromQuery();
           if (selectedLogLoaded) {
             delete view.dataset.restoreError;
-            setSaveState("ログを読込済み · 入力時に自動保存", "idle");
+            setSaveState("読込済み", "idle");
           }
           draftReady = view.dataset.restoreError !== "true";
           lastDraftJson = JSON.stringify(buildLogSnapshot());
@@ -2844,10 +2824,10 @@
         loadSaveProjects().catch(() => {});
         PlatePackStorage.fetchJson("/api/storage-health").then(health => {
           if (!health.available || !health.durable) {
-            document.getElementById("storageNotice").textContent = "DB保存は現在利用できません。このブラウザの自動保存に加え、Save LogでJSONバックアップを保管してください。";
+            document.getElementById("storageNotice").textContent = "DB保存不可 · JSONを保存してください。";
           }
         }).catch(() => {
-          document.getElementById("storageNotice").textContent = "DBへの接続を確認できません。Save Logで保存結果を確認し、JSONバックアップも保管してください。";
+          document.getElementById("storageNotice").textContent = "DB未接続 · JSONを保存してください。";
         });
       }
 

@@ -11,12 +11,12 @@
   <div class="database-shell" id="view-logs">
     <header class="page-header">
       <div><a href="/" class="brand">PlatePack</a><span class="page-label">Database</span></div>
-      <a class="btn primary" href="/plates">Packerを開く</a>
+      <a class="btn primary" href="/plates">Packer</a>
     </header>
     <div class="browser">
       <aside class="sidebar">
         <div class="sidebar-heading"><span>フォルダ</span><button type="button" id="newPersonBtn" class="icon-btn" title="メンバーフォルダを作成" aria-label="メンバーフォルダを作成">＋</button></div>
-        <button type="button" id="rootBtn" class="tree-root"><span class="folder-icon"></span>すべてのメンバー</button>
+        <button type="button" id="rootBtn" class="tree-root"><span class="folder-icon"></span>メンバー</button>
         <div id="folderTree" role="tree" aria-label="メンバーとプロジェクト"></div>
 
         <div id="connectionState" class="connection-state">保存先を確認中…</div>
@@ -24,20 +24,20 @@
       <main class="content">
         <div class="navigation">
           <nav id="pathbar" aria-label="現在のフォルダ"></nav>
-          <label class="search"><span>検索</span><input id="searchInput" type="search" placeholder="このフォルダ内を検索" autocomplete="off" /></label>
+          <label class="search"><span>検索</span><input id="searchInput" type="search" aria-label="このフォルダ内を検索" autocomplete="off" /></label>
         </div>
         <div class="toolbar">
           <div class="toolbar-group">
             <button type="button" class="btn" id="newProjectBtn">＋ プロジェクト</button>
-            <button type="button" class="btn" id="renameBtn">名前を変更</button>
-            <button type="button" class="btn" id="importBtn">Import JSON</button>
+            <button type="button" class="btn" id="renameBtn">名前変更</button>
+            <button type="button" class="btn" id="importBtn">JSONを開く</button>
             <input id="importInput" type="file" accept=".json,application/json" hidden />
           </div>
           <div class="toolbar-group">
             <button type="button" class="btn" id="copyBtn" disabled>コピー</button>
             <button type="button" class="btn" id="cutBtn" disabled>切り取り</button>
             <button type="button" class="btn" id="pasteBtn" disabled>ペースト</button>
-            <button type="button" class="btn" id="downloadBtn" disabled>JSON保存</button>
+            <button type="button" class="btn" id="downloadBtn" disabled>JSON ↓</button>
             <button type="button" class="btn" id="migrateBtn" disabled>DBへ移行</button>
             <button type="button" class="btn danger" id="deleteBtn" disabled>削除</button>
           </div>
@@ -55,11 +55,11 @@
             </tr></thead>
             <tbody id="list"></tbody>
           </table>
-          <div id="empty" class="empty" hidden>このフォルダにはまだデータがありません。</div>
+          <div id="empty" class="empty" hidden>データなし</div>
         </div>
         <footer class="browser-footer">
           <span id="itemCount">読み込み中…</span>
-          <span>ダブルクリックで開く · ドラッグで移動 · Alt/Option＋ドラッグでコピー · ⌘/Ctrl+C・X・V</span>
+
           <button type="button" id="refreshBtn" class="text-btn">更新</button>
         </footer>
       </main>
