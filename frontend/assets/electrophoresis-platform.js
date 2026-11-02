@@ -76,7 +76,8 @@ window.Electro = (() => {
     const project=el('projectSelect').value;files=[];
     let offset=0;while(true){const batch=await request(`/api/logs?limit=1000&offset=${offset}&project_id=${encodeURIComponent(project)}`);files.push(...batch.map(f=>({...f,ref:f.id})));if(batch.length<1000)break;offset+=1000;}
     const local=await PlatePackStorage.readLogs();files.push(...local.filter(f=>f.project_id===project).map(f=>({...f,ref:'local:'+f.id})));
-    el('plateRecord').replaceChildren(new Option('選択',''),...files.map(f=>new Option(f.name+(f.ref.startsWith('local:')?'（ブラウザ）':''),f.ref)));
+    files.sort((a,b)=>Number(b.record_type==='edited_plate'||!!b.payload?.plateEdit)-Number(a.record_type==='edited_plate'||!!a.payload?.plateEdit));
+    el('plateRecord').replaceChildren(new Option('選択',''),...files.map(f=>new Option((f.record_type==='edited_plate'||f.payload?.plateEdit?'編集プレート / ':'')+f.name+(f.ref.startsWith('local:')?'（ブラウザ）':''),f.ref)));
   }
   async function entry(ref){return ref.startsWith('local:')?PlatePackStorage.getLog(ref.slice(6)):request('/api/logs/'+encodeURIComponent(ref))}
   function ensurePlate(plate){
@@ -86,12 +87,14 @@ window.Electro = (() => {
     return p;
   }
   async function openEntry(ref){
-    const e=await entry(ref);if(!e)throw Error('データが見つかりません。');el('viewPlate').href='/plates?log='+encodeURIComponent(ref);el('viewPlate').hidden=false;
+    const e=await entry(ref);if(!e)throw Error('データが見つかりません。');el('viewPlate').href=(e.payload.plateEdit&&!e.payload.electrophoresis?'/output-plates?log=':'/plates?log=')+encodeURIComponent(ref);el('viewPlate').hidden=false;
     if(e.payload.electrophoresis?.blob){
       const stored=JSON.parse(new TextDecoder().decode(await getBlob(e.payload.electrophoresis.blob)));stored.projectId=e.project_id;await restoreRecord(stored);dirty=false;
       el('recordStatus').textContent='DB読込済み';return;
     }
     if(record.sessions.length)throw Error('画像を登録済みです。別のプレートで開始する場合は実験を保存してからHomeから新しく開いてください。');
+    if(el('projectSelect').value!==e.project_id)await loadProjects(e.project_id);
+    el('plateRecord').value=ref;
     record.plate=ensurePlate(e.payload);record.plateRef=ref;record.plateName=e.name;el('gelLinkBtn').disabled=false;record.links=PlatePackGelLinks.empty(crypto.randomUUID());
     el('recordStatus').textContent='プレート：'+e.name;await autosave();
   }

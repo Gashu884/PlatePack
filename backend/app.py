@@ -52,6 +52,7 @@ class LogCreateRequest(BaseModel):
 
 class LogSummaryResponse(BaseModel):
     record_type: str = "plate"
+    parent_refs: list[str] = Field(default_factory=list)
     id: str
     name: str
     created_at: str
@@ -156,6 +157,11 @@ def serve_plates() -> HTMLResponse:
 def serve_results() -> HTMLResponse:
     """Return the Database page."""
     return _serve_html(DATABASE_HTML_PATH, "frontend/database.html")
+
+
+@app.get("/output-plates", response_class=HTMLResponse)
+def serve_output_plates() -> HTMLResponse:
+    return _serve_html(ROOT_DIR / "frontend" / "output-plates.html", "output plates")
 
 
 @app.get("/assets/storage.js")

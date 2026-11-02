@@ -26,6 +26,7 @@
         const b = r.binding;
         if (b) {
           if (!['source','packed'].includes(b.kind) || typeof b.plateKey !== 'string' || !isWell(b.well) || typeof b.sourcePlate !== 'string' || typeof b.sourceUid !== 'string' || !/^[\w-]{1,80}$/.test(b.sourceUid) || !isWell(b.sourceWell)) throw Error('ROIとウェルの対応が不正です。');
+          if (b.sourceNamespace !== undefined && (typeof b.sourceNamespace !== 'string' || !/^[\w-]{1,160}$/.test(b.sourceNamespace) || typeof b.originUid !== 'string' || !/^[\w-]{1,160}$/.test(b.originUid))) throw Error('元サンプル識別子が不正です。');
           const k = b.sourcePlate + ':' + b.sourceWell;
           if (sources.has(k)) throw Error('同じ泳動内で同じ元ウェルを複数ROIへ指定できません。');
           sources.add(k);
@@ -58,7 +59,8 @@
     } else throw Error('プレートの種類が不正です。');
     const index=Number(sourcePlate)-1, p=snapshot.plates?.[index];
     if (!Number.isInteger(index) || index<0 || String(index+1)!==sourcePlate || !p || !p.wells.includes(sourceWell)) throw Error('元プレートの検体が現在の配置に存在しません。');
-    return {kind,plateKey,well,sourcePlate,sourceWell,sourceUid:p.uid || sourcePlate,sourceLabel:p.label || `Plate ${index+1}`};
+    return {kind,plateKey,well,sourcePlate,sourceWell,sourceUid:p.uid || sourcePlate,sourceLabel:p.label || `Plate ${index+1}`,
+      ...(p.sourceOrigin?{sourceNamespace:p.sourceOrigin.namespace,originUid:p.sourceOrigin.uid,originPlate:p.sourceOrigin.plate,editedOutput:!!snapshot.plateEdit}: {})};
   }
   function bind(state, snapshot, hash, roiId, kind, plateKey, well) {
     const next=clone(state),gel=next.gels.find(g=>g.sha256===hash),roi=gel?.rois.find(r=>r.id===roiId);
@@ -72,10 +74,10 @@
     if (!binding) return '未指定';
     try {
       const now=resolve(snapshot,binding.kind,binding.plateKey,binding.well);
-      return now.sourcePlate!==binding.sourcePlate || now.sourceWell!==binding.sourceWell || now.sourceUid!==binding.sourceUid ? '配置変更：元ウェルが変わっています。対応を再指定してください。' : '';
+      return now.sourcePlate!==binding.sourcePlate || now.sourceWell!==binding.sourceWell || now.sourceUid!==binding.sourceUid || now.sourceNamespace!==binding.sourceNamespace || now.originUid!==binding.originUid ? '配置変更：元ウェルが変わっています。対応を再指定してください。' : '';
     } catch(e) { return e.message; }
   }
-  function sampleId(state,binding) { return `PP:${state.namespace}:${binding.sourceUid}:${binding.sourceWell}`; }
+  function sampleId(state,binding) { return `PP:${binding.sourceNamespace||state.namespace}:${binding.originUid||binding.sourceUid}:${binding.sourceWell}`; }
   function exportSession(state,snapshot,session,hash) {
     validate(state);
     const g=state.gels.find(x=>x.sha256===hash);
@@ -88,7 +90,7 @@
       const error=bindingError(snapshot,link.binding);
       if (error) throw Error(`ROI #${r.id}: ${error}。全ROIの対応を指定してからGelPoolへ書き出してください。`);
       if(r.platepack?.skipped)r.decision=r.platepack.previousDecision||'auto';
-      r.sample=sampleId(state,link.binding);r.well=`${link.binding.sourcePlate}-${link.binding.sourceWell}`;
+      r.sample=sampleId(state,link.binding);r.well=link.binding.editedOutput&&link.binding.kind==='packed'?`${link.binding.plateKey} / ${link.binding.well}`:`${link.binding.sourcePlate}-${link.binding.sourceWell}`;
       r.platepack={...clone(link.binding),namespace:state.namespace};
     }
     result.history ||= [];result.history.push({at:new Date().toISOString(),action:'PlatePack: 手動ROI・ウェル対応を適用',before,after:clone(result.config)});

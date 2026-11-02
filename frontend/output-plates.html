@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PlatePack · 出力プレート</title>
+<link rel="stylesheet" href="/assets/typography.css"><link rel="stylesheet" href="/assets/plate-editor.css"><link rel="stylesheet" href="/assets/workspace-ui.css">
+</head><body>
+<header><a href="/" class="brand">PlatePack</a><h1>出力プレート</h1><a href="/results" id="databaseLink">Database</a></header>
+<main>
+  <div class="toolbar"><label>プロジェクト <select id="project" aria-label="プロジェクト"></select></label><button id="refresh">更新</button><span id="recordCount"></span></div>
+  <p id="notice" role="status" aria-live="polite"></p>
+  <section id="overview"><div class="toolbar"><h2 id="overviewTitle">一覧</h2><span id="pickedCount">0 / 2枚</span><button id="editSelected" class="primary" disabled>編集</button><button id="clearSelection" disabled>選択解除</button></div><div id="records"></div></section>
+  <section id="editor" hidden>
+    <div class="toolbar editor-tools"><button id="back">一覧</button><h2 id="editTitle"></h2><span id="saveState"></span><button id="undo" disabled data-help="直前の操作を取り消します。Ctrl / ⌘ + Zでも戻せます。">戻す</button><button id="reset" disabled data-help="今回の編集開始時の配置に戻します。">リセット</button><button id="save" class="primary">保存</button></div>
+    <div class="toolbar"><button id="range" aria-pressed="false" data-help="ドラッグ、またはShift＋クリックで四角い範囲を選択します。選択後、その中のウェルをドラッグして移動します。">範囲選択</button><button id="move" disabled data-help="選択後に押し、移動先のウェルをクリックします。試料のあるウェルへは交換、範囲移動はすべて空の場所だけ可能です。">移動先を選ぶ</button><button id="delete" disabled>削除</button><span id="selectionInfo"></span><a id="electrophoresis" hidden>ROI対応へ</a></div>
+    <div id="boards"></div>
+    <details class="history"><summary>変更履歴</summary><ol id="changes"></ol></details>
+  </section>
+</main>
+<script src="/assets/storage.js"></script><script src="/assets/projects.js"></script><script src="/assets/plate-editor-core.js"></script><script src="/assets/plate-editor.js"></script><script src="/assets/workspace-ui.js"></script>
+</body></html>

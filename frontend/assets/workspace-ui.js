@@ -169,6 +169,7 @@
     updateSaveStatus();
     const exports = menu('ファイル',[$('tsvBtn'),$('pngBtn'),$('backupJsonBtn'),$('restoreJsonBtn')]);
     actions.append(button('保存',()=>save.showModal(),'保存先プロジェクトを選んでDBへ保存します。'),exports,$('logsLink'));
+    const outputLink=node('a','ui-button','出力プレート');outputLink.href='/output-plates';outputLink.addEventListener('click',()=>{outputLink.href='/output-plates?project='+encodeURIComponent($('saveProjectSelect').value)});actions.append(outputLink);
     head.append(actions);
     const bar = node('nav','ui-work-nav');layout.before(bar);
     const view = tabs(bar,[['input','入力',input],['layout','配置',arrangement],['output','結果',outputPanel]],key=>{inputPanel.hidden=key==='output';});

@@ -19,6 +19,7 @@ window.PlatePackGelLinkUI = function ({getSnapshot,getState,setState,onApply}) {
   function status(r){return r.status==='detected'?'検出':r.status==='undetected'?'未検出・微弱':r.status==='review'?'要確認':'未判定'}
   function plateOptions(){
     const snapshot=getSnapshot(),kind=$('kind').value,prior=$('plate').value;
+    $('kind').querySelector('option[value="packed"]').textContent=snapshot.plateEdit?'編集後':'パッキング後';
     const options=kind==='packed'?(snapshot.packedPlates||[]).map(p=>({id:p.id,label:p.id})):snapshot.plates.map((p,i)=>({id:String(i+1),label:`${i+1} · ${p.label}`}));
     $('plate').innerHTML=options.map(p=>`<option value="${esc(p.id)}">${esc(p.label)}</option>`).join('');
     if(options.some(p=>p.id===prior))$('plate').value=prior;

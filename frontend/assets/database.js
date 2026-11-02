@@ -19,6 +19,9 @@
   let selectionAnchor = null;
   const folder = id => folders.find(item => item.id === id);
   const keyFor = item => item.source + ':' + item.id;
+  const refFor = item => item.source === 'local' ? 'local:' + item.id : item.id;
+  const isEdited = item => item.record_type === 'edited_plate' || (item.payload?.recordType === 'edited_plate');
+  const parentsFor = item => item.parent_refs || item.payload?.plateEdit?.rootRefs || [];
   const selectedLogs = () => logs.filter(item => selected.has(keyFor(item)));
   const message = (text, error = false) => {
     $('notice').hidden = !text;
@@ -166,6 +169,7 @@
     $('rootBtn').classList.toggle('active', !currentFolder);
   }
   function renderPath() {
+    $('outputPlatesLink').href='/output-plates'+(folder(currentFolder)?.kind==='project'?'?project='+encodeURIComponent(currentFolder):'');
     const path = [{id:null,name:'Database'}];
     const current = folder(currentFolder);
     if (current?.kind === 'project') {
@@ -191,7 +195,7 @@
     const children = current?.kind === 'project' ? logs.filter(item => item.project_id === current.id) :
       folders.filter(item => current ? item.parent_id === current.id && item.kind === 'project' : item.kind === 'person').map(item => ({...item,source:'folder'}));
     const query = $('searchInput').value.toLocaleLowerCase();
-    return children.filter(item => item.name.toLocaleLowerCase().includes(query)).sort((a,b) => {
+    return children.filter(item => item.name.toLocaleLowerCase().includes(query) && (query || !isEdited(item) || !children.some(parent => !isEdited(parent) && parentsFor(item).includes(refFor(parent))))).sort((a,b) => {
       const result = sortBy === 'date' ? String(a.created_at || '').localeCompare(String(b.created_at || '')) : a.name.localeCompare(b.name,'ja');
       return ascending ? result : -result;
     });
@@ -214,7 +218,7 @@
   }
   async function openItem(item) {
     if (item.source === 'folder') return navigate(item.id);
-    try { const entry=await getEntry(item); location.href = (entry.payload.electrophoresis ? '/electrophoresis?log=' : '/plates?log=') + encodeURIComponent(item.source === 'local' ? 'local:' + item.id : item.id); } catch(e) { message(e.message,true); }
+    try { const entry=await getEntry(item); location.href = (entry.payload.electrophoresis ? '/electrophoresis?log=' : entry.payload.plateEdit ? '/output-plates?log=' : '/plates?log=') + encodeURIComponent(item.source === 'local' ? 'local:' + item.id : item.id); } catch(e) { message(e.message,true); }
   }
   function renderList() {
     visibleItems = getVisibleItems();
@@ -228,7 +232,11 @@
       const name = element('div','name-cell');
       name.append(item.source === 'folder' ? element('span','folder-icon') : element('span','file-icon','96'), element('span','name-text',item.name));
       nameCell.append(name);
-      const kind = item.source === 'folder' ? (item.kind === 'person' ? 'メンバーフォルダ' : 'プロジェクト') : ((item.record_type==='electrophoresis'||item.payload?.electrophoresis) ? '泳動解析・プレート' : 'プレートデータ');
+      if(item.source!=='folder'&&!isEdited(item)){
+        const edits=logs.filter(child=>child.project_id===item.project_id&&isEdited(child)&&parentsFor(child).includes(refFor(item)));
+        if(edits.length){const group=element('details','edited-children');group.append(element('summary','','編集プレート · '+edits.length));group.addEventListener('click',e=>e.stopPropagation());group.addEventListener('dblclick',e=>e.stopPropagation());for(const child of edits){const link=element('a','',child.name);link.href='/output-plates?log='+encodeURIComponent(refFor(child));link.append(element('small','', ' · '+dateText(child.created_at)));group.append(link)}nameCell.append(group)}
+      }
+      const kind = item.source === 'folder' ? (item.kind === 'person' ? 'メンバーフォルダ' : 'プロジェクト') : ((item.record_type==='electrophoresis'||item.payload?.electrophoresis) ? '泳動解析・プレート' : item.record_type==='edited_plate'||item.payload?.plateEdit ? '編集プレート' : 'プレートデータ');
       const badgeCell = element('td');
       if (item.source !== 'folder') badgeCell.append(element('span','storage-badge' + (item.source === 'local' ? ' local' : ''),item.source === 'local' ? 'ブラウザ' : 'DB'));
       else badgeCell.textContent = '—';
@@ -237,6 +245,9 @@
       open.type = 'button';
       open.addEventListener('click', event => { event.stopPropagation(); openItem(item); });
       actionCell.append(open);
+      if(item.source!=='folder'&&kind==='プレートデータ'){
+        const outputs=element('a','row-open','出力');outputs.href='/output-plates?project='+encodeURIComponent(item.project_id)+'&parent='+encodeURIComponent(item.source==='local'?'local:'+item.id:item.id);outputs.onclick=e=>e.stopPropagation();actionCell.append(outputs);
+      }
       row.append(nameCell, element('td','',kind), element('td','',dateText(item.created_at)),badgeCell,actionCell);
       row.addEventListener('click', event => selectItem(item,event));
       row.addEventListener('dblclick', () => openItem(item));

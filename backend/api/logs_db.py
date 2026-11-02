@@ -86,6 +86,7 @@ def _ensure_persistence_available() -> None:
 @dataclass(frozen=True)
 class LogSummary:
     record_type: str = field(default="plate", kw_only=True)
+    parent_refs: list = field(default_factory=list, kw_only=True)
     id: str
     name: str
     created_at: str
@@ -245,9 +246,16 @@ def init_db() -> bool:
 
 
 def _summary(row) -> LogSummary:
+    parents = row["parent_refs"] if "parent_refs" in row.keys() else []
+    if isinstance(parents, str):
+        try:
+            parents = json.loads(parents)
+        except ValueError:
+            parents = []
     return LogSummary(
         id=row["id"], name=row["name"], created_at=row["created_at"],
         record_type=(row["record_type"] or "plate") if "record_type" in row.keys() else "plate",
+        parent_refs=parents if isinstance(parents, list) and all(isinstance(p, str) for p in parents) else [],
         project_id=row["project_id"], updated_at=row["updated_at"] or row["created_at"],
     )
 
@@ -385,6 +393,12 @@ def storage_health() -> Dict[str, Any]:
 
 
 def create_log(name: str, payload: Dict[str, Any], project_id: Optional[str] = None) -> LogSummary:
+    if payload.get("recordType") == "edited_plate":
+        from .plate_edits import validate_edit
+        try:
+            validate_edit(payload)
+        except (ValueError, TypeError, KeyError, IndexError) as exc:
+            raise StorageValidationError("編集プレートの内容が不正です。" + str(exc)) from exc
     cleaned = _validate_name(name)
     log_id = uuid4().hex
     created_at = _now_iso()
@@ -394,7 +408,9 @@ def create_log(name: str, payload: Dict[str, Any], project_id: Optional[str] = N
         _execute(conn,
                  "INSERT INTO logs (id, name, created_at, payload_json, project_id, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
                  (log_id, cleaned, created_at, stored_payload, project, created_at))
-    return LogSummary(log_id, cleaned, created_at, project, created_at)
+    return LogSummary(log_id, cleaned, created_at, project, created_at,
+                      record_type=payload.get("recordType") if payload.get("recordType") in ("electrophoresis", "edited_plate") else "plate",
+                      parent_refs=payload.get("plateEdit", {}).get("rootRefs", []) if payload.get("recordType") == "edited_plate" else [])
 
 
 def list_logs(limit: int = 50, project_id: Optional[str] = None, offset: int = 0) -> List[LogSummary]:
@@ -408,9 +424,10 @@ def list_logs(limit: int = 50, project_id: Optional[str] = None, offset: int = 0
             condition = " WHERE project_id = ?"
             parameters = (project,)
         kind_value = "payload_json->>'recordType'" if _HAS_POSTGRES else "CASE WHEN json_valid(payload_json) THEN json_extract(payload_json, '$.recordType') ELSE NULL END"
-        kind_sql = "CASE WHEN (" + kind_value + ") = 'electrophoresis' THEN 'electrophoresis' ELSE 'plate' END"
+        kind_sql = "CASE WHEN (" + kind_value + ") IN ('electrophoresis', 'edited_plate') THEN (" + kind_value + ") ELSE 'plate' END"
+        parents_sql = "payload_json->'plateEdit'->'rootRefs'" if _HAS_POSTGRES else "CASE WHEN json_valid(payload_json) THEN json_extract(payload_json, '$.plateEdit.rootRefs') ELSE NULL END"
         rows = _execute(conn,
-                        "SELECT id, name, created_at, project_id, updated_at, " + kind_sql + " AS record_type FROM logs" + condition +
+                        "SELECT id, name, created_at, project_id, updated_at, " + kind_sql + " AS record_type, " + parents_sql + " AS parent_refs FROM logs" + condition +
                         " ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?", parameters + (bounded, start)).fetchall()
     return [_summary(row) for row in rows]
 
@@ -426,7 +443,9 @@ def get_log(log_id: str) -> Optional[LogEntry]:
     if not isinstance(payload, dict):
         payload = {}
     summary = _summary(row)
-    return LogEntry(summary.id, summary.name, summary.created_at, summary.project_id, summary.updated_at, payload, record_type="electrophoresis" if payload.get("recordType") == "electrophoresis" else "plate")
+    return LogEntry(summary.id, summary.name, summary.created_at, summary.project_id, summary.updated_at, payload,
+                    record_type=payload.get("recordType") if payload.get("recordType") in ("electrophoresis", "edited_plate") else "plate",
+                    parent_refs=payload.get("plateEdit", {}).get("rootRefs", []) if payload.get("recordType") == "edited_plate" else [])
 
 
 def update_log(log_id: str, name: Optional[str] = None, project_id: Optional[str] = None) -> Optional[LogSummary]:
