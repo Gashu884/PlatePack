@@ -16,7 +16,8 @@ def validate_edit(payload):
     for ref in meta["rootRefs"] + meta["parentRefs"]:
         if not isinstance(ref, str) or not re.fullmatch(r"(?:local:)?[\w-]{1,128}", ref):
             raise ValueError("元データの参照が不正です。")
-    sources, final, initial = payload["plates"], payload["packedPlates"], meta["initialPackedPlates"]
+    sources = deepcopy(meta.get("initialSourcePlates", payload["plates"]))
+    final, initial = payload["packedPlates"], meta["initialPackedPlates"]
     if not sources or len(sources) > 1998 or not initial or len(initial) > 2000 or len(final) != len(initial):
         raise ValueError("プレート数を確認してください。")
     ids = set()
@@ -79,7 +80,29 @@ def validate_edit(payload):
         values = [src[r][c] for r, c in points]
         if not any(v is not None for v in values):
             raise ValueError("空の選択範囲です。")
-        if action["type"] == "delete":
+        if action["type"] == "correct-source":
+            if "initialSourcePlates" not in meta or len(names) != 1:
+                raise ValueError("訂正するウェルを1つ選択してください。")
+            cell = values[0]
+            source, target = action["sourcePlate"], action["sourceWell"]
+            position(target)
+            if not isinstance(source, str) or not source.isdigit() or not 1 <= int(source) <= len(sources) or str(int(source)) != source:
+                raise ValueError("入力プレートを確認してください。")
+            if action["before"] != {"sourcePlate": cell["sourcePlate"], "sourceWell": cell["sourceWell"]}:
+                raise ValueError("訂正前の入力元が一致しません。")
+            if any(c and c["sourcePlate"] == source and c["sourceWell"] == target for p in replay for row in p["grid"] for c in row):
+                raise ValueError("訂正先の入力元は使用済みです。")
+            old, dest = sources[int(cell["sourcePlate"])-1], sources[int(source)-1]
+            phase = dest.get("growthWeeks", {}).get(target, cell.get("growthWeek"))
+            old["wells"] = [w for w in old["wells"] if w != cell["sourceWell"]]
+            old.get("growthWeeks", {}).pop(cell["sourceWell"], None)
+            if target not in dest["wells"]:
+                dest["wells"].append(target)
+            if phase is not None:
+                dest.setdefault("growthWeeks", {})[target] = phase
+                cell["growthWeek"] = phase
+            cell["sourcePlate"], cell["sourceWell"] = source, target
+        elif action["type"] == "delete":
             for r, c in points:
                 src[r][c] = None
         elif action["type"] == "move":
@@ -106,3 +129,5 @@ def validate_edit(payload):
             raise ValueError("不明な操作です。")
     if replay != final:
         raise ValueError("変更履歴と保存する配置が一致しません。")
+    if sources != payload["plates"]:
+        raise ValueError("変更履歴と入力元が一致しません。")

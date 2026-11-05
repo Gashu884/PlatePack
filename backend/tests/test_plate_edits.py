@@ -94,6 +94,45 @@ class PlateEditTests(unittest.TestCase):
             self.assertIn('範囲選択', client.get('/output-plates').text)
             self.assertEqual(client.get('/assets/plate-editor-core.js').status_code, 200)
 
+    def corrected(self):
+        script = """
+const c=require('./frontend/assets/plate-editor-core.js');
+const data=JSON.parse(require('fs').readFileSync(0,'utf8'));
+process.stdout.write(JSON.stringify(c.apply(data,{type:'correct-source',from:1,wells:['A2'],sourcePlate:'2',sourceWell:'F5'})));
+"""
+        return json.loads(subprocess.check_output(['node', '-e', script], input=json.dumps(self.payload).encode(), cwd=ROOT))
+
+    def test_source_correction_roundtrips_with_history_and_preserved_destination(self):
+        corrected = self.corrected()
+        validate_edit(corrected)
+        self.assertEqual(corrected['packedPlates'][1]['grid'][0][1]['sourceWell'], 'F5')
+        self.assertEqual(corrected['plateEdit']['operations'][-1]['before'], {'sourcePlate':'1','sourceWell':'A1'})
+        self.assertNotIn('A1', corrected['plates'][0]['wells'])
+        self.assertEqual(corrected['plates'][1]['growthWeeks']['F5'], 2)
+        with TestClient(app) as client:
+            response = client.post('/api/logs', json={'name':'Corrected_ed','payload':corrected})
+            self.assertEqual(response.status_code, 200, response.text)
+            saved = client.get('/api/logs/'+response.json()['id']).json()
+            self.assertEqual(saved['payload'], corrected)
+
+    def test_source_correction_cannot_forge_history_sources_or_duplicate_sample(self):
+        corrected = self.corrected()
+        for mutate in (
+            lambda p: p['plateEdit']['operations'][-1]['before'].update(sourceWell='H12'),
+            lambda p: p['plates'][1]['growthWeeks'].update(F5=5),
+            lambda p: p['plates'][0]['wells'].append('A1'),
+            lambda p: p['plateEdit']['operations'][-1].update(sourceWell='B2'),
+            lambda p: p['plateEdit']['operations'][-1].update(sourcePlate='9'),
+        ):
+            payload = deepcopy(corrected)
+            mutate(payload)
+            with self.assertRaises(ValueError):
+                validate_edit(payload)
+
+    def test_legacy_saved_edits_still_validate_without_input_snapshot(self):
+        del self.payload['plateEdit']['initialSourcePlates']
+        validate_edit(self.payload)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -70,6 +70,14 @@
       identities.add(key);
     }
     data.plateEdit.initialPackedPlates=clone(data.packedPlates);
+    data.plateEdit.initialSourcePlates=clone(data.plates);
+    data.plateEdit.sourceCorrectionHistory=entries.flatMap(e=>[
+      ...clone(e.payload.plateEdit?.sourceCorrectionHistory||[]),
+      ...(e.payload.plateEdit?.operations||[]).filter(a=>a.type==='correct-source').map(a=>({
+        at:a.at,record:e.name,output:e.payload.packedPlates[a.from].id,well:a.wells[0],
+        before:a.before.sourcePlate+'-'+a.before.sourceWell,after:a.sourcePlate+'-'+a.sourceWell
+      }))
+    ]);
     data.plateEdit.selectedPlates=clone(selected);
     return {data, selected, name:entries.map(e=>e.name.replace(/_ed$/,'')).join(' + ').slice(0,117)+'_ed'};
   }
@@ -83,7 +91,26 @@
     if(!names.length)throw Error('ウェルを選択してください。');
     const values=names.map(w=>cellAt(next,action.from,w));
     if(!values.some(Boolean))throw Error('選択範囲に試料がありません。');
-    if(action.type==='delete')names.forEach(w=>setCell(next,action.from,w,null));
+    if(action.type==='correct-source'){
+      if(names.length!==1)throw Error('訂正するウェルを1つ選択してください。');
+      const cell=values[0], source=action.sourcePlate, target=action.sourceWell;
+      position(target);
+      if(typeof source!=='string'||String(Number(source))!==source||!next.plates[Number(source)-1])throw Error('入力プレートを選択してください。');
+      if(cell.sourcePlate===source&&cell.sourceWell===target)return clone(data);
+      for(const [pi,p] of next.packedPlates.entries())for(let r=0;r<8;r++)for(let c=0;c<12;c++){
+        const other=p.grid[r][c];
+        if(other?.sourcePlate===source&&other.sourceWell===target)throw Error(`入力元 ${source}-${target} は ${p.id} / ${well(r,c)} で使用済みです。`);
+      }
+      const before={sourcePlate:cell.sourcePlate,sourceWell:cell.sourceWell};
+      const old=next.plates[Number(cell.sourcePlate)-1], dest=next.plates[Number(source)-1];
+      const phase=dest.growthWeeks?.[target] ?? cell.growthWeek;
+      old.wells=old.wells.filter(w=>w!==cell.sourceWell);if(old.growthWeeks)delete old.growthWeeks[cell.sourceWell];
+      if(!dest.wells.includes(target))dest.wells.push(target);
+      if(phase!==undefined){dest.growthWeeks ||= {};dest.growthWeeks[target]=phase;cell.growthWeek=phase;}
+      cell.sourcePlate=source;cell.sourceWell=target;
+      action={...action,before};
+    }
+    else if(action.type==='delete')names.forEach(w=>setCell(next,action.from,w,null));
     else if(action.type==='move'){
       const [ar,ac]=position(action.anchor),[tr,tc]=position(action.target);
       if(!names.includes(action.anchor))throw Error('移動の基準ウェルが選択されていません。');

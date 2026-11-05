@@ -73,11 +73,12 @@ window.Electro = (() => {
     await loadFiles();
   }
   async function loadFiles(){
-    const project=el('projectSelect').value;files=[];
+    const project=el('projectSelect').value,selected=el('plateRecord').value;files=[];
     let offset=0;while(true){const batch=await request(`/api/logs?limit=1000&offset=${offset}&project_id=${encodeURIComponent(project)}`);files.push(...batch.map(f=>({...f,ref:f.id})));if(batch.length<1000)break;offset+=1000;}
     const local=await PlatePackStorage.readLogs();files.push(...local.filter(f=>f.project_id===project).map(f=>({...f,ref:'local:'+f.id})));
     files.sort((a,b)=>Number(b.record_type==='edited_plate'||!!b.payload?.plateEdit)-Number(a.record_type==='edited_plate'||!!a.payload?.plateEdit));
-    el('plateRecord').replaceChildren(new Option('選択',''),...files.map(f=>new Option((f.record_type==='edited_plate'||f.payload?.plateEdit?'編集プレート / ':'')+f.name+(f.ref.startsWith('local:')?'（ブラウザ）':''),f.ref)));
+    el('plateRecord').replaceChildren(new Option('選択',''),...files.map(f=>new Option((f.record_type==='edited_plate'||f.payload?.plateEdit?'編集プレート / ':'')+f.name+(f.created_at?' · '+new Date(f.created_at).toLocaleString('ja-JP'):'')+(f.ref.startsWith('local:')?'（ブラウザ）':''),f.ref)));
+    if(files.some(f=>f.ref===selected))el('plateRecord').value=selected;
   }
   async function entry(ref){return ref.startsWith('local:')?PlatePackStorage.getLog(ref.slice(6)):request('/api/logs/'+encodeURIComponent(ref))}
   function ensurePlate(plate){
@@ -98,6 +99,17 @@ window.Electro = (() => {
     record.plate=ensurePlate(e.payload);record.plateRef=ref;record.plateName=e.name;el('gelLinkBtn').disabled=false;record.links=PlatePackGelLinks.empty(crypto.randomUUID());
     el('recordStatus').textContent='プレート：'+e.name;await autosave();
   }
+  async function updateSources(){
+    const ref=el('plateRecord').value;if(!ref)throw Error('訂正済みの編集プレートを選択してください。');
+    sync();const e=await entry(ref);if(!e)throw Error('プレートが見つかりません。');
+    const next=PlateSourceUpdate.update(record,{...e,ref});
+    const selected=next.sessions.find(s=>s.image.sha256===active)||next.sessions[0];
+    const restored=selected?await api('/api/restore',selected):null;
+    record=next;proposal=null;state=null;
+    if(restored)await adopt(restored);else await autosave();
+    el('viewPlate').href='/output-plates?log='+encodeURIComponent(ref);el('viewPlate').hidden=false;
+    el('recordStatus').textContent='入力元を更新しました。輝度測定・プール計算を更新し、DB保存してください。';
+  }
   async function restoreRecord(value){
     if(value.version!==1||!Array.isArray(value.sessions)||value.sessions.length>32)throw Error('実験一式JSONの形式が不正です。');
     if(!Number.isInteger(value.groupSize)||value.groupSize<1||value.groupSize>384)throw Error('チューブのサンプル数が不正です。');
@@ -107,6 +119,7 @@ window.Electro = (() => {
     const selected=candidate.sessions.find(s=>s.image.sha256===candidate.active)||candidate.sessions[0];
     let restored=selected?await api('/api/restore',selected):null;
     state=null;record=candidate;active=candidate.active;proposal=null;el('experimentName').value=record.name;el('groupSize').value=record.groupSize;await loadProjects(record.projectId);
+    if(record.plateRef){el('plateRecord').value=record.plateRef;el('viewPlate').href=(record.plate.plateEdit?'/output-plates?log=':'/plates?log=')+encodeURIComponent(record.plateRef);el('viewPlate').hidden=false;}
     if(restored)await adopt(restored);else{el('gel').hidden=true;el('empty').hidden=false;}
     if(record.confirmed?.signature!==signature())record.confirmed=null;render();
   }
@@ -160,7 +173,7 @@ window.Electro = (() => {
     const saved=await request('/api/logs',{name,payload,project_id:project}),verified=await request('/api/logs/'+encodeURIComponent(saved.id));
     if(verified.project_id!==project||JSON.stringify(verified.payload.electrophoresis)!==JSON.stringify(payload.electrophoresis))throw Error('保存の照合に失敗しました。実験一式JSONを保存してください。');
     dirty=false;el('recordStatus').textContent='DB保存済み：'+name;
-    history.replaceState(null,'','/electrophoresis?log='+encodeURIComponent(saved.id));el('viewPlate').href='/plates?log='+encodeURIComponent(saved.id);el('viewPlate').hidden=false;await loadFiles();await autosave();dirty=false;
+    history.replaceState(null,'','/electrophoresis?log='+encodeURIComponent(saved.id));el('viewPlate').href=(record.plate.plateEdit?'/output-plates?log=':'/plates?log=')+encodeURIComponent(record.plateRef||saved.id);el('viewPlate').hidden=false;await loadFiles();await autosave();dirty=false;
   }
   async function backup(){sync();const full=copy(record);for(const s of full.sessions)s.raw=b64(await getBlob(s.image.sha256));download(record.name+'_experiment.json',JSON.stringify(full),'application/json')}
   async function start(){
@@ -171,6 +184,8 @@ window.Electro = (() => {
     el('projectSelect').onchange=()=>guarded(async()=>{await loadFiles();await autosave()});
     el('experimentName').oninput=()=>autosave();
     el('loadPlate').onclick=()=>guarded(async()=>{const ref=el('plateRecord').value;if(ref)await openEntry(ref)});
+    el('updateSources').onclick=()=>guarded(updateSources);
+    el('refreshPlates').onclick=()=>guarded(loadFiles);
     el('runSelect').onchange=()=>guarded(async()=>{sync();const s=record.sessions.find(x=>x.image.sha256===el('runSelect').value);if(s)await adopt(await api('/api/restore',s))});
     el('assignGroups').onclick=()=>guarded(assignGroups);el('measureAll').onclick=()=>guarded(measure);
     el('reviewPlan').onclick=()=>guarded(plan);el('register').onclick=()=>guarded(plan);

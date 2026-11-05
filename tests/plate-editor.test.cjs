@@ -26,3 +26,62 @@ test('ROI resolves edited destinations and keeps sample identity across experime
 test('edited ROI export displays physical output location with original source retained',()=>{const {data}=setup(),hash='a'.repeat(64),s={image:{sha256:hash,name:'test.tif',width:100,height:80,preview:'data:image/png;base64,AAAA'},config:{roiWidth:10,roiHeight:10,rois:[{id:1,x:25,y:30}]}};let state=links.importSession(links.empty('experiment'),s);state=links.bind(state,data,hash,1,'packed',data.packedPlates[0].id,'A1');const exported=links.exportSession(state,data,s,hash);assert.equal(exported.config.rois[0].well,'DEST-1 / A1');assert.equal(exported.config.rois[0].platepack.sourceWell,'A1');assert.equal(exported.config.rois[0].platepack.sourceNamespace,'raw-one');});
 test('more than two plates and cross-project selections are rejected',()=>{const a=entry(),b=entry('two');b.project_id='another';assert.throws(()=>core.assemble([{entry:a,index:0},{entry:b,index:0}]),/同じプロジェクト/);assert.throws(()=>core.assemble(Array(3).fill({entry:a,index:0})),/1〜2/);});
 test('many single swaps conserve every sample exactly once',()=>{let {data}=setup();const before=sampleSet(data);for(let i=0;i<80;i++){const candidates=[];data.packedPlates.forEach((p,pi)=>p.grid.forEach((r,ri)=>r.forEach((v,ci)=>{if(v)candidates.push([pi,core.well(ri,ci)])})));const [from,name]=candidates[i%candidates.length];data=move(data,from,i%2,[name],name,core.well(i%8,(i*7)%12));assert.deepEqual(sampleSet(data),before)}});
+const correct=(data,from,well,sourcePlate,sourceWell)=>core.apply(data,{type:'correct-source',from,wells:[well],sourcePlate,sourceWell});
+test('source correction keeps output position and changes source selection with its phase',()=>{
+  const {data}=setup(),before=copy(data),after=correct(data,0,'A1','1','F5');
+  assert.deepEqual(data,before);assert.equal(core.cellAt(after,0,'A1').sourceWell,'F5');
+  assert.equal(core.cellAt(after,0,'A1').growthWeek,1);assert.equal(sampleSet(after).length,5);
+  assert.ok(after.plates[0].wells.includes('F5'));assert.ok(!after.plates[0].wells.includes('A1'));
+  assert.equal(after.plates[0].growthWeeks.F5,1);assert.equal(after.plates[0].growthWeeks.A1,undefined);
+  assert.deepEqual(after.plateEdit.operations[0].before,{sourcePlate:'1',sourceWell:'A1'});
+  assert.deepEqual(after.plateEdit.initialSourcePlates,data.plates);
+  assert.equal(links.resolve(after,'packed','DEST-1','A1').sourceWell,'F5');
+});
+test('source correction rejects duplicates on hidden outputs, invalid wells and range selections atomically',()=>{
+  const {data}=setup(),before=copy(data);
+  assert.throws(()=>correct(data,0,'A1','1','H12'),/使用済み/);
+  assert.throws(()=>correct(data,0,'A1','1','F13'),/不正/);
+  assert.throws(()=>correct(data,0,'A1','9','F5'),/入力プレート/);
+  assert.throws(()=>core.apply(data,{type:'correct-source',from:0,wells:['A1','A2'],sourcePlate:'1',sourceWell:'F5'}),/1つ/);
+  assert.throws(()=>correct(data,0,'H1','1','F5'),/試料がありません/);
+  assert.deepEqual(correct(data,0,'A1','1','A1'),data);assert.deepEqual(data,before);
+});
+test('cross-input correction uses existing target phase and survives save/reopen',()=>{
+  const s=core.assemble([{entry:entry('one'),index:0},{entry:entry('two'),index:0}]);
+  s.data.plates[1].wells.push('F5');s.data.plates[1].growthWeeks.F5=5;
+  const after=correct(s.data,0,'A1','2','F5');
+  assert.equal(core.cellAt(after,0,'A1').sourcePlate,'2');assert.equal(core.cellAt(after,0,'A1').growthWeek,5);
+  const opened=core.assemble([{entry:{ref:'corrected',name:s.name,project_id:'project',payload:after},index:0}]).data;
+  assert.equal(links.resolve(opened,'packed','DEST-1','A1').sourceWell,'F5');
+  assert.equal(links.resolve(opened,'packed','DEST-1','A1').sourceNamespace,'two');
+});
+const updater=require('../frontend/assets/plate-source-update.js');
+function correctionExperiment(){
+  const {data}=setup(),hash='a'.repeat(64),session={image:{sha256:hash,name:'gel.tif',width:100,height:80,preview:'data:image/png;base64,AAAA'},config:{roiWidth:10,roiHeight:10,rois:[{id:1,x:25,y:30,baseline:{start:1,end:5},poolGroup:'Pool1'}]},quantification:{results:[{area:123}]},measuredConfig:'old'};
+  let state=links.importSession(links.empty('experiment'),session);state=links.bind(state,data,hash,1,'packed','DEST-1','A1');
+  const record={plate:data,plateRef:'ed-before',plateName:'raw-one_ed',projectId:'project',links:state,sessions:[links.exportSession(state,data,session,hash)],confirmed:{old:true}};
+  const revision=core.assemble([{entry:{ref:record.plateRef,name:record.plateName,project_id:record.projectId,payload:data},index:0}]);
+  return {record,revision,entry:{ref:'ed-after',name:'raw-one_ed',project_id:'project',payload:correct(revision.data,0,'A1','1','F5')}};
+}
+test('existing ROI links and all re-PCR measurements follow correction without changing geometry',()=>{
+  const {record,entry}=correctionExperiment();const second=copy(record.sessions[0]);second.image.sha256='b'.repeat(64);record.sessions.push(second);
+  const gel=copy(record.links.gels[0]);gel.sha256=second.image.sha256;record.links.gels.push(gel);
+  const before=copy(record),next=updater.update(record,entry);
+  assert.deepEqual(record,before);assert.equal(next.confirmed,null);assert.equal(next.sourceUpdates.length,1);
+  for(const session of next.sessions){const roi=session.config.rois[0];assert.equal(roi.platepack.sourceWell,'F5');assert.equal(roi.well,'DEST-1 / A1');assert.equal(roi.sample,'PP:raw-one:original-input:F5');assert.equal(roi.x,25);assert.deepEqual(roi.baseline,{start:1,end:5});assert.equal(roi.poolGroup,'Pool1');assert.equal(session.quantification.results[0].area,123);assert.equal(session.measuredConfig,undefined);}
+  assert.equal(next.links.gels[0].rois[0].binding.well,'A1');assert.equal(next.links.gels[0].rois[0].binding.sourceWell,'F5');
+  assert.equal(links.bindingError(next.plate,next.links.gels[0].rois[0].binding),'');
+});
+test('ROI update rejects unrelated revisions, position edits and forged changes',()=>{
+  const {record,entry,revision}=correctionExperiment(),before=copy(record);
+  const unrelated=copy(entry);unrelated.payload.plateEdit.parentRefs=['another'];assert.throws(()=>updater.update(record,unrelated),/元プレート/);
+  const moved={...entry,payload:move(revision.data,0,1,['A1'],'A1','C3')};assert.throws(()=>updater.update(record,moved),/位置変更/);
+  const forged=copy(entry);forged.payload.packedPlates[0].grid[0][1]=null;assert.throws(()=>updater.update(record,forged),/履歴/);
+  const stale=copy(record);stale.links.gels[0].rois[0].binding.sourceWell='B2';assert.throws(()=>updater.update(stale,entry),/ROI #1/);
+  assert.deepEqual(record,before);
+});
+test('source-kind ROI links follow corrected input and incomplete ROI slots are retained',()=>{
+  const {record,entry}=correctionExperiment();record.links.gels[0].rois[0].binding=links.resolve(record.plate,'source','1','A1');
+  record.links.gels[0].rois.push({id:2,x:40,y:30,binding:null});record.sessions[0].config.rois.push({id:2,x:40,y:30});
+  const next=updater.update(record,entry);assert.equal(next.links.gels[0].rois[0].binding.well,'F5');assert.equal(next.sessions[0].config.rois[0].well,'1-F5');assert.equal(next.links.gels[0].rois[1].binding,null);assert.equal(next.sessions[0].config.rois[1].id,2);
+});
