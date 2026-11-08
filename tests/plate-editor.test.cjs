@@ -201,3 +201,29 @@ test('an unchanged historical output in a newer draft cannot replace its latest 
   assert.equal(group.items[1].entry.ref,'saved-one');
   assert.equal(group.items[1].entry.payload.packedPlates[1].grid[2][2].sourceWell,'H12');
 });
+
+test('browser and DB duplicates collapse despite cursor state and selection ordering',()=>{
+  const db=entry('saved'),local=copy(db);local.ref='local:backup';local.created_at='1';db.created_at='2';
+  db.payload.currentPlateIndex=3;local.payload.currentPlateIndex=0;
+  db.payload.currentPackedIndex=1;local.payload.currentPackedIndex=0;
+  local.payload.selectedGrowthWeek=5;local.payload.wellLabelMode='colRow';
+  local.payload.plates[0].wells.reverse();
+  const originals=copy([db,local]),result=core.deduplicateEntries([local,db]);
+  assert.equal(result.length,1);assert.equal(result[0].ref,'saved');assert.deepEqual(result[0].aliases,['local:backup']);
+  assert.deepEqual([db,local],originals);
+});
+test('same names with different samples, phase, layout, notes or identity remain separate',()=>{
+  const db=entry('saved');
+  for(const mutate of [p=>p.plates[0].wells.pop(),p=>p.plates[0].growthWeeks.A1=5,p=>p.packedPlates[0].grid[0][0]=null,p=>p.plates[0].memo='different',p=>p.plates[0].uid='different']){
+    const local=copy(db);local.ref='local:backup';mutate(local.payload);
+    assert.equal(core.deduplicateEntries([db,local]).length,2);
+  }
+  const other=copy(db);other.ref='local:backup';other.project_id='other';
+  assert.equal(core.deduplicateEntries([db,other]).length,2);
+});
+test('a missing input sample reports its exact output and source rather than changing data',()=>{
+  const raw=entry('3-2_20261027');raw.payload.plates[0].wells=raw.payload.plates[0].wells.filter(w=>w!=='A1');
+  const before=copy(raw);
+  assert.throws(()=>core.assemble([{entry:raw,index:0}]),/3-2_20261027_01 \/ A1 の入力元 1-A1/);
+  assert.deepEqual(raw,before);
+});

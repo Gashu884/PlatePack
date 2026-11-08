@@ -26,9 +26,7 @@
     await Promise.all(Array.from({length:4},async()=>{while(queue.length){const summary=queue.shift();try{const e=await readEntry(summary.id);entries.push({...e,ref:e.id})}catch(e){failures.push(e)}}}));
     try{const local=await storage.readLogs();entries.push(...local.filter(e=>e.project_id===project&&!e.payload?.electrophoresis).map(e=>({...e,ref:'local:'+e.id})))}catch(e){failures.push(e)}
     entries=entries.filter(e=>Array.isArray(e.payload?.packedPlates)&&e.payload.packedPlates.length&&!e.payload.electrophoresis);
-    // Packer keeps an identical browser backup as well as its DB record.
-    const copies=new Map(entries.filter(e=>!e.ref.startsWith('local:')).map(e=>[e.name+'\n'+canonical(e.payload),e]));
-    entries=entries.filter(e=>{const existing=copies.get(e.name+'\n'+canonical(e.payload));if(e.ref.startsWith('local:')&&existing){existing.aliases=(existing.aliases||[]).concat(e.ref);return false}return true}).sort((a,b)=>String(b.created_at).localeCompare(a.created_at));
+    entries=core.deduplicateEntries(entries);
     renderOverview();note(!localCatalogReady?'ブラウザの表示状態を読み込めません。「更新」で再試行してください。':!catalogReady?'表示状態を読み込めません。「更新」で再試行してください。':remoteError?'DBに接続できません。ブラウザ保存分のみ表示しています。':failures.length?'一部のデータを読み込めませんでした。「更新」で再試行してください。':'',!localCatalogReady||!catalogReady||!!remoteError||!!failures.length);
   }
   function updatePicked(){
@@ -69,7 +67,7 @@
     label.append(check,document.createTextNode(titleName));title.append(label);row.append(title);
     const done=group.items.filter(s=>s.status==='completed').length;
     if(view==='active'&&done)row.append(el('small','完了 '+done+'/'+group.items.length));
-    const date=el('time',new Date(entry.created_at).toLocaleString('ja-JP'));row.append(date);if(entry.ref.startsWith('local:'))row.append(el('small','ブラウザ'));container.append(row);
+    const date=el('time',new Date(entry.created_at).toLocaleString('ja-JP'));row.append(date);row.append(el('small',entry.aliases?.length?'DB・ブラウザ':entry.ref.startsWith('local:')?'ブラウザ':'DB'));container.append(row);
   }
   function renderOverview(){
     const parent=params.get('parent');$('records').replaceChildren();groups.clear();let total=0;

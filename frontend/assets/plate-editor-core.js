@@ -9,6 +9,25 @@
   const well = (r,c) => 'ABCDEFGH'[r] + (c+1);
   const MAX_SELECTED=24;
   const originKey=p=>p.ref+'#'+p.index;
+  const canonical=value=>Array.isArray(value)?'['+value.map(canonical).join(',')+']':value&&typeof value==='object'?'{'+Object.keys(value).sort().map(k=>JSON.stringify(k)+':'+canonical(value[k])).join(',')+'}':JSON.stringify(value);
+  function dataSignature(entry){
+    const payload=clone(entry.payload);
+    // Cursor positions and label orientation do not change sample data or layout.
+    for(const key of ['currentPlateIndex','currentPackedIndex','selectedGrowthWeek','wellLabelMode','currentSaveProjectId'])delete payload[key];
+    for(const plate of payload.plates||[])if(Array.isArray(plate.wells))plate.wells.sort();
+    return canonical({name:entry.name,project:entry.project_id,payload});
+  }
+  function deduplicateEntries(entries){
+    const sorted=entries.map(e=>({...e,aliases:[...e.aliases||[]]})).sort((a,b)=>String(b.created_at||'').localeCompare(String(a.created_at||'')));
+    const db=new Map();
+    for(const entry of sorted)if(!entry.ref.startsWith('local:')){const signature=dataSignature(entry);if(!db.has(signature))db.set(signature,entry);}
+    return sorted.filter(entry=>{
+      if(!entry.ref.startsWith('local:'))return true;
+      const match=db.get(dataSignature(entry));
+      if(!match)return true;
+      match.aliases=[...new Set([...match.aliases,entry.ref,...entry.aliases])];return false;
+    });
+  }
   function plateName(entry,index){
     const p=entry.payload.packedPlates[index];
     return p.displayName || (p.sourceRecordName||entry.name||'プレート').replace(/(_ed|_done)$/g,'')+'_'+String((p.outputOrigin?.index??index)+1).padStart(2,'0');
@@ -65,10 +84,10 @@
         let id=plate.id||'DEST-'+(index+1),suffix=2;
         while(data.packedPlates.some(p=>p.id===id))id=(plate.id||'DEST')+' ('+suffix+++')';
         copy.id=id;
-        copy.grid.forEach(row=>row.forEach(cell=>{
+        copy.grid.forEach((row,r)=>row.forEach((cell,c)=>{
           if(!cell)return;
           const mapped=remap.get(cell.sourcePlate);position(cell.sourceWell);
-          if(!mapped || !data.plates[Number(mapped)-1].wells.includes(cell.sourceWell))throw Error('元ウェルを確認できない試料があります。');
+          if(!mapped || !data.plates[Number(mapped)-1].wells.includes(cell.sourceWell))throw Error(`${copy.displayName} / ${well(r,c)} の入力元 ${cell.sourcePlate}-${cell.sourceWell} が入力プレートにありません。入力一覧と出力配置が一致していません。`);
           cell.sourcePlate=mapped;
         }));
         if(selections.some(s=>s.entry.ref===entry.ref&&s.index===index))selected.push(data.packedPlates.length);
@@ -197,5 +216,5 @@
     result.name=group.root.name.replace(/_(?:ed|done)$/,'').slice(0,117)+'_ed';
     return result;
   }
-  return {clone,well,position,assemble,apply,cellAt,rectangle,complete,provenance,plateName,catalogKey,visible,overviewGroups,completeGroup,MAX_SELECTED};
+  return {clone,well,position,dataSignature,deduplicateEntries,assemble,apply,cellAt,rectangle,complete,provenance,plateName,catalogKey,visible,overviewGroups,completeGroup,MAX_SELECTED};
 });
