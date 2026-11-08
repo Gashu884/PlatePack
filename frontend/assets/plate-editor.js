@@ -2,7 +2,7 @@
   'use strict';
   const $=id=>document.getElementById(id), core=PlateEditor, storage=PlatePackStorage;
   const params=new URLSearchParams(location.search);
-  let entries=[], picked=new Map(), current=null, original=null, undo=[], selection=null, gesture=null, rangeMode=false, targeting=false, dirty=false, busy=false, savedRef=null, pendingSave=null, catalog={}, view='active', doneBoards=new Set(), catalogReady=false, localCatalogReady=false, remoteCatalog={}, localCatalog={}, groups=new Map();
+  let entries=[], picked=new Map(), current=null, original=null, undo=[], selection=null, gesture=null, rangeMode=false, targeting=false, dirty=false, busy=false, savedRef=null, pendingSave=null, catalog={}, view='active', doneBoards=new Set(), catalogReady=false, localCatalogReady=false, remoteCatalog={}, localCatalog={}, groups=new Map(), repairEntry=null;
   const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
   const note=(text,error=false)=>{$('notice').textContent=text;$('notice').dataset.error=error;};
   const request=(path,body)=>storage.fetchJson(path,body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{});
@@ -12,7 +12,7 @@
   async function guarded(fn){if(busy)return;busy=true;document.body.classList.add('saving');try{await fn()}catch(e){note(e.message,true)}finally{busy=false;document.body.classList.remove('saving')}}
   async function readEntry(ref){return ref.startsWith('local:')?storage.getLog(ref.slice(6)):request('/api/logs/'+encodeURIComponent(ref));}
   async function load(){
-    picked.clear();const project=$('project').value;entries=[];renderOverview();note('読み込み中…');
+    repairEntry=null;$('reconcileOutput').hidden=true;picked.clear();const project=$('project').value;entries=[];renderOverview();note('読み込み中…');
     $('databaseLink').href='/results?project='+encodeURIComponent(project);
     catalogReady=false;localCatalogReady=false;
     try{remoteCatalog=await request('/api/output-plates/states?project_id='+encodeURIComponent(project));catalogReady=true}catch{remoteCatalog={}}
@@ -92,10 +92,23 @@
     const url=URL.createObjectURL(new Blob([JSON.stringify(entry.payload,null,2)],{type:'application/json'})),a=el('a');a.href=url;a.download=entry.name+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
   }
   function start(list){
+    repairEntry=null;$('reconcileOutput').hidden=true;
     try{current=core.assemble(list,{mergeSources:true});original=core.clone(current.data);undo=[];selection=null;doneBoards.clear();savedRef=list.every(s=>s.entry.ref===list[0].entry.ref)&&list[0].entry.payload.recordType==='edited_plate'?list[0].entry.ref:null;pendingSave=null;dirty=false;rangeMode=false;targeting=false;
       $('overview').hidden=true;$('editor').hidden=false;$('project').disabled=true;$('refresh').disabled=true;$('editTitle').textContent=current.name;note('');renderEditor();window.scrollTo(0,0);
-    }catch(e){note(e.message,true)}
+    }catch(e){
+      const candidates=[...new Map(list.map(s=>[s.entry.ref,s.entry])).values()].filter(e=>!e.ref.startsWith('local:')&&core.orphanOutputs(e).length);
+      if(candidates.length===1){repairEntry=candidates[0];$('reconcileOutput').hidden=false;}
+      note(e.message,true);
+    }
   }
+  $('reconcileOutput').onclick=()=>guarded(async()=>{
+    if(!repairEntry)return;
+    const entry=repairEntry,cells=core.orphanOutputs(entry);
+    const saved=await request('/api/logs/'+encodeURIComponent(entry.ref)+'/reconcile-output',{expected_updated_at:entry.updated_at,cells});
+    const verified=await readEntry(entry.ref);
+    if(canonical(saved.payload)!==canonical(verified.payload))throw Error('保存内容を照合できません。一覧を更新してください。');
+    await load();note('入力にない試料 '+cells.length+'件を出力から除外しました。');
+  });
   function mark(){
     document.querySelectorAll('.well').forEach(b=>b.classList.toggle('selected',selection?.plate===+b.dataset.plate&&selection.wells.includes(b.dataset.well)));
     const has=selection?.wells.some(w=>core.cellAt(current.data,selection.plate,w));

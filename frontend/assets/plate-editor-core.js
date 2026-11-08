@@ -42,6 +42,16 @@
   function identity(p, ref, index) {
     return p.sourceOrigin || {namespace:ref.replace(/[^\w-]/g,'-'), uid:p.uid || 'source-'+(index+1), plate:String(index+1), label:p.label || 'Plate '+(index+1)};
   }
+  function orphanOutputs(entry){
+    const data=entry.payload,missing=[];
+    if(data.plateEdit||data.electrophoresis||data.gelLinks)return missing;
+    for(const [index,p] of (data.packedPlates||[]).entries())for(const [r,row] of p.grid.entries())for(const [c,cell] of row.entries()){
+      if(!cell)continue;
+      const source=data.plates[Number(cell.sourcePlate)-1];
+      if(source&&!source.wells.includes(cell.sourceWell))missing.push({plate:index,well:well(r,c),source_plate:cell.sourcePlate,source_well:cell.sourceWell});
+    }
+    return missing;
+  }
   function assemble(selections, options={}) {
     if (!selections.length || selections.length>(options.groupCompletion?2000:MAX_SELECTED)) throw Error(`1〜${MAX_SELECTED}枚を選択してください。`);
     const entries = [...new Map(selections.map(s=>[s.entry.ref,s.entry])).values()];
@@ -216,5 +226,5 @@
     result.name=group.root.name.replace(/_(?:ed|done)$/,'').slice(0,117)+'_ed';
     return result;
   }
-  return {clone,well,position,dataSignature,deduplicateEntries,assemble,apply,cellAt,rectangle,complete,provenance,plateName,catalogKey,visible,overviewGroups,completeGroup,MAX_SELECTED};
+  return {clone,well,position,dataSignature,deduplicateEntries,orphanOutputs,assemble,apply,cellAt,rectangle,complete,provenance,plateName,catalogKey,visible,overviewGroups,completeGroup,MAX_SELECTED};
 });

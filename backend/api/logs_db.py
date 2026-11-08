@@ -529,6 +529,49 @@ def get_log(log_id: str) -> Optional[LogEntry]:
                     parent_refs=payload.get("plateEdit", {}).get("rootRefs", []) if payload.get("recordType") == "edited_plate" else [])
 
 
+def reconcile_output(log_id, expected_updated_at, cells):
+    from .plate_edits import position
+    with _database(write=True) as conn:
+        lock = ' FOR UPDATE' if _HAS_POSTGRES else ''
+        row = _execute(conn, 'SELECT * FROM logs WHERE id=?'+lock, (log_id,)).fetchone()
+        if not row:
+            raise RecordNotFoundError('データが見つかりません。')
+        if row['updated_at'] != expected_updated_at:
+            raise StorageValidationError('保存内容が更新されています。一覧を更新してください。')
+        payload = row['payload_json'] if isinstance(row['payload_json'], dict) else json.loads(row['payload_json'])
+        if payload.get('plateEdit') or payload.get('electrophoresis') or payload.get('gelLinks'):
+            raise StorageValidationError('編集済み・ROI対応済みのデータは、この操作では変更できません。')
+        if not 1 <= len(cells) <= 2000:
+            raise StorageValidationError('対象ウェルを確認してください。')
+        removed, seen = [], set()
+        for target in cells:
+            index, name = target['plate'], target['well']
+            try:
+                r, c = position(name)
+                if type(index) is not int or index < 0:
+                    raise ValueError()
+                cell = payload['packedPlates'][index]['grid'][r][c]
+                if not cell or (index, name) in seen:
+                    raise ValueError()
+                source = cell['sourcePlate']
+                if source != target['source_plate'] or cell['sourceWell'] != target['source_well']:
+                    raise ValueError()
+                if not source.isdigit() or not 1 <= int(source) <= len(payload['plates']):
+                    raise ValueError()
+                if cell['sourceWell'] in payload['plates'][int(source)-1]['wells']:
+                    raise ValueError()
+            except (ValueError, TypeError, KeyError, IndexError, AttributeError):
+                raise StorageValidationError('入力にない試料だけを、現在の出力位置を確認して指定してください。')
+            seen.add((index, name))
+            removed.append({'plate':index,'well':name,'before':cell})
+            payload['packedPlates'][index]['grid'][r][c] = None
+        now = _now_iso()
+        payload.setdefault('outputReconciliations', []).append({'at':now,'previousUpdatedAt':row['updated_at'],'removed':removed})
+        stored = Json(payload) if _HAS_POSTGRES and Json is not None else json.dumps(payload,ensure_ascii=False,separators=(',',':'))
+        _execute(conn, 'UPDATE logs SET payload_json=?,updated_at=? WHERE id=?', (stored,now,log_id))
+    return get_log(log_id)
+
+
 def update_log(log_id: str, name: Optional[str] = None, project_id: Optional[str] = None) -> Optional[LogSummary]:
     with _database(write=True) as conn:
         lock = " FOR UPDATE" if _HAS_POSTGRES else ""

@@ -237,6 +237,36 @@ process.stdout.write(JSON.stringify(result));"""
             states=client.get('/api/output-plates/states?project_id=default-project').json()
             self.assertTrue(all(s['completed_ref']==response.json()['id'] for s in states.values()))
 
+    def test_reconcile_clears_only_missing_sample_and_keeps_audit_and_positions(self):
+        raw={'plates':[{'uid':'input','wells':['A2']}],'packedPlates':[{'id':'P1','grid':[[None]*12 for _ in range(8)]}]}
+        raw['packedPlates'][0]['grid'][6][8]={'sourcePlate':'1','sourceWell':'D9','growthWeek':2}
+        raw['packedPlates'][0]['grid'][6][9]={'sourcePlate':'1','sourceWell':'A2','growthWeek':3}
+        target={'plate':0,'well':'G9','source_plate':'1','source_well':'D9'}
+        with TestClient(app) as client:
+            saved=client.post('/api/logs',json={'name':'Group','payload':raw}).json()
+            url='/api/logs/'+saved['id']+'/reconcile-output'
+            response=client.post(url,json={'expected_updated_at':saved['updated_at'],'cells':[target]})
+            self.assertEqual(response.status_code,200,response.text)
+            result=response.json()['payload']
+            self.assertIsNone(result['packedPlates'][0]['grid'][6][8])
+            self.assertEqual(result['outputReconciliations'][0]['removed'][0]['before'],raw['packedPlates'][0]['grid'][6][8])
+            expected=deepcopy(raw);expected['packedPlates'][0]['grid'][6][8]=None
+            self.assertEqual({k:v for k,v in result.items() if k!='outputReconciliations'},expected)
+            self.assertEqual(client.post(url,json={'expected_updated_at':saved['updated_at'],'cells':[target]}).status_code,422)
+            self.assertEqual(client.get('/api/logs/'+saved['id']).json()['payload'],result)
+
+    def test_reconcile_rejects_existing_input_wrong_source_and_partial_batches(self):
+        raw={'plates':[{'uid':'input','wells':['A2']}],'packedPlates':[{'id':'P1','grid':[[None]*12 for _ in range(8)]}]}
+        raw['packedPlates'][0]['grid'][0][0]={'sourcePlate':'1','sourceWell':'D9'}
+        raw['packedPlates'][0]['grid'][0][1]={'sourcePlate':'1','sourceWell':'A2'}
+        good={'plate':0,'well':'A1','source_plate':'1','source_well':'D9'}
+        with TestClient(app) as client:
+            saved=client.post('/api/logs',json={'name':'Group','payload':raw}).json()
+            url='/api/logs/'+saved['id']+'/reconcile-output'
+            for targets in [[{**good,'source_well':'F5'}],[good,{'plate':0,'well':'A2','source_plate':'1','source_well':'A2'}],[good,good]]:
+                self.assertEqual(client.post(url,json={'expected_updated_at':saved['updated_at'],'cells':targets}).status_code,422)
+                self.assertEqual(client.get('/api/logs/'+saved['id']).json()['payload'],raw)
+
     def test_invalid_completion_rolls_back_file_and_all_visibility_changes(self):
         self.payload['plateEdit']['collection']='completed'
         self.payload['packedPlates'][1]['outputOrigin']['index']=-1

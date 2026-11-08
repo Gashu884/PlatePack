@@ -14,14 +14,14 @@ try:
     from backend.api.logs_db import (
         FolderConflictError, RecordNotFoundError, StorageValidationError,
         copy_log, create_folder, create_log, delete_log, get_log, init_db,
-        list_folders, list_logs, storage_health, update_folder, update_log, output_plate_states, set_output_plate_states,
+        list_folders, list_logs, storage_health, update_folder, update_log, output_plate_states, set_output_plate_states, reconcile_output,
     )
 except ModuleNotFoundError:  # pragma: no cover
     from api.generate_html import ReportRequest, build_html_report, sample_payload
     from api.logs_db import (
         FolderConflictError, RecordNotFoundError, StorageValidationError,
         copy_log, create_folder, create_log, delete_log, get_log, init_db,
-        list_folders, list_logs, storage_health, update_folder, update_log, output_plate_states, set_output_plate_states,
+        list_folders, list_logs, storage_health, update_folder, update_log, output_plate_states, set_output_plate_states, reconcile_output,
     )
 
 app = FastAPI(
@@ -69,6 +69,18 @@ def api_output_states(project_id: str):
 @app.post('/api/output-plates/states')
 def api_set_output_states(body: OutputPlateStateRequest):
     return _storage_call(set_output_plate_states, body.project_id, [s.model_dump() for s in body.selections], body.status)
+
+
+class OrphanOutputCell(BaseModel):
+    plate: int = Field(ge=0, lt=2000)
+    well: str = Field(pattern=r'^[A-H](?:[1-9]|1[0-2])$')
+    source_plate: str = Field(pattern=r'^[1-9][0-9]*$')
+    source_well: str = Field(pattern=r'^[A-H](?:[1-9]|1[0-2])$')
+
+
+class ReconcileOutputRequest(BaseModel):
+    expected_updated_at: str
+    cells: list[OrphanOutputCell] = Field(min_length=1,max_length=2000)
 
 
 class LogSummaryResponse(BaseModel):
@@ -237,6 +249,12 @@ def api_get_log(log_id: str) -> LogEntryResponse:
     if log is None:
         raise HTTPException(status_code=404, detail="log not found")
     return LogEntryResponse.model_validate(log, from_attributes=True)
+
+
+@app.post('/api/logs/{log_id}/reconcile-output', response_model=LogEntryResponse)
+def api_reconcile_output(log_id: str, body: ReconcileOutputRequest):
+    entry = _storage_call(reconcile_output, log_id, body.expected_updated_at, [cell.model_dump() for cell in body.cells])
+    return LogEntryResponse.model_validate(entry, from_attributes=True)
 
 
 @app.patch("/api/logs/{log_id}", response_model=LogSummaryResponse)
