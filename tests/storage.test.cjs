@@ -450,3 +450,41 @@ test("simultaneous log move and copy across tabs retain both records and all pay
   assert.equal((await first.getLog(copied.id)).project_id, "default-project");
   assert.deepEqual(clone(moved.payload), clone(copied.payload));
 });
+
+const OUTPUT_STATES = 'PLATEPACK_OUTPUT_STATES_V1';
+const outputLog = (id, project_id='default-project') => ({...entry(id), project_id, payload:{plates:[],packedPlates:[{id:'P1'},{id:'P2'}]}});
+test('browser-only groups can hide, reload and restore without changing original logs', async()=>{
+  const original=[outputLog('old')],env=createStorage({localData:{[LEGACY]:original}});
+  const selected=[0,1].map(index=>({ref:'local:old',index}));
+  const hidden=await env.storage.setOutputPlateStates('default-project',selected,'hidden');
+  assert.equal(hidden['local:old#0'].status,'hidden');assert.equal(hidden['local:old#1'].status,'hidden');
+  const reloaded=createStorage({sharedLocal:env.local,sharedDatabase:env.database});
+  assert.deepEqual(clone(await reloaded.storage.readOutputPlateStates('default-project')),clone(hidden));
+  await reloaded.storage.setOutputPlateStates('default-project',selected,'active');
+  assert.equal((await reloaded.storage.readOutputPlateStates('default-project'))['local:old#1'].status,'active');
+  assert.deepEqual(clone(await reloaded.storage.readLogs()),original);
+  assert.deepEqual(JSON.parse(env.local.get(LEGACY)),original);
+  assert.deepEqual(clone(await reloaded.storage.readOutputPlateStates('other')),{});
+});
+test('local visibility changes reject invalid or cross-project selection before any write',async()=>{
+  const env=createStorage({localData:{[LEGACY]:[outputLog('old'),outputLog('other','another-project')]}});
+  for(const second of [{ref:'local:other',index:0},{ref:'local:old',index:9}]){
+    await assert.rejects(env.storage.setOutputPlateStates('default-project',[{ref:'local:old',index:0},second],'hidden'),/確認/);
+    assert.equal(env.local.has(OUTPUT_STATES),false);assert.equal(env.database.has(OUTPUT_STATES),false);
+  }
+});
+test('local visibility survives either replica failure and reports failure when neither can save',async()=>{
+  for(const opts of [{localFailures:[OUTPUT_STATES]},{databaseFailures:[OUTPUT_STATES]}]){
+    const env=createStorage({...opts,localData:{[LEGACY]:[outputLog('old')]}});
+    await env.storage.setOutputPlateStates('default-project',[{ref:'local:old',index:0}],'hidden');
+    assert.equal((await env.storage.readOutputPlateStates('default-project'))['local:old#0'].status,'hidden');
+  }
+  const env=createStorage({localFailures:[OUTPUT_STATES],databaseFailures:[OUTPUT_STATES],localData:{[LEGACY]:[outputLog('old')]}});
+  await assert.rejects(env.storage.setOutputPlateStates('default-project',[{ref:'local:old',index:0}],'hidden'),/保存できません/);
+});
+test('two tabs changing different local plates preserve both visibility choices',async()=>{
+  const local=new Map([[LEGACY,JSON.stringify([outputLog('old')])]]),database=new Map(),locks=createSharedLocks();
+  const a=createStorage({sharedLocal:local,sharedDatabase:database,locks}),b=createStorage({sharedLocal:local,sharedDatabase:database,locks});
+  await Promise.all([a.storage.setOutputPlateStates('default-project',[{ref:'local:old',index:0}],'hidden'),b.storage.setOutputPlateStates('default-project',[{ref:'local:old',index:1}],'hidden')]);
+  assert.equal(Object.keys(await a.storage.readOutputPlateStates('default-project')).length,2);
+});

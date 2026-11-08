@@ -2,7 +2,7 @@
   'use strict';
   const $=id=>document.getElementById(id), core=PlateEditor, storage=PlatePackStorage;
   const params=new URLSearchParams(location.search);
-  let entries=[], picked=new Map(), current=null, original=null, undo=[], selection=null, gesture=null, rangeMode=false, targeting=false, dirty=false, busy=false, savedRef=null, pendingSave=null, catalog={}, view='active', doneBoards=new Set(), catalogReady=false, groups=new Map();
+  let entries=[], picked=new Map(), current=null, original=null, undo=[], selection=null, gesture=null, rangeMode=false, targeting=false, dirty=false, busy=false, savedRef=null, pendingSave=null, catalog={}, view='active', doneBoards=new Set(), catalogReady=false, localCatalogReady=false, remoteCatalog={}, localCatalog={}, groups=new Map();
   const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
   const note=(text,error=false)=>{$('notice').textContent=text;$('notice').dataset.error=error;};
   const request=(path,body)=>storage.fetchJson(path,body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{});
@@ -14,7 +14,10 @@
   async function load(){
     picked.clear();const project=$('project').value;entries=[];renderOverview();note('読み込み中…');
     $('databaseLink').href='/results?project='+encodeURIComponent(project);
-    catalogReady=false;try{catalog=await request('/api/output-plates/states?project_id='+encodeURIComponent(project));catalogReady=true}catch{catalog={}}
+    catalogReady=false;localCatalogReady=false;
+    try{remoteCatalog=await request('/api/output-plates/states?project_id='+encodeURIComponent(project));catalogReady=true}catch{remoteCatalog={}}
+    try{localCatalog=await storage.readOutputPlateStates(project);localCatalogReady=true}catch{localCatalog={}}
+    catalog={...localCatalog,...remoteCatalog};
     let summaries=[],remoteError=null;
     try{for(let offset=0;;offset+=1000){const batch=await request('/api/logs?limit=1000&offset='+offset+'&project_id='+encodeURIComponent(project));summaries.push(...batch.filter(e=>e.record_type!=='electrophoresis'));if(batch.length<1000)break}}
     catch(e){remoteError=e;}
@@ -26,11 +29,13 @@
     // Packer keeps an identical browser backup as well as its DB record.
     const copies=new Map(entries.filter(e=>!e.ref.startsWith('local:')).map(e=>[e.name+'\n'+canonical(e.payload),e]));
     entries=entries.filter(e=>{const existing=copies.get(e.name+'\n'+canonical(e.payload));if(e.ref.startsWith('local:')&&existing){existing.aliases=(existing.aliases||[]).concat(e.ref);return false}return true}).sort((a,b)=>String(b.created_at).localeCompare(a.created_at));
-    renderOverview();note(!catalogReady?'表示状態を読み込めません。「更新」で再試行してください。':remoteError?'DBに接続できません。ブラウザ保存分のみ表示しています。':failures.length?'一部のデータを読み込めませんでした。「更新」で再試行してください。':'',!catalogReady||!!remoteError||!!failures.length);
+    renderOverview();note(!localCatalogReady?'ブラウザの表示状態を読み込めません。「更新」で再試行してください。':!catalogReady?'表示状態を読み込めません。「更新」で再試行してください。':remoteError?'DBに接続できません。ブラウザ保存分のみ表示しています。':failures.length?'一部のデータを読み込めませんでした。「更新」で再試行してください。':'',!localCatalogReady||!catalogReady||!!remoteError||!!failures.length);
   }
   function updatePicked(){
     $('pickedCount').textContent=picked.size+'枚';$('editSelected').disabled=!picked.size||picked.size>core.MAX_SELECTED;$('clearSelection').disabled=!picked.size;
     for(const id of ['hideSelected','completeSelected','restoreSelected'])$(id).disabled=!picked.size||!catalogReady;
+    const canChangeVisibility=[...picked.values()].every(s=>s.entry.ref.startsWith('local:')?localCatalogReady:catalogReady);
+    $('hideSelected').disabled=$('restoreSelected').disabled=!picked.size||!canChangeVisibility;
     $('completeSelected').disabled ||= picked.size>core.MAX_SELECTED;
     $('hideSelected').hidden=view==='hidden';$('completeSelected').hidden=view!=='active';$('restoreSelected').hidden=view==='active';
     document.querySelectorAll('[data-pick]').forEach(input=>{input.checked=picked.has(input.dataset.pick);input.disabled=picked.size>=2000&&!input.checked;});
@@ -186,7 +191,7 @@
     if(!p.ref){const out=await request('/api/logs',{name:p.name,project_id:p.project,payload:p.payload});p.ref=out.id;}
     const verified=await readEntry(p.ref);
     if(verified.project_id!==p.project||canonical(verified.payload)!==canonical(p.payload))throw Error('保存内容を照合できませんでした。再度「保存」を押してください。');
-    catalog=await request('/api/output-plates/states?project_id='+encodeURIComponent(p.project));
+    remoteCatalog=await request('/api/output-plates/states?project_id='+encodeURIComponent(p.project));catalog={...localCatalog,...remoteCatalog};
     savedRef=p.ref;dirty=false;entries.unshift({...verified,ref:verified.id});pendingSave=null;
     renderEditor();note('「編集プレート」に保存しました。');history.replaceState(null,'','/output-plates?project='+encodeURIComponent(p.project)+'&log='+encodeURIComponent(savedRef));return savedRef;
   }
@@ -198,9 +203,16 @@
   }
   async function setVisibility(status){
     const selections=[...picked.values()].map(s=>({ref:s.entry.ref,index:s.index}));
-    if(selections.some(s=>s.ref.startsWith('local:')))throw Error('ブラウザ保存のプレートは、先に「編集 → 保存」でDBに登録してください。');
-    catalog=await request('/api/output-plates/states',{project_id:$('project').value,selections,status});
-    picked.clear();renderOverview();note(status==='hidden'?'非表示にしました。':'作業中に戻しました。');
+    const local=selections.filter(s=>s.ref.startsWith('local:')),remote=selections.filter(s=>!s.ref.startsWith('local:'));
+    let remoteSaved=false;
+    try{
+      if(remote.length){remoteCatalog=await request('/api/output-plates/states',{project_id:$('project').value,selections:remote,status});remoteSaved=true;}
+      if(local.length)localCatalog=await storage.setOutputPlateStates($('project').value,local,status);
+    }catch(e){
+      if(remoteSaved)throw Error('DB保存分のみ更新しました。'+e.message);
+      throw e;
+    }finally{catalog={...localCatalog,...remoteCatalog};picked.clear();renderOverview();}
+    note(status==='hidden'?'非表示にしました。':'作業中に戻しました。');
   }
   async function finish(list){
     const result=core.complete(list),payload=result.data;payload.plateEdit.savedAt=new Date().toISOString();
@@ -223,7 +235,7 @@
     const saved=await readEntry(out.id);
     if(canonical(saved.payload)!==canonical(payload))throw Error('保存内容を照合できません。一覧を更新してください。');
     const entry={...saved,ref:saved.id};entries.unshift(entry);
-    catalog=await request('/api/output-plates/states?project_id='+encodeURIComponent($('project').value));
+    remoteCatalog=await request('/api/output-plates/states?project_id='+encodeURIComponent($('project').value));catalog={...localCatalog,...remoteCatalog};
     return entry;
   }
   $('hideSelected').onclick=()=>guarded(()=>setVisibility('hidden'));

@@ -3,6 +3,7 @@ window.PlatePackStorage = (() => {
   const LEGACY_LOGS = "PLATEPACK_LOCAL_LOGS_V1";
   const LOGS_KEY = "PLATEPACK_LOGS_V2";
   const FOLDERS_KEY = "PLATEPACK_FOLDERS_V1";
+  const OUTPUT_STATES_KEY = "PLATEPACK_OUTPUT_STATES_V1";
   const DRAFT_KEY = "PLATEPACK_DRAFT_V2";
   const PREVIOUS_KEY = "PLATEPACK_DRAFT_PREVIOUS_V2";
   let databasePromise;
@@ -304,6 +305,45 @@ window.PlatePackStorage = (() => {
     });
   }
 
+  function validOutputState(item) {
+    return item && typeof item.id === 'string' && typeof item.project_id === 'string' &&
+      typeof item.origin === 'string' && ['active','hidden'].includes(item.status) && Number.isFinite(Date.parse(item.updated_at));
+  }
+
+  async function readOutputStateItems() {
+    const results = await readCopies(OUTPUT_STATES_KEY);
+    const copies = results.filter(r => r.status === 'fulfilled' && validCollection(r.value, validOutputState)).map(r => r.value);
+    if (copies.length) return mergeCopies(copies);
+    if (corruptCopies(results) || results.every(r => r.status === 'rejected')) throw new Error('ブラウザの表示状態を読み込めません。');
+    return [];
+  }
+
+  async function readOutputPlateStates(project_id) {
+    return Object.fromEntries((await readOutputStateItems()).filter(s => s.project_id === project_id)
+      .map(s => [s.origin, {status:s.status, completed_ref:null}]));
+  }
+
+  function setOutputPlateStates(project_id, selections, status) {
+    const selected = clone(selections);
+    return serialized(async () => {
+      if (!['active','hidden'].includes(status) || !Array.isArray(selected) || !selected.length || selected.length > 2000) throw new Error('対象プレートを確認してください。');
+      const logs = await readLogs(), items = await readOutputStateItems(), merged = new Map(items.map(s => [s.id,s]));
+      for (const selection of selected) {
+        const entry = logs.find(e => 'local:'+e.id === selection.ref && e.project_id === project_id);
+        const index = selection.index;
+        if (!entry || !Number.isInteger(index) || index < 0 || !entry.payload?.packedPlates?.[index]) throw new Error('ブラウザ保存のプレートを確認してください。');
+        const origin = entry.payload.packedPlates[index].outputOrigin || {ref:selection.ref,index};
+        if (typeof origin.ref !== 'string' || !Number.isInteger(origin.index) || origin.index < 0) throw new Error('元プレートの参照が不正です。');
+        const originKey = origin.ref+'#'+origin.index, id = JSON.stringify([project_id,originKey]);
+        merged.set(id, {id,project_id,origin:originKey,status,updated_at:modifiedAt(merged.get(id)||{})});
+      }
+      const record = {savedAt:timestamp(),items:[...merged.values()]};
+      const results = await Promise.allSettled([Promise.resolve().then(() => localPut(OUTPUT_STATES_KEY,record)),databasePut(OUTPUT_STATES_KEY,record)]);
+      if (results.every(r => r.status === 'rejected')) throw new Error('表示状態を保存できません。ブラウザの容量・設定を確認してください。');
+      return Object.fromEntries(record.items.filter(s => s.project_id === project_id).map(s => [s.origin,{status:s.status,completed_ref:null}]));
+    });
+  }
+
   function validDraft(record) {
     return record && Number.isFinite(record.savedAt) && Array.isArray(record.snapshot?.plates) && record.snapshot.plates.length;
   }
@@ -362,6 +402,6 @@ window.PlatePackStorage = (() => {
   }
 
   return { readLogs, writeLogs, saveLog, getLog, deleteLog, updateLog, copyLog,
-    readFolders, createFolder, updateFolder, mergeFolders,
+    readFolders, createFolder, updateFolder, mergeFolders, readOutputPlateStates, setOutputPlateStates,
     readDraft, writeDraftSync, writeDraft, requestPersistence, fetchJson };
 })();
