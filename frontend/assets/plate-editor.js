@@ -2,7 +2,7 @@
   'use strict';
   const $=id=>document.getElementById(id), core=PlateEditor, storage=PlatePackStorage;
   const params=new URLSearchParams(location.search);
-  let entries=[], picked=new Map(), current=null, original=null, undo=[], selection=null, gesture=null, rangeMode=false, targeting=false, dirty=false, busy=false, savedRef=null, pendingSave=null, catalog={}, view='active', doneBoards=new Set(), catalogReady=false, visibleKeys=new Set(), groups=new Map();
+  let entries=[], picked=new Map(), current=null, original=null, undo=[], selection=null, gesture=null, rangeMode=false, targeting=false, dirty=false, busy=false, savedRef=null, pendingSave=null, catalog={}, view='active', doneBoards=new Set(), catalogReady=false, groups=new Map();
   const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
   const note=(text,error=false)=>{$('notice').textContent=text;$('notice').dataset.error=error;};
   const request=(path,body)=>storage.fetchJson(path,body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{});
@@ -37,69 +37,59 @@
     document.querySelectorAll('[data-group]').forEach(input=>{const list=groups.get(input.dataset.group)||[],n=list.filter(s=>picked.has(key(s.entry,s.index))).length;input.checked=!!list.length&&n===list.length;input.indeterminate=n>0&&n<list.length;input.disabled=!list.length;});
     document.querySelectorAll('[data-view]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.view===view)));
   }
-  function plateCards(entry){
+  function plateCards(group,items){
     const list=el('div',undefined,'thumbnails');
-    entry.payload.packedPlates.forEach((plate,index)=>{
-      if(!visibleKeys.has(key(entry,index)))return;
-      const name=core.plateName(entry,index);
-      const card=el('div',undefined,'plate-card'),tools=el('div',undefined,'card-tools'),label=el('label'),check=el('input');check.type='checkbox';check.dataset.pick=key(entry,index);check.setAttribute('aria-label',entry.name+' / '+name+' を選択');
-      check.onchange=()=>{if(check.checked){if(picked.size>=2000){check.checked=false;return}picked.set(key(entry,index),{entry,index})}else picked.delete(key(entry,index));updatePicked()};
+    for(const item of items){
+      const {entry,index,status}=item,plate=entry.payload.packedPlates[index],name=core.plateName(entry,index);
+      const card=el('div',undefined,'plate-card'),tools=el('div',undefined,'card-tools'),label=el('label'),check=el('input');check.type='checkbox';check.dataset.pick=key(entry,index);check.setAttribute('aria-label',group.root.name+' / '+name+' を選択');
+      check.onchange=()=>{if(check.checked){if(picked.size>=2000){check.checked=false;return}picked.set(key(entry,index),item)}else picked.delete(key(entry,index));updatePicked()};
       label.append(check,document.createTextNode(name));tools.append(label,el('span',count(plate)+'/96'));
-      const open=el('button',undefined,'card-open');open.type='button';open.setAttribute('aria-label',entry.name+' / '+name+' を拡大');open.dataset.help='クリックで拡大。複数選択して「編集」で並べます。';
-      const mini=el('div',undefined,'mini');for(const cell of plate.grid.flat())mini.append(el('span',undefined,cell?'filled':''));open.append(mini);open.onclick=()=>start([{entry,index}]);card.append(tools,open);list.append(card);
-    });return list;
+      if(status==='completed')card.append(el('span','完了','plate-completed'));
+      const open=el('button',undefined,'card-open');open.type='button';open.setAttribute('aria-label',group.root.name+' / '+name+' を拡大');open.dataset.help='クリックで拡大。複数選択して「編集」で並べます。';
+      const mini=el('div',undefined,'mini');for(const cell of plate.grid.flat())mini.append(el('span',undefined,cell?'filled':''));open.append(mini);open.onclick=()=>start([item]);card.append(tools,open);list.append(card);
+    }return list;
   }
-  function heading(entry,container,members=[entry]){
-    const list=members.flatMap(e=>e.payload.packedPlates.map((_,index)=>({entry:e,index}))).filter(s=>visibleKeys.has(key(s.entry,s.index)));
-    groups.set(entry.ref,list);
+  function heading(group,container,items){
+    const entry=group.root,titleName=view==='completed'?entry.name.replace(/_(?:ed|done)$/,'')+'_ed':entry.name;
+    groups.set(entry.ref,items);
     const row=el('div',undefined,'record-heading'),title=el('h3'),label=el('label',undefined,'group-select'),check=el('input');
-    check.type='checkbox';check.dataset.group=entry.ref;check.setAttribute('aria-label',entry.name+' の組全体を選択');
+    check.type='checkbox';check.dataset.group=entry.ref;check.setAttribute('aria-label',titleName+' の組全体を選択');
     label.title='この組の表示中のプレートをまとめて選択';
     check.onchange=()=>{
       const next=new Map(picked);
-      for(const s of list){if(check.checked)next.set(key(s.entry,s.index),s);else next.delete(key(s.entry,s.index));}
+      for(const item of items){if(check.checked)next.set(key(item.entry,item.index),item);else next.delete(key(item.entry,item.index));}
       if(next.size>2000){note('一度に選択できるのは2000枚までです。',true);updatePicked();return;}
       picked=next;updatePicked();
     };
-    label.append(check,document.createTextNode(entry.name));title.append(label);row.append(title);
+    label.append(check,document.createTextNode(titleName));title.append(label);row.append(title);
+    const done=group.items.filter(s=>s.status==='completed').length;
+    if(view==='active'&&done)row.append(el('small','完了 '+done+'/'+group.items.length));
     const date=el('time',new Date(entry.created_at).toLocaleString('ja-JP'));row.append(date);if(entry.ref.startsWith('local:'))row.append(el('small','ブラウザ'));container.append(row);
   }
   function renderOverview(){
-    const parent=params.get('parent'),opened=params.get('log');$('records').replaceChildren();groups.clear();
-    visibleKeys=new Set();const originsSeen=new Set();
-    for(const e of entries)for(const [i,p] of e.payload.packedPlates.entries()){
-      if(!core.visible(e,i,catalog,view))continue;
-      const origin=core.catalogKey(e,i);if(!originsSeen.has(origin)||$('olderVersions').checked)visibleKeys.add(key(e,i));originsSeen.add(origin);
-    }
-    const visibleEntry=e=>e.payload.packedPlates.some((_,i)=>visibleKeys.has(key(e,i)));
-    const shown=entries.filter(visibleEntry).filter(e=>!parent||e.ref===parent||e.aliases?.includes(parent)||e.payload.plateEdit?.rootRefs.includes(parent));
-    function section(entry,container,cls='record'){
-      const box=el('section',undefined,cls);heading(entry,box);box.append(plateCards(entry));
-      if(entry.payload.plateEdit){const links=el('div',undefined,'toolbar'),roi=el('a','ROI対応へ');roi.href='/electrophoresis?log='+encodeURIComponent(entry.ref);links.append(roi);
-        const download=el('button','JSON ↓');download.onclick=()=>downloadEntry(entry);links.append(download);box.append(links);}
-      container.append(box);return box;
-    }
-    if(view==='completed'||!$('olderVersions').checked)shown.forEach(e=>section(e,$('records')));
-    else{
-      const roots=entries.filter(e=>!e.payload.plateEdit&&(!parent||e.ref===parent||e.aliases?.includes(parent)));
-      const placed=new Set();
-      for(const root of roots){
-        const children=shown.filter(e=>e.payload.plateEdit&&[root.ref,...root.aliases||[]].some(ref=>e.payload.plateEdit.rootRefs.includes(ref))&&!placed.has(e.ref));
-        if(!visibleEntry(root)&&!children.length)continue;
-        const box=el('section',undefined,'record');heading(root,box,[root,...children]);box.append(plateCards(root));
-        if(children.length){const folder=el('details',undefined,'edited-folder');folder.append(el('summary','編集プレート · '+children.length));folder.open=!!parent||children.some(e=>e.ref===opened||e.ref===savedRef);children.forEach(e=>{section(e,folder,'edited-record');placed.add(e.ref)});box.append(folder);}
-        $('records').append(box);placed.add(root.ref);
+    const parent=params.get('parent');$('records').replaceChildren();groups.clear();let total=0;
+    for(const group of core.overviewGroups(entries,catalog)){
+      if(parent&&![group.root.ref,...group.root.aliases||[]].includes(parent))continue;
+      const items=group.items.filter(s=>view==='completed'?group.completed:view==='hidden'?s.status==='hidden':!group.completed&&s.status!=='hidden');
+      if(!items.length)continue;
+      total+=items.length;
+      const box=el('section',undefined,'record');heading(group,box,items);box.append(plateCards(group,items));
+      if(view==='completed'){
+        const links=el('div',undefined,'toolbar'),roi=el('button','ROI対応へ'),download=el('button','JSON ↓');
+        roi.onclick=()=>guarded(async()=>{const saved=await ensureCompletedGroup(group);location.href='/electrophoresis?log='+encodeURIComponent(saved.ref)});
+        download.onclick=()=>guarded(async()=>downloadEntry(await ensureCompletedGroup(group)));
+        links.append(roi,download);box.append(links);
       }
-      shown.filter(e=>!placed.has(e.ref)).forEach(e=>section(e,$('records')));
+      $('records').append(box);
     }
     if(!$('records').children.length)$('records').append(el('p','プレートなし'));
-    $('recordCount').textContent=shown.reduce((n,e)=>n+e.payload.packedPlates.filter((_,i)=>visibleKeys.has(key(e,i))).length,0)+'枚';updatePicked();
+    $('recordCount').textContent=total+'枚';updatePicked();
   }
   function downloadEntry(entry){
     const url=URL.createObjectURL(new Blob([JSON.stringify(entry.payload,null,2)],{type:'application/json'})),a=el('a');a.href=url;a.download=entry.name+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
   }
   function start(list){
-    try{current=core.assemble(list);original=core.clone(current.data);undo=[];selection=null;doneBoards.clear();savedRef=list.every(s=>s.entry.ref===list[0].entry.ref)&&list[0].entry.payload.recordType==='edited_plate'?list[0].entry.ref:null;pendingSave=null;dirty=false;rangeMode=false;targeting=false;
+    try{current=core.assemble(list,{mergeSources:true});original=core.clone(current.data);undo=[];selection=null;doneBoards.clear();savedRef=list.every(s=>s.entry.ref===list[0].entry.ref)&&list[0].entry.payload.recordType==='edited_plate'?list[0].entry.ref:null;pendingSave=null;dirty=false;rangeMode=false;targeting=false;
       $('overview').hidden=true;$('editor').hidden=false;$('project').disabled=true;$('refresh').disabled=true;$('editTitle').textContent=current.name;note('');renderEditor();window.scrollTo(0,0);
     }catch(e){note(e.message,true)}
   }
@@ -217,7 +207,24 @@
     const out=await request('/api/logs',{name:result.name,project_id:$('project').value,payload});
     const verified=await readEntry(out.id);
     if(canonical(verified.payload)!==canonical(payload))throw Error('保存を照合できませんでした。一覧を更新してください。');
-    overviewPage();view='completed';await load();note('「'+result.name+'」にまとめました。');
+    overviewPage();await load();
+    const affected=new Set(list.map(s=>s.entry.payload.packedPlates[s.index].outputOrigin?.ref||s.entry.ref));
+    const completed=core.overviewGroups(entries,catalog).filter(g=>affected.has(g.root.ref)&&g.completed);
+    for(const group of completed)await ensureCompletedGroup(group);
+    view=completed.length?'completed':'active';picked.clear();renderOverview();
+    note(completed.length?completed.map(g=>'「'+g.root.name+'_ed」').join('、')+'を編集完了にまとめました。':'完了を記録しました。組内の全プレートが完了すると「編集完了」に表示されます。');
+  }
+  async function ensureCompletedGroup(group){
+    const fresh=core.overviewGroups(entries,catalog).find(g=>g.root.ref===group.root.ref);
+    if(!fresh?.completed)throw Error('組内に未完了のプレートがあります。');
+    if(fresh.finalized)return fresh.finalized;
+    const result=core.completeGroup(fresh),payload=result.data;payload.plateEdit.savedAt=new Date().toISOString();
+    const out=await request('/api/logs',{name:result.name,project_id:$('project').value,payload});
+    const saved=await readEntry(out.id);
+    if(canonical(saved.payload)!==canonical(payload))throw Error('保存内容を照合できません。一覧を更新してください。');
+    const entry={...saved,ref:saved.id};entries.unshift(entry);
+    catalog=await request('/api/output-plates/states?project_id='+encodeURIComponent($('project').value));
+    return entry;
   }
   $('hideSelected').onclick=()=>guarded(()=>setVisibility('hidden'));
   $('restoreSelected').onclick=()=>guarded(()=>setVisibility('active'));
@@ -226,7 +233,6 @@
     const indices=[...doneBoards];if(!indices.length)return;
     const ref=await saveCurrent(),e=await readEntry(ref);await finish(indices.map(index=>({entry:{...e,ref},index})));
   });
-  $('olderVersions').onchange=()=>{picked.clear();renderOverview()};
   document.querySelectorAll('[data-view]').forEach(button=>button.onclick=()=>{view=button.dataset.view;picked.clear();renderOverview();note('')});
   $('editSelected').onclick=()=>start([...picked.values()]);$('clearSelection').onclick=()=>{picked.clear();updatePicked()};$('refresh').onclick=()=>guarded(load);$('project').onchange=()=>{params.delete('parent');params.delete('log');history.replaceState(null,'','/output-plates?project='+encodeURIComponent($('project').value));guarded(load)};
   window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue=''}});
@@ -234,6 +240,6 @@
     const folders=await PlatePackProjects.folders();for(const f of folders.filter(f=>f.kind==='project'))$('project').add(new Option((folders.find(p=>p.id===f.parent_id)?.name||'メンバー')+' / '+f.name,f.id));
     const ref=params.get('log');let opened=null;if(ref){opened=await readEntry(ref);if(!opened)throw Error('データが見つかりません。');params.set('project',opened.project_id)}
     if(params.get('project'))$('project').value=params.get('project');if(!$('project').value)throw Error('プロジェクトが見つかりません。');
-    await load();if(opened){const entry={...opened,ref};const chosen=entry.payload.plateEdit?.selectedPlates || entry.payload.packedPlates.slice(0,core.MAX_SELECTED).map((_,i)=>i);start(chosen.map(index=>({entry,index})))}
+    await load();if(opened){const entry={...opened,ref};const chosen=(entry.payload.plateEdit?.selectedPlates || entry.payload.packedPlates.map((_,i)=>i)).slice(0,core.MAX_SELECTED);start(chosen.map(index=>({entry,index})))}
   });
 })();

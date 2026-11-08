@@ -7,3 +7,5 @@
 .view-options{position:relative;font-size:14px}.view-options summary{cursor:pointer;padding:8px}.view-options>label{position:absolute;top:100%;left:0;min-width:150px;padding:12px;background:#fff;border:1px solid #dce4e0;border-radius:8px;box-shadow:0 4px 12px #20332e22}.view-options input{accent-color:#176d55}
 
 .group-select{display:flex;align-items:center;gap:10px;cursor:pointer}.group-select input{width:18px;height:18px;accent-color:#176d55;flex-shrink:0}
+
+.plate-completed{display:block;font-size:12px;color:#176d55;margin-bottom:6px}

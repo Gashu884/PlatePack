@@ -131,3 +131,73 @@ test('different chosen outputs can be merged from files that share unselected hi
   assert.equal(combined.data.packedPlates.length,2);assert.equal(sampleSet(combined.data).length,5);
   const changed=move(combined.data,0,1,['A1'],'A1','C3');assert.equal(core.cellAt(changed,1,'C3').sourceWell,'A1');
 });
+
+test('overview stays under original group until every physical output is completed',()=>{
+  const raw=entry('1-1_20261023',3),saved=core.assemble([{entry:raw,index:0}],{selectedOnly:true});
+  saved.data=core.apply(saved.data,{type:'delete',from:0,wells:['A1']});
+  const edit={ref:'draft',name:'1-1_20261023_ed',created_at:'2026-11-02',project_id:'project',payload:saved.data};
+  let [group]=core.overviewGroups([raw,edit],{});
+  assert.equal(group.root.name,'1-1_20261023');assert.equal(group.items.length,3);assert.equal(group.items[0].entry.ref,'draft');assert.equal(group.completed,false);
+  assert.equal(group.items[0].entry.payload.packedPlates[0].grid[0][0],null);
+  const state={'1-1_20261023#0':{status:'completed',completed_ref:'draft'}};
+  [group]=core.overviewGroups([raw,edit],state);
+  assert.equal(group.completed,false);assert.equal(group.items[0].status,'completed');assert.equal(group.items[1].status,'active');
+  assert.throws(()=>core.completeGroup(group),/すべて/);
+  state['1-1_20261023#1']={status:'hidden'};state['1-1_20261023#2']={status:'completed'};
+  assert.equal(core.overviewGroups([raw,edit],state)[0].completed,false);
+});
+
+test('final completed group merges separately finished plates in original order into one _ed file',()=>{
+  const raw=entry('experiment',3);
+  const first=core.complete([{entry:raw,index:0},{entry:raw,index:2}]);
+  const second=core.complete([{entry:raw,index:1}]);
+  const a={ref:'done-a',name:first.name,project_id:'project',created_at:'2',payload:first.data};
+  const b={ref:'done-b',name:second.name,project_id:'project',created_at:'3',payload:second.data};
+  const state=Object.fromEntries([0,1,2].map(i=>['experiment#'+i,{status:'completed',completed_ref:i===1?'done-b':'done-a'}]));
+  const [group]=core.overviewGroups([raw,a,b],state),result=core.completeGroup(group);
+  assert.equal(result.name,'experiment_ed');assert.equal(result.data.plateEdit.completedGroupRoot,'experiment');
+  assert.deepEqual(result.data.packedPlates.map(p=>p.outputOrigin.index),[0,1,2]);
+  assert.deepEqual(result.data.plateEdit.initialPackedPlates,result.data.packedPlates);
+  assert.equal(result.data.packedPlates.flatMap(p=>p.grid.flat()).filter(Boolean).length,5);
+  const final={ref:'final',name:result.name,project_id:'project',created_at:'4',payload:result.data};
+  Object.values(state).forEach(s=>s.completed_ref='final');
+  assert.equal(core.overviewGroups([raw,a,b,final],state)[0].finalized.ref,'final');
+  state['experiment#0'].status='active';
+  const reopened=core.overviewGroups([raw,a,b,final],state)[0];
+  assert.equal(reopened.completed,false);assert.equal(reopened.items[0].entry.ref,'final');
+});
+
+test('groups remain separate after cross-group well moves and completion',()=>{
+  const a=entry('group-a',1),b=entry('group-b',1),joined=core.assemble([{entry:a,index:0},{entry:b,index:0}]);
+  joined.data=move(joined.data,0,1,['A1'],'A1','C3');
+  const edit={ref:'combined',name:'group-a + group-b_ed',project_id:'project',created_at:'2',payload:joined.data};
+  const states={'group-a#0':{status:'completed',completed_ref:'combined'}};
+  const groups=core.overviewGroups([a,b,edit],states);
+  assert.equal(groups.length,2);assert.equal(groups.find(g=>g.root.ref==='group-a').completed,true);
+  const active=groups.find(g=>g.root.ref==='group-b');assert.equal(active.completed,false);assert.equal(active.items[0].entry.ref,'combined');
+  assert.equal(active.items[0].entry.payload.packedPlates[1].grid[2][2].sourcePlate,'1');
+});
+
+test('completion supports large groups and corrected sources from different saved revisions',()=>{
+  const raw=entry('many',30),first=core.assemble([{entry:raw,index:0}],{selectedOnly:true});
+  first.data=correct(first.data,0,'A1','1','F5');
+  const corrected={ref:'corrected',name:'many_ed',project_id:'project',created_at:'2',payload:first.data};
+  const states=Object.fromEntries(Array.from({length:30},(_,i)=>['many#'+i,{status:'completed',completed_ref:i===0?'corrected':raw.ref}]));
+  const result=core.completeGroup(core.overviewGroups([raw,corrected],states)[0]);
+  assert.equal(result.data.packedPlates.length,30);
+  assert.equal(result.data.packedPlates[0].grid[0][0].sourceWell,'F5');
+  assert.equal(result.data.packedPlates[1].grid[7][11].sourceWell,'H12');
+  assert.equal(result.data.plates.length,1);
+  assert.equal(links.resolve(result.data,'packed',result.data.packedPlates[0].id,'A1').sourceNamespace,'many');
+});
+
+test('an unchanged historical output in a newer draft cannot replace its latest saved placement',()=>{
+  const raw=entry('original'),one=core.assemble([{entry:raw,index:1}]),two=core.assemble([{entry:raw,index:0}]);
+  one.data=move(one.data,1,1,['H12'],'H12','C3');
+  const a={ref:'saved-one',name:'original_ed',project_id:'project',created_at:'1',payload:one.data};
+  const b={ref:'saved-two',name:'original_ed',project_id:'project',created_at:'2',payload:two.data};
+  const [group]=core.overviewGroups([raw,a,b],{});
+  assert.equal(group.items[0].entry.ref,'saved-two');
+  assert.equal(group.items[1].entry.ref,'saved-one');
+  assert.equal(group.items[1].entry.payload.packedPlates[1].grid[2][2].sourceWell,'H12');
+});

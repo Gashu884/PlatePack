@@ -11,7 +11,7 @@ def position(well):
 
 def validate_edit(payload):
     meta = payload["plateEdit"]
-    if meta["version"] != 1 or not meta["rootRefs"] or not 1 <= len(meta["parentRefs"]) <= 24:
+    if meta["version"] != 1 or not meta["rootRefs"] or not 1 <= len(meta["parentRefs"]) <= (2000 if meta.get("completedGroupRoot") else 24):
         raise ValueError("元データの参照を確認してください。")
     for ref in meta["rootRefs"] + meta["parentRefs"]:
         if not isinstance(ref, str) or not re.fullmatch(r"(?:local:)?[\w-]{1,128}", ref):

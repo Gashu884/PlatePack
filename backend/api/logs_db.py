@@ -413,6 +413,21 @@ def create_log(name: str, payload: Dict[str, Any], project_id: Optional[str] = N
     stored_payload = Json(payload) if _HAS_POSTGRES and Json is not None else json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
     with _database(write=True) as conn:
         project = _require_project(conn, project_id)
+        meta = payload['plateEdit'] if payload.get('recordType') == 'edited_plate' else {}
+        if meta.get('completedGroupRoot'):
+            root_ref = meta['completedGroupRoot']
+            root = _execute(conn, 'SELECT payload_json,project_id FROM logs WHERE id=?', (root_ref,)).fetchone()
+            if not root or root['project_id'] != project:
+                raise StorageValidationError('元の組を確認できません。')
+            raw = root['payload_json'] if isinstance(root['payload_json'], dict) else json.loads(root['payload_json'])
+            expected = {f'{root_ref}#{i}' for i in range(len(raw.get('packedPlates', [])))}
+            actual = {_output_origin_key(p.get('outputOrigin')) for p in payload.get('packedPlates', [])}
+            if raw.get('plateEdit') or not expected or expected != actual or meta.get('collection') != 'completed':
+                raise StorageValidationError('元の組の全プレートをまとめてください。')
+            for origin_key in expected:
+                state = _execute(conn, 'SELECT status,completed_ref FROM output_plate_states WHERE project_id=? AND origin_key=?', (project, origin_key)).fetchone()
+                if not state or state['status'] != 'completed' or state['completed_ref'] not in meta.get('parentRefs', []):
+                    raise StorageValidationError('未完了または更新されたプレートがあります。一覧を更新してください。')
         _execute(conn,
                  "INSERT INTO logs (id, name, created_at, payload_json, project_id, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
                  (log_id, cleaned, created_at, stored_payload, project, created_at))

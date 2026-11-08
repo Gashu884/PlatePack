@@ -23,8 +23,8 @@
   function identity(p, ref, index) {
     return p.sourceOrigin || {namespace:ref.replace(/[^\w-]/g,'-'), uid:p.uid || 'source-'+(index+1), plate:String(index+1), label:p.label || 'Plate '+(index+1)};
   }
-  function assemble(selections) {
-    if (!selections.length || selections.length>MAX_SELECTED) throw Error(`1〜${MAX_SELECTED}枚を選択してください。`);
+  function assemble(selections, options={}) {
+    if (!selections.length || selections.length>(options.groupCompletion?2000:MAX_SELECTED)) throw Error(`1〜${MAX_SELECTED}枚を選択してください。`);
     const entries = [...new Map(selections.map(s=>[s.entry.ref,s.entry])).values()];
     if (new Set(entries.map(e=>e.project_id)).size!==1) throw Error('同じプロジェクトのプレートを選んでください。');
     const data = {version:2, recordType:'edited_plate', plates:[], packedPlates:[], sourceColorMap:[], currentSaveProjectId:entries[0].project_id,
@@ -43,14 +43,18 @@
           data.plates.push(copy);sourceIndices.set(key,String(data.plates.length));
         } else {
           const existing=data.plates[Number(sourceIndices.get(key))-1];
-          if(JSON.stringify(existing.wells)!==JSON.stringify(p.wells) || JSON.stringify(existing.growthWeeks||{})!==JSON.stringify(p.growthWeeks||{}))throw Error('同じ入力プレートに異なる内容があります。同じ版を選択してください。');
+          if(options.mergeSources){
+            // Only selected output cells are authoritative when combining saved revisions.
+            existing.wells=[...new Set([...existing.wells,...p.wells])];
+            existing.growthWeeks={...p.growthWeeks,...existing.growthWeeks};
+          }else if(JSON.stringify(existing.wells)!==JSON.stringify(p.wells) || JSON.stringify(existing.growthWeeks||{})!==JSON.stringify(p.growthWeeks||{}))throw Error('同じ入力プレートに異なる内容があります。同じ版を選択してください。');
         }
         remap.set(String(i+1),sourceIndices.get(key));
       });
       for (const [index, plate] of (snapshot.packedPlates || []).entries()) {
         // Separate files can share unselected historical outputs. Merge only the
         // chosen physical plates across files; originals retain their other plates.
-        if(entries.length>1&&!selections.some(s=>s.entry.ref===entry.ref&&s.index===index))continue;
+        if((entries.length>1||options.selectedOnly)&&!selections.some(s=>s.entry.ref===entry.ref&&s.index===index))continue;
         grid(plate.grid);
         const origin=plate.outputOrigin || {ref:entry.ref,index};
         const originKey=origin.ref+':'+origin.index;
@@ -77,6 +81,9 @@
       const key=cell.sourcePlate+':'+cell.sourceWell;
       if(identities.has(key))throw Error('同じ試料が複数の出力ウェルにあります。同じ元データの別の版を選んでいないか確認してください。');
       identities.add(key);
+    }
+    if(options.mergeSources)for(const p of data.packedPlates)for(const c of p.grid.flat())if(c?.growthWeek!==undefined){
+      const source=data.plates[Number(c.sourcePlate)-1];source.growthWeeks ||= {};source.growthWeeks[c.sourceWell]=c.growthWeek;
     }
     data.plateEdit.initialPackedPlates=clone(data.packedPlates);
     data.plateEdit.initialSourcePlates=clone(data.plates);
@@ -138,7 +145,7 @@
   }
   function rectangle(a,b){const [ar,ac]=position(a),[br,bc]=position(b),out=[];for(let r=Math.min(ar,br);r<=Math.max(ar,br);r++)for(let c=Math.min(ac,bc);c<=Math.max(ac,bc);c++)out.push(well(r,c));return out;}
   function complete(selections){
-    const result=assemble(selections),indices=result.selected;
+    const result=assemble(selections,{selectedOnly:true,mergeSources:true}),indices=result.selected;
     result.data.packedPlates=indices.map(i=>result.data.packedPlates[i]);
     result.data.plateEdit.initialPackedPlates=clone(result.data.packedPlates);
     result.selected=indices.map((_,i)=>i);result.data.plateEdit.selectedPlates=clone(result.selected);
@@ -157,5 +164,38 @@
     if(item.completed_ref)return entry.ref===item.completed_ref;
     return entry.payload.plateEdit?.collection!=='completed';
   }
-  return {clone,well,position,assemble,apply,cellAt,rectangle,complete,provenance,plateName,catalogKey,visible,MAX_SELECTED};
+  function overviewGroups(entries,catalog){
+    const sorted=entries.slice().sort((a,b)=>String(b.created_at||'').localeCompare(String(a.created_at||'')));
+    const latest=new Map();
+    for(const entry of sorted)for(const [index] of entry.payload.packedPlates.entries()){
+      const key=catalogKey(entry,index),state=catalog[key];
+      if(entry.payload.plateEdit?.selectedPlates&&!entry.payload.plateEdit.selectedPlates.includes(index)&&!state?.completed_ref)continue;
+      if(state?.completed_ref&&state.completed_ref!==entry.ref)continue;
+      if(!latest.has(key))latest.set(key,{entry,index});
+    }
+    return sorted.filter(e=>!e.payload.plateEdit).map(root=>{
+      const refs=[root.ref,...root.aliases||[]];
+      const items=root.payload.packedPlates.map((_,index)=>{
+        const keys=refs.map(ref=>originKey({ref,index}));
+        const k=keys.find(k=>catalog[k])||keys.find(k=>latest.has(k))||keys[0];
+        return {...latest.get(k)||{entry:root,index},status:catalog[k]?.status||'active',origin:k};
+      });
+      const completed=items.length>0&&items.every(s=>s.status==='completed');
+      const candidate=items[0]?.entry;
+      const finalized=completed&&candidate?.payload.plateEdit?.completedGroupRoot===root.ref&&items.every(s=>s.entry.ref===candidate.ref)?candidate:null;
+      return {root,items,completed,finalized};
+    });
+  }
+  function completeGroup(group){
+    if(!group.completed)throw Error('すべてのプレートを編集完了にしてください。');
+    const result=assemble(group.items,{selectedOnly:true,mergeSources:true,groupCompletion:true});
+    result.data.packedPlates.sort((a,b)=>a.outputOrigin.index-b.outputOrigin.index);
+    result.data.plateEdit.initialPackedPlates=clone(result.data.packedPlates);
+    result.selected=result.data.packedPlates.map((_,i)=>i);result.data.plateEdit.selectedPlates=clone(result.selected);
+    result.data.plateEdit.collection='completed';
+    result.data.plateEdit.completedGroupRoot=group.root.ref;
+    result.name=group.root.name.replace(/_(?:ed|done)$/,'').slice(0,117)+'_ed';
+    return result;
+  }
+  return {clone,well,position,assemble,apply,cellAt,rectangle,complete,provenance,plateName,catalogKey,visible,overviewGroups,completeGroup,MAX_SELECTED};
 });

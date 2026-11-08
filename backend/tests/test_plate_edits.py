@@ -192,6 +192,51 @@ process.stdout.write(JSON.stringify(c.apply(data,{type:'correct-source',from:1,w
             self.assertEqual(restore.json()['raw-two#0']['status'],'active')
             self.assertEqual(restore.json()['raw-two#0']['completed_ref'],response.json()['id'])
 
+    def test_group_file_requires_all_completed_and_preserves_latest_separate_revisions(self):
+        script = """const c=require('./frontend/assets/plate-editor-core.js');
+const x=JSON.parse(require('fs').readFileSync(0,'utf8'));
+const result=x.mode==='group'?c.completeGroup(c.overviewGroups(x.entries,x.states)[0]):c.complete([{entry:x.entry,index:x.index}]);
+process.stdout.write(JSON.stringify(result));"""
+        def build(data):
+            return json.loads(subprocess.check_output(['node','-e',script],input=json.dumps(data).encode(),cwd=ROOT))
+        raw = {'plates':[{'uid':'input','label':'Input','wells':['A1','B1'],'growthWeeks':{'A1':1,'B1':2}}],
+               'packedPlates':[{'id':f'P{i}', 'grid':[[None]*12 for _ in range(8)]} for i in range(2)]}
+        raw['packedPlates'][0]['grid'][0][0]={'sourcePlate':'1','sourceWell':'A1','growthWeek':1}
+        raw['packedPlates'][1]['grid'][0][0]={'sourcePlate':'1','sourceWell':'B1','growthWeek':2}
+        with TestClient(app) as client:
+            root_id=client.post('/api/logs',json={'name':'Example','payload':raw}).json()['id']
+            root=client.get('/api/logs/'+root_id).json();root['ref']=root_id
+            entries=[root]
+            for index in range(2):
+                part=build({'entry':root,'index':index})
+                saved=client.post('/api/logs',json={'name':part['name'],'payload':part['data']})
+                self.assertEqual(saved.status_code,200,saved.text)
+                e=client.get('/api/logs/'+saved.json()['id']).json();e['ref']=e['id'];entries.append(e)
+            states=client.get('/api/output-plates/states?project_id=default-project').json()
+            result=build({'mode':'group','entries':entries,'states':states})
+            body={'name':result['name'],'payload':result['data']}
+            self.assertEqual(body['name'],'Example_ed')
+            # Hide one plate after the client computed its final group: refuse stale completion.
+            selection={'ref':root_id,'index':1}
+            client.post('/api/output-plates/states',json={'project_id':'default-project','selections':[selection],'status':'hidden'})
+            before=len(client.get('/api/logs').json())
+            self.assertEqual(client.post('/api/logs',json=body).status_code,422)
+            self.assertEqual(len(client.get('/api/logs').json()),before)
+            # Mark it complete again, then use the fresh refs to consolidate.
+            part=build({'entry':root,'index':1})
+            saved=client.post('/api/logs',json={'name':part['name'],'payload':part['data']}).json()
+            e=client.get('/api/logs/'+saved['id']).json();e['ref']=e['id'];entries.append(e)
+            states=client.get('/api/output-plates/states?project_id=default-project').json()
+            result=build({'mode':'group','entries':entries,'states':states})
+            response=client.post('/api/logs',json={'name':result['name'],'payload':result['data']})
+            self.assertEqual(response.status_code,200,response.text)
+            final=client.get('/api/logs/'+response.json()['id']).json()
+            self.assertEqual(len(final['payload']['packedPlates']),2)
+            self.assertEqual(final['name'],'Example_ed')
+            self.assertEqual(client.get('/api/logs/'+root_id).json()['payload'],raw)
+            states=client.get('/api/output-plates/states?project_id=default-project').json()
+            self.assertTrue(all(s['completed_ref']==response.json()['id'] for s in states.values()))
+
     def test_invalid_completion_rolls_back_file_and_all_visibility_changes(self):
         self.payload['plateEdit']['collection']='completed'
         self.payload['packedPlates'][1]['outputOrigin']['index']=-1
