@@ -2,7 +2,7 @@
   'use strict';
   const $=id=>document.getElementById(id), core=PlateEditor, storage=PlatePackStorage;
   const params=new URLSearchParams(location.search);
-  let entries=[], picked=new Map(), current=null, original=null, undo=[], selection=null, gesture=null, rangeMode=false, targeting=false, dirty=false, busy=false, savedRef=null, pendingSave=null, catalog={}, view='active', doneBoards=new Set(), catalogReady=false, localCatalogReady=false, remoteCatalog={}, localCatalog={}, groups=new Map(), repairEntry=null;
+  let entries=[], picked=new Map(), current=null, original=null, undo=[], selection=null, gesture=null, rangeMode=false, targeting=false, dirty=false, busy=false, savedRef=null, pendingSave=null, catalog={}, view='active', doneBoards=new Set(), catalogReady=false, localCatalogReady=false, remoteCatalog={}, localCatalog={}, groups=new Map(), repairEntry=null, repackPreview=null;
   const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
   const note=(text,error=false)=>{$('notice').textContent=text;$('notice').dataset.error=error;};
   const request=(path,body)=>storage.fetchJson(path,body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{});
@@ -77,6 +77,10 @@
       if(!items.length)continue;
       total+=items.length;
       const box=el('section',undefined,'record');heading(group,box,items);box.append(plateCards(group,items));
+      if(!group.root.ref.startsWith('local:')&&!group.root.payload.gelLinks&&group.items.every(s=>!s.entry.payload.plateEdit)){
+        const options=el('details'),summary=el('summary','配置'),rebuild=el('button','入力から再生成');
+        rebuild.onclick=()=>guarded(()=>previewRepack(group.root));options.append(summary,rebuild);box.append(options);
+      }
       if(view==='completed'){
         const links=el('div',undefined,'toolbar'),roi=el('button','ROI対応へ'),download=el('button','JSON ↓');
         roi.onclick=()=>guarded(async()=>{const saved=await ensureCompletedGroup(group);location.href='/electrophoresis?log='+encodeURIComponent(saved.ref)});
@@ -101,13 +105,25 @@
       note(e.message,true);
     }
   }
-  $('reconcileOutput').onclick=()=>guarded(async()=>{
-    if(!repairEntry)return;
-    const entry=repairEntry,cells=core.orphanOutputs(entry);
-    const saved=await request('/api/logs/'+encodeURIComponent(entry.ref)+'/reconcile-output',{expected_updated_at:entry.updated_at,cells});
-    const verified=await readEntry(entry.ref);
-    if(canonical(saved.payload)!==canonical(verified.payload))throw Error('保存内容を照合できません。一覧を更新してください。');
-    await load();note('入力にない試料 '+cells.length+'件を出力から除外しました。');
+  async function previewRepack(entry){
+    const result=await request('/api/logs/'+encodeURIComponent(entry.ref)+'/repack-output',{expected_updated_at:entry.updated_at,preview:true});
+    repackPreview={entry,...result};
+    $('repackSummary').textContent=entry.name+' · '+result.counts.map((n,i)=>(i+1)+'枚目 '+n+'試料').join(' / ');
+    $('repackChanges').replaceChildren();
+    const label=c=>c?c.sourcePlate+'-'+c.sourceWell:'空';
+    for(const c of result.changes)$('repackChanges').append(el('li',(c.plate+1)+'枚目 / '+c.well+'：'+label(c.before)+' → '+label(c.after)));
+    $('applyRepack').disabled=!result.changes.length;$('repackError').textContent='';$('repackDialog').showModal();
+  }
+  $('reconcileOutput').onclick=()=>guarded(async()=>{if(repairEntry)await previewRepack(repairEntry)});
+  $('cancelRepack').onclick=()=>$('repackDialog').close();
+  $('applyRepack').onclick=()=>guarded(async()=>{
+    if(!repackPreview)return;
+    try{
+      const p=repackPreview,saved=await request('/api/logs/'+encodeURIComponent(p.entry.ref)+'/repack-output',{expected_updated_at:p.expected_updated_at,preview:false});
+      const verified=await readEntry(p.entry.ref);
+      if(canonical(saved.payload)!==canonical(verified.payload))throw Error('保存内容を照合できません。一覧を更新してください。');
+      $('repackDialog').close();repackPreview=null;await load();note('入力から出力を再生成しました。');
+    }catch(e){$('repackError').textContent=e.message;throw e;}
   });
   function mark(){
     document.querySelectorAll('.well').forEach(b=>b.classList.toggle('selected',selection?.plate===+b.dataset.plate&&selection.wells.includes(b.dataset.well)));

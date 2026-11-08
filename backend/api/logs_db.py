@@ -529,6 +529,31 @@ def get_log(log_id: str) -> Optional[LogEntry]:
                     parent_refs=payload.get("plateEdit", {}).get("rootRefs", []) if payload.get("recordType") == "edited_plate" else [])
 
 
+def repack_output(log_id, expected_updated_at, preview=True):
+    from .repack import rebuild_outputs
+    with _database(write=True) as conn:
+        lock = ' FOR UPDATE' if _HAS_POSTGRES else ''
+        row = _execute(conn, 'SELECT * FROM logs WHERE id=?'+lock, (log_id,)).fetchone()
+        if not row:
+            raise RecordNotFoundError('データが見つかりません。')
+        if row['updated_at'] != expected_updated_at:
+            raise StorageValidationError('保存内容が更新されています。一覧を更新してください。')
+        payload = row['payload_json'] if isinstance(row['payload_json'], dict) else json.loads(row['payload_json'])
+        try:
+            outputs, changes = rebuild_outputs(payload)
+        except (ValueError, TypeError, KeyError, IndexError) as exc:
+            raise StorageValidationError('出力を再生成できません。'+str(exc)) from exc
+        if preview:
+            return {'expected_updated_at':row['updated_at'],'changes':changes,'counts':[sum(c is not None for r in p['grid'] for c in r) for p in outputs]}
+        now = _now_iso()
+        payload.setdefault('outputRebuilds', []).append({'at':now,'previousUpdatedAt':row['updated_at'],'before':payload.get('packedPlates', [])})
+        payload['packedPlates'] = outputs
+        payload['currentPackedIndex'] = min(payload.get('currentPackedIndex', 0),len(outputs)-1)
+        stored = Json(payload) if _HAS_POSTGRES and Json is not None else json.dumps(payload,ensure_ascii=False,separators=(',',':'))
+        _execute(conn, 'UPDATE logs SET payload_json=?,updated_at=? WHERE id=?', (stored,now,log_id))
+    return get_log(log_id)
+
+
 def reconcile_output(log_id, expected_updated_at, cells):
     from .plate_edits import position
     with _database(write=True) as conn:

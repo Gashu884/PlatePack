@@ -237,6 +237,45 @@ process.stdout.write(JSON.stringify(result));"""
             states=client.get('/api/output-plates/states?project_id=default-project').json()
             self.assertTrue(all(s['completed_ref']==response.json()['id'] for s in states.values()))
 
+    def test_repack_preview_then_save_compacts_inputs_and_preserves_history(self):
+        from backend.api.repack import rebuild_outputs
+        wells=[chr(65+r)+str(c+1) for r in range(8) for c in range(12)]
+        raw={'plates':[{'wells':wells,'growthWeeks':{}},{'wells':wells[:89],'growthWeeks':{}}],
+             'inputReadDirection':'row','blockedLayoutWells':['D12','H12'],
+             'packedLayout':{'layoutDirection':'row','horizontalDividers':[4],'verticalDividers':[]}}
+        raw['packedPlates']=rebuild_outputs(raw)[0]
+        raw['plates'][0]['wells']=wells[1:]
+        with TestClient(app) as client:
+            saved=client.post('/api/logs',json={'name':'Group','payload':raw}).json()
+            url='/api/logs/'+saved['id']+'/repack-output'
+            body={'expected_updated_at':saved['updated_at'],'preview':True}
+            preview=client.post(url,json=body)
+            self.assertEqual(preview.status_code,200,preview.text)
+            self.assertEqual(preview.json()['counts'],[94,90])
+            self.assertEqual(client.get('/api/logs/'+saved['id']).json()['payload'],raw)
+            body['preview']=False
+            response=client.post(url,json=body)
+            self.assertEqual(response.status_code,200,response.text)
+            result=response.json()['payload']
+            self.assertEqual(result['plates'],raw['plates'])
+            self.assertEqual(result['packedPlates'][0]['grid'][0][0]['sourceWell'],'A2')
+            for p in result['packedPlates']:
+                self.assertIsNone(p['grid'][3][11]);self.assertIsNone(p['grid'][7][11])
+            self.assertEqual(result['outputRebuilds'][0]['before'],raw['packedPlates'])
+            self.assertEqual(client.post(url,json=body).status_code,422)
+
+    def test_repack_respects_column_input_output_and_dividers(self):
+        from backend.api.repack import rebuild_outputs
+        raw={'plates':[{'wells':['A2','B1'],'growthWeeks':{'A2':4,'B1':2}}],
+             'inputReadDirection':'column','blockedLayoutWells':['A1'],
+             'packedLayout':{'layoutDirection':'column','horizontalDividers':[4],'verticalDividers':[6]}}
+        result,_=rebuild_outputs(raw)
+        self.assertEqual(result[0]['grid'][1][0]['sourceWell'],'B1')
+        self.assertEqual(result[0]['grid'][2][0]['sourceWell'],'A2')
+        self.assertEqual(result[0]['grid'][2][0]['growthWeek'],4)
+        for flag in ['plateEdit','gelLinks','electrophoresis']:
+            with self.assertRaises(ValueError):rebuild_outputs({**raw,flag:{'present':True}})
+
     def test_reconcile_clears_only_missing_sample_and_keeps_audit_and_positions(self):
         raw={'plates':[{'uid':'input','wells':['A2']}],'packedPlates':[{'id':'P1','grid':[[None]*12 for _ in range(8)]}]}
         raw['packedPlates'][0]['grid'][6][8]={'sourcePlate':'1','sourceWell':'D9','growthWeek':2}

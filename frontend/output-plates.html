@@ -7,7 +7,7 @@
 <main>
   <div class="toolbar"><label>プロジェクト <select id="project" aria-label="プロジェクト"></select></label><button id="refresh">更新</button><span id="recordCount"></span></div>
   <p id="notice" role="status" aria-live="polite"></p>
-  <button id="reconcileOutput" hidden data-help="入力で選択されていない試料だけを出力から外します。他のウェルは移動しません。除外前の情報はJSONに履歴として残ります。">入力にない試料を出力から除外</button>
+  <button id="reconcileOutput" hidden>入力から出力を再生成</button>
   <section id="overview"><div class="sticky-tools"><div class="toolbar"><nav id="views" aria-label="プレートの状態"><button data-view="active" aria-pressed="true">作業中</button><button data-view="completed" aria-pressed="false">編集完了</button><button data-view="hidden" aria-pressed="false">非表示</button></nav><span id="pickedCount">0枚</span><button id="editSelected" class="primary" disabled data-help="選択したプレートを編集します。一度に24枚まで。">編集</button><button id="clearSelection" disabled>選択解除</button><button id="hideSelected" disabled data-help="同じ出力プレートの過去の版も含めて非表示にします。非表示タブから戻せます。">非表示にする</button><button id="completeSelected" disabled data-help="完了を記録します。組内の全プレートが完了すると、組名_edとして編集完了一覧に移ります。一度に24枚まで。">編集完了</button><button id="restoreSelected" disabled hidden>一覧に戻す</button></div></div><div id="records"></div></section>
   <section id="editor" hidden>
     <div class="sticky-tools">
@@ -18,6 +18,13 @@
     <details class="history"><summary>変更履歴</summary><ol id="changes"></ol></details>
   </section>
 </main>
+<dialog id="repackDialog" aria-labelledby="repackTitle">
+  <h2 id="repackTitle">出力を再生成</h2><p id="repackSummary"></p>
+  <p>入力順に詰め直します。指定した空ウェルは維持します。</p>
+  <details><summary>変更位置</summary><ol id="repackChanges"></ol></details>
+  <p id="repackError" role="alert"></p>
+  <div class="toolbar"><button id="cancelRepack">キャンセル</button><button id="applyRepack" class="primary">再生成して保存</button></div>
+</dialog>
 <dialog id="sourceDialog" aria-labelledby="sourceTitle">
   <form id="sourceForm">
     <h2 id="sourceTitle">入力元を訂正</h2><p id="sourceBefore"></p>
