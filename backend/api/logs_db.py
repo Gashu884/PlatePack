@@ -460,7 +460,7 @@ def output_plate_states(project_id):
 
 
 def set_output_plate_states(project_id, selections, status):
-    if status not in ('active', 'hidden') or not 1 <= len(selections) <= 24:
+    if status not in ('active', 'hidden') or not 1 <= len(selections) <= 2000:
         raise StorageValidationError('対象プレートと表示状態を確認してください。')
     with _database(write=True) as conn:
         project = _require_project(conn, project_id)

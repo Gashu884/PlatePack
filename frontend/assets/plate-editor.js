@@ -2,7 +2,7 @@
   'use strict';
   const $=id=>document.getElementById(id), core=PlateEditor, storage=PlatePackStorage;
   const params=new URLSearchParams(location.search);
-  let entries=[], picked=new Map(), current=null, original=null, undo=[], selection=null, gesture=null, rangeMode=false, targeting=false, dirty=false, busy=false, savedRef=null, pendingSave=null, catalog={}, view='active', doneBoards=new Set(), catalogReady=false, visibleKeys=new Set();
+  let entries=[], picked=new Map(), current=null, original=null, undo=[], selection=null, gesture=null, rangeMode=false, targeting=false, dirty=false, busy=false, savedRef=null, pendingSave=null, catalog={}, view='active', doneBoards=new Set(), catalogReady=false, visibleKeys=new Set(), groups=new Map();
   const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
   const note=(text,error=false)=>{$('notice').textContent=text;$('notice').dataset.error=error;};
   const request=(path,body)=>storage.fetchJson(path,body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{});
@@ -29,10 +29,12 @@
     renderOverview();note(!catalogReady?'表示状態を読み込めません。「更新」で再試行してください。':remoteError?'DBに接続できません。ブラウザ保存分のみ表示しています。':failures.length?'一部のデータを読み込めませんでした。「更新」で再試行してください。':'',!catalogReady||!!remoteError||!!failures.length);
   }
   function updatePicked(){
-    $('pickedCount').textContent=picked.size+' / '+core.MAX_SELECTED+'枚';$('editSelected').disabled=!picked.size;$('clearSelection').disabled=!picked.size;
+    $('pickedCount').textContent=picked.size+'枚';$('editSelected').disabled=!picked.size||picked.size>core.MAX_SELECTED;$('clearSelection').disabled=!picked.size;
     for(const id of ['hideSelected','completeSelected','restoreSelected'])$(id).disabled=!picked.size||!catalogReady;
+    $('completeSelected').disabled ||= picked.size>core.MAX_SELECTED;
     $('hideSelected').hidden=view==='hidden';$('completeSelected').hidden=view!=='active';$('restoreSelected').hidden=view==='active';
-    document.querySelectorAll('[data-pick]').forEach(input=>{input.checked=picked.has(input.dataset.pick);input.disabled=picked.size>=core.MAX_SELECTED&&!input.checked;});
+    document.querySelectorAll('[data-pick]').forEach(input=>{input.checked=picked.has(input.dataset.pick);input.disabled=picked.size>=2000&&!input.checked;});
+    document.querySelectorAll('[data-group]').forEach(input=>{const list=groups.get(input.dataset.group)||[],n=list.filter(s=>picked.has(key(s.entry,s.index))).length;input.checked=!!list.length&&n===list.length;input.indeterminate=n>0&&n<list.length;input.disabled=!list.length;});
     document.querySelectorAll('[data-view]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.view===view)));
   }
   function plateCards(entry){
@@ -41,15 +43,29 @@
       if(!visibleKeys.has(key(entry,index)))return;
       const name=core.plateName(entry,index);
       const card=el('div',undefined,'plate-card'),tools=el('div',undefined,'card-tools'),label=el('label'),check=el('input');check.type='checkbox';check.dataset.pick=key(entry,index);check.setAttribute('aria-label',entry.name+' / '+name+' を選択');
-      check.onchange=()=>{if(check.checked){if(picked.size>=core.MAX_SELECTED){check.checked=false;return}picked.set(key(entry,index),{entry,index})}else picked.delete(key(entry,index));updatePicked()};
+      check.onchange=()=>{if(check.checked){if(picked.size>=2000){check.checked=false;return}picked.set(key(entry,index),{entry,index})}else picked.delete(key(entry,index));updatePicked()};
       label.append(check,document.createTextNode(name));tools.append(label,el('span',count(plate)+'/96'));
       const open=el('button',undefined,'card-open');open.type='button';open.setAttribute('aria-label',entry.name+' / '+name+' を拡大');open.dataset.help='クリックで拡大。複数選択して「編集」で並べます。';
       const mini=el('div',undefined,'mini');for(const cell of plate.grid.flat())mini.append(el('span',undefined,cell?'filled':''));open.append(mini);open.onclick=()=>start([{entry,index}]);card.append(tools,open);list.append(card);
     });return list;
   }
-  function heading(entry,container){const row=el('div',undefined,'record-heading');row.append(el('h3',entry.name));const date=el('time',new Date(entry.created_at).toLocaleString('ja-JP'));row.append(date);if(entry.ref.startsWith('local:'))row.append(el('small','ブラウザ'));container.append(row);}
+  function heading(entry,container,members=[entry]){
+    const list=members.flatMap(e=>e.payload.packedPlates.map((_,index)=>({entry:e,index}))).filter(s=>visibleKeys.has(key(s.entry,s.index)));
+    groups.set(entry.ref,list);
+    const row=el('div',undefined,'record-heading'),title=el('h3'),label=el('label',undefined,'group-select'),check=el('input');
+    check.type='checkbox';check.dataset.group=entry.ref;check.setAttribute('aria-label',entry.name+' の組全体を選択');
+    label.title='この組の表示中のプレートをまとめて選択';
+    check.onchange=()=>{
+      const next=new Map(picked);
+      for(const s of list){if(check.checked)next.set(key(s.entry,s.index),s);else next.delete(key(s.entry,s.index));}
+      if(next.size>2000){note('一度に選択できるのは2000枚までです。',true);updatePicked();return;}
+      picked=next;updatePicked();
+    };
+    label.append(check,document.createTextNode(entry.name));title.append(label);row.append(title);
+    const date=el('time',new Date(entry.created_at).toLocaleString('ja-JP'));row.append(date);if(entry.ref.startsWith('local:'))row.append(el('small','ブラウザ'));container.append(row);
+  }
   function renderOverview(){
-    const parent=params.get('parent'),opened=params.get('log');$('records').replaceChildren();
+    const parent=params.get('parent'),opened=params.get('log');$('records').replaceChildren();groups.clear();
     visibleKeys=new Set();const originsSeen=new Set();
     for(const e of entries)for(const [i,p] of e.payload.packedPlates.entries()){
       if(!core.visible(e,i,catalog,view))continue;
@@ -70,7 +86,7 @@
       for(const root of roots){
         const children=shown.filter(e=>e.payload.plateEdit&&[root.ref,...root.aliases||[]].some(ref=>e.payload.plateEdit.rootRefs.includes(ref))&&!placed.has(e.ref));
         if(!visibleEntry(root)&&!children.length)continue;
-        const box=el('section',undefined,'record');heading(root,box);box.append(plateCards(root));
+        const box=el('section',undefined,'record');heading(root,box,[root,...children]);box.append(plateCards(root));
         if(children.length){const folder=el('details',undefined,'edited-folder');folder.append(el('summary','編集プレート · '+children.length));folder.open=!!parent||children.some(e=>e.ref===opened||e.ref===savedRef);children.forEach(e=>{section(e,folder,'edited-record');placed.add(e.ref)});box.append(folder);}
         $('records').append(box);placed.add(root.ref);
       }

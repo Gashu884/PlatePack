@@ -146,6 +146,25 @@ process.stdout.write(JSON.stringify(c.apply(data,{type:'correct-source',from:1,w
             body['status']='active'
             self.assertEqual(client.post('/api/output-plates/states',json=body).json()['raw-one#0']['status'],'active')
 
+    def test_whole_group_can_hide_and_restore_more_than_24_plates(self):
+        raw = {'plates': [], 'packedPlates': [
+            {'id': f'Plate_{i+1:02}', 'grid': [[None]*12 for _ in range(8)]}
+            for i in range(30)
+        ]}
+        with TestClient(app) as client:
+            saved = client.post('/api/logs', json={'name':'Group','payload':raw}).json()
+            body = {'project_id':'default-project', 'status':'hidden',
+                    'selections':[{'ref':saved['id'],'index':i} for i in range(30)]}
+            hidden = client.post('/api/output-plates/states', json=body)
+            self.assertEqual(hidden.status_code, 200, hidden.text)
+            self.assertEqual(len(hidden.json()), 30)
+            self.assertTrue(all(s['status']=='hidden' for s in hidden.json().values()))
+            body['status'] = 'active'
+            restored = client.post('/api/output-plates/states', json=body)
+            self.assertEqual(restored.status_code, 200, restored.text)
+            self.assertTrue(all(s['status']=='active' for s in restored.json().values()))
+            self.assertEqual(client.get('/api/logs/'+saved['id']).json()['payload'], raw)
+
     def test_state_batch_is_atomic_and_rejects_invalid_or_cross_project_selection(self):
         with TestClient(app) as client:
             saved = client.post('/api/logs', json={'name':'Layout_ed','payload':self.payload}).json()

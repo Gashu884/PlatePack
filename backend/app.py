@@ -57,7 +57,7 @@ class OutputPlateSelection(BaseModel):
 
 class OutputPlateStateRequest(BaseModel):
     project_id: str
-    selections: list[OutputPlateSelection] = Field(min_length=1, max_length=24)
+    selections: list[OutputPlateSelection] = Field(min_length=1, max_length=2000)
     status: str = Field(pattern='^(active|hidden)$')
 
 
