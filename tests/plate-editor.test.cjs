@@ -19,12 +19,12 @@ test('a rectangle moves with holes and geometry unchanged',()=>{const {data}=set
 test('occupied range destination including a selected hole is rejected atomically',()=>{const {data}=setup(),before=copy(data);assert.throws(()=>move(data,0,1,core.rectangle('A1','B3'),'A1','G10'),/すべて空/);assert.deepEqual(data,before);});
 test('overlapping occupied ranges and out-of-bounds moves are rejected',()=>{const {data}=setup();assert.throws(()=>move(data,0,0,['A1','A2'],'A1','A2'),/すべて空/);assert.throws(()=>move(data,0,1,['A1','A2'],'A1','H12'),/範囲外/);assert.throws(()=>move(data,0,9,['A1'],'A1','A1'),/見つかりません/);});
 test('delete removes output cells only; an immutable snapshot supports undo/reset',()=>{const {data}=setup(),snapshot=copy(data);const after=core.apply(data,{type:'delete',from:0,wells:['A1','A2']});assert.equal(sampleSet(after).length,3);assert.deepEqual(after.plates,data.plates);assert.deepEqual(data,snapshot);assert.equal(sampleSet(snapshot).length,5);assert.equal(after.plateEdit.operations[0].type,'delete');});
-test('cross-record editing remaps duplicate display IDs without conflating source identities',()=>{const a=entry('one'),b=entry('two'),s=core.assemble([{entry:a,index:0},{entry:b,index:0}]);assert.deepEqual(s.selected,[0,2]);assert.equal(s.data.plates.length,2);assert.equal(new Set(s.data.packedPlates.map(p=>p.id)).size,4);assert.equal(s.data.packedPlates[2].grid[0][0].sourcePlate,'2');assert.deepEqual(s.data.plateEdit.rootRefs,['one','two']);const moved=move(s.data,0,2,['A1'],'A1','C3');assert.equal(moved.packedPlates[2].grid[2][2].sourcePlate,'1');});
-test('same physical plate from raw and edited versions cannot be combined',()=>{const raw=entry(),s=core.assemble([{entry:raw,index:0}]);const edited={ref:'edited',name:s.name,project_id:'project',payload:s.data};assert.throws(()=>core.assemble([{entry:raw,index:0},{entry:edited,index:1}]),/別の版/);});
+test('cross-record editing remaps duplicate display IDs without conflating source identities',()=>{const a=entry('one'),b=entry('two'),s=core.assemble([{entry:a,index:0},{entry:b,index:0}]);assert.deepEqual(s.selected,[0,1]);assert.equal(s.data.plates.length,2);assert.equal(new Set(s.data.packedPlates.map(p=>p.id)).size,2);assert.equal(s.data.packedPlates[1].grid[0][0].sourcePlate,'2');assert.deepEqual(s.data.plateEdit.rootRefs,['one','two']);const moved=move(s.data,0,1,['A1'],'A1','C3');assert.equal(moved.packedPlates[1].grid[2][2].sourcePlate,'1');});
+test('same physical plate from raw and edited versions cannot be combined',()=>{const raw=entry(),s=core.assemble([{entry:raw,index:0}]);const edited={ref:'edited',name:s.name,project_id:'project',payload:s.data};assert.throws(()=>core.assemble([{entry:raw,index:0},{entry:edited,index:0}]),/別の版/);});
 test('re-editing preserves root lineage and uses one _ed suffix',()=>{const raw=entry(),s=core.assemble([{entry:raw,index:0}]);s.data=move(s.data,0,1,['A1'],'A1','A1');const e={ref:'edited',name:s.name,project_id:'project',payload:s.data};const next=core.assemble([{entry:e,index:1}]);assert.equal(next.name,s.name);assert.deepEqual(next.data.plateEdit.rootRefs,['raw-one']);assert.deepEqual(next.data.plateEdit.parentRefs,['edited']);assert.equal(next.data.plateEdit.operations.length,0);assert.equal(next.data.packedPlates[1].grid[0][0].sourceWell,'A1');});
 test('ROI resolves edited destinations and keeps sample identity across experiments and revisions',()=>{const {data}=setup();const moved=move(data,0,1,['A1'],'A1','C3'),id=data.packedPlates[0].id,dest=moved.packedPlates[1].id;const a=links.resolve(data,'packed',id,'A1'),b=links.resolve(moved,'packed',dest,'C3');assert.equal(links.sampleId(links.empty('experiment-one'),a),links.sampleId(links.empty('experiment-two'),b));assert.equal(b.sourceWell,'A1');assert.equal(b.editedOutput,true);assert.throws(()=>links.resolve(moved,'packed',id,'A1'),/検体がありません/);assert.match(links.bindingError(moved,a),/検体がありません/);});
-test('edited ROI export displays physical output location with original source retained',()=>{const {data}=setup(),hash='a'.repeat(64),s={image:{sha256:hash,name:'test.tif',width:100,height:80,preview:'data:image/png;base64,AAAA'},config:{roiWidth:10,roiHeight:10,rois:[{id:1,x:25,y:30}]}};let state=links.importSession(links.empty('experiment'),s);state=links.bind(state,data,hash,1,'packed',data.packedPlates[0].id,'A1');const exported=links.exportSession(state,data,s,hash);assert.equal(exported.config.rois[0].well,'DEST-1 / A1');assert.equal(exported.config.rois[0].platepack.sourceWell,'A1');assert.equal(exported.config.rois[0].platepack.sourceNamespace,'raw-one');});
-test('more than two plates and cross-project selections are rejected',()=>{const a=entry(),b=entry('two');b.project_id='another';assert.throws(()=>core.assemble([{entry:a,index:0},{entry:b,index:0}]),/同じプロジェクト/);assert.throws(()=>core.assemble(Array(3).fill({entry:a,index:0})),/1〜2/);});
+test('edited ROI export displays physical output location with original source retained',()=>{const {data}=setup(),hash='a'.repeat(64),s={image:{sha256:hash,name:'test.tif',width:100,height:80,preview:'data:image/png;base64,AAAA'},config:{roiWidth:10,roiHeight:10,rois:[{id:1,x:25,y:30}]}};let state=links.importSession(links.empty('experiment'),s);state=links.bind(state,data,hash,1,'packed',data.packedPlates[0].id,'A1');const exported=links.exportSession(state,data,s,hash);assert.equal(exported.config.rois[0].well,'raw-one_01 / A1');assert.equal(exported.config.rois[0].platepack.sourceWell,'A1');assert.equal(exported.config.rois[0].platepack.sourceNamespace,'raw-one');});
+test('selection limit and cross-project selections are rejected',()=>{const a=entry(),b=entry('two');b.project_id='another';assert.throws(()=>core.assemble([{entry:a,index:0},{entry:b,index:0}]),/同じプロジェクト/);assert.throws(()=>core.assemble(Array(25).fill({entry:a,index:0})),/1〜24/);});
 test('many single swaps conserve every sample exactly once',()=>{let {data}=setup();const before=sampleSet(data);for(let i=0;i<80;i++){const candidates=[];data.packedPlates.forEach((p,pi)=>p.grid.forEach((r,ri)=>r.forEach((v,ci)=>{if(v)candidates.push([pi,core.well(ri,ci)])})));const [from,name]=candidates[i%candidates.length];data=move(data,from,i%2,[name],name,core.well(i%8,(i*7)%12));assert.deepEqual(sampleSet(data),before)}});
 const correct=(data,from,well,sourcePlate,sourceWell)=>core.apply(data,{type:'correct-source',from,wells:[well],sourcePlate,sourceWell});
 test('source correction keeps output position and changes source selection with its phase',()=>{
@@ -68,7 +68,7 @@ test('existing ROI links and all re-PCR measurements follow correction without c
   const gel=copy(record.links.gels[0]);gel.sha256=second.image.sha256;record.links.gels.push(gel);
   const before=copy(record),next=updater.update(record,entry);
   assert.deepEqual(record,before);assert.equal(next.confirmed,null);assert.equal(next.sourceUpdates.length,1);
-  for(const session of next.sessions){const roi=session.config.rois[0];assert.equal(roi.platepack.sourceWell,'F5');assert.equal(roi.well,'DEST-1 / A1');assert.equal(roi.sample,'PP:raw-one:original-input:F5');assert.equal(roi.x,25);assert.deepEqual(roi.baseline,{start:1,end:5});assert.equal(roi.poolGroup,'Pool1');assert.equal(session.quantification.results[0].area,123);assert.equal(session.measuredConfig,undefined);}
+  for(const session of next.sessions){const roi=session.config.rois[0];assert.equal(roi.platepack.sourceWell,'F5');assert.equal(roi.well,'raw-one_01 / A1');assert.equal(roi.sample,'PP:raw-one:original-input:F5');assert.equal(roi.x,25);assert.deepEqual(roi.baseline,{start:1,end:5});assert.equal(roi.poolGroup,'Pool1');assert.equal(session.quantification.results[0].area,123);assert.equal(session.measuredConfig,undefined);}
   assert.equal(next.links.gels[0].rois[0].binding.well,'A1');assert.equal(next.links.gels[0].rois[0].binding.sourceWell,'F5');
   assert.equal(links.bindingError(next.plate,next.links.gels[0].rois[0].binding),'');
 });
@@ -84,4 +84,50 @@ test('source-kind ROI links follow corrected input and incomplete ROI slots are 
   const {record,entry}=correctionExperiment();record.links.gels[0].rois[0].binding=links.resolve(record.plate,'source','1','A1');
   record.links.gels[0].rois.push({id:2,x:40,y:30,binding:null});record.sessions[0].config.rois.push({id:2,x:40,y:30});
   const next=updater.update(record,entry);assert.equal(next.links.gels[0].rois[0].binding.well,'F5');assert.equal(next.sessions[0].config.rois[0].well,'1-F5');assert.equal(next.links.gels[0].rois[1].binding,null);assert.equal(next.sessions[0].config.rois[1].id,2);
+});
+test('three groups can be edited with distinct origin badges despite matching input well numbers',()=>{
+  const list=['alpha','beta','gamma'].map(ref=>({entry:entry(ref),index:0})),s=core.assemble(list);
+  assert.equal(s.selected.length,3);assert.equal(s.data.packedPlates.length,3);
+  const origins=core.provenance(s.data);assert.deepEqual(origins.map(p=>p.badge),['A','B','C']);
+  let after=move(s.data,0,2,['A1'],'A1','C3');after=move(after,1,2,['A1'],'A1','C4');
+  assert.equal(core.cellAt(after,2,'C3').sourceWell,'A1');assert.equal(core.cellAt(after,2,'C4').sourceWell,'A1');
+  assert.notEqual(core.cellAt(after,2,'C3').sourcePlate,core.cellAt(after,2,'C4').sourcePlate);
+  const opened=core.assemble([{entry:{ref:'saved',name:'mix_ed',project_id:'project',payload:after},index:2}]);
+  assert.deepEqual(core.provenance(opened.data),origins);
+});
+test('completion stores only selected outputs while preserving source identities and ROI links',()=>{
+  const e=entry(),before=copy(e),done=core.complete([{entry:e,index:1}]);
+  assert.equal(done.data.packedPlates.length,1);assert.equal(done.data.packedPlates[0].id,'DEST-2');
+  assert.equal(done.data.packedPlates[0].displayName,'raw-one_02');
+  assert.deepEqual(done.data.plateEdit.selectedPlates,[0]);assert.equal(done.data.plateEdit.collection,'completed');
+  assert.equal(done.name,'raw-one_done');assert.deepEqual(e,before);
+  assert.equal(links.resolve(done.data,'packed','DEST-2','H12').sourceWell,'H12');
+});
+test('hidden and completed views track physical origins across versions and restore the completed file',()=>{
+  const raw=entry(),done=core.complete([{entry:raw,index:0}]);
+  const e={ref:'done',name:done.name,project_id:'project',payload:done.data},key=core.catalogKey(raw,0);
+  assert.equal(core.catalogKey(e,0),key);assert.equal(core.visible(raw,0,{},'active'),true);
+  let catalog={[key]:{status:'hidden',completed_ref:null}};
+  assert.equal(core.visible(raw,0,catalog,'active'),false);assert.equal(core.visible(raw,0,catalog,'hidden'),true);
+  catalog[key]={status:'completed',completed_ref:'done'};
+  assert.equal(core.visible(raw,0,catalog,'active'),false);assert.equal(core.visible(raw,0,catalog,'completed'),false);assert.equal(core.visible(e,0,catalog,'completed'),true);
+  assert.equal(core.visible(raw,1,catalog,'active'),true);
+  catalog[key].status='active';assert.equal(core.visible(e,0,catalog,'active'),true);assert.equal(core.visible(raw,0,catalog,'active'),false);
+});
+test('display names use record name and two digits without changing existing link keys',()=>{
+  const e=entry('PlateName',12);assert.equal(core.plateName(e,0),'PlateName_01');assert.equal(core.plateName(e,9),'PlateName_10');assert.equal(core.plateName(e,10),'PlateName_11');
+  const assembled=core.assemble([{entry:e,index:9}]);assert.equal(assembled.data.packedPlates[9].id,'DEST-10');
+  e.payload.packedPlates[9].displayName='Custom_10';assert.equal(core.plateName(e,9),'Custom_10');
+});
+test('source-only revisions saved before display names remain applicable',()=>{
+  const {record,entry}=correctionExperiment();for(const p of entry.payload.packedPlates)delete p.displayName;for(const p of entry.payload.plateEdit.initialPackedPlates)delete p.displayName;
+  assert.equal(updater.update(record,entry).links.gels[0].rois[0].binding.sourceWell,'F5');
+});
+test('different chosen outputs can be merged from files that share unselected history',()=>{
+  const raw=entry(),s=core.assemble([{entry:raw,index:0}]);
+  const edited={ref:'ed-shared',name:s.name,project_id:'project',payload:s.data};
+  const done=core.complete([{entry:edited,index:1}]);
+  const combined=core.assemble([{entry:edited,index:0},{entry:{ref:'completed',name:done.name,project_id:'project',payload:done.data},index:0}]);
+  assert.equal(combined.data.packedPlates.length,2);assert.equal(sampleSet(combined.data).length,5);
+  const changed=move(combined.data,0,1,['A1'],'A1','C3');assert.equal(core.cellAt(changed,1,'C3').sourceWell,'A1');
 });

@@ -1993,7 +1993,7 @@
           const placement = placementOrder[pos];
           const destRowIndex = placement?.rowIndex ?? 0;
           const destColIndex = placement?.colIndex ?? 0;
-          const destPlateId = `DEST-${String(destPlateIndex + 1).padStart(3, "0")}`;
+          const destPlateId = `プレート_${String(destPlateIndex + 1).padStart(2, "0")}`;
           const destWell = `${ROWS[destRowIndex]}${COLS[destColIndex]}`;
 
           orderedAssignments.push({
@@ -2010,7 +2010,7 @@
         }
         const totalDest = Math.max(1, Math.ceil(flattened.length / wellsPerPlate));
         for (let i = 0; i < totalDest; i += 1) {
-          const plateId = `DEST-${String(i + 1).padStart(3, "0")}`;
+          const plateId = `プレート_${String(i + 1).padStart(2, "0")}`;
           destinations.push({
             plate_id: plateId,
             rows: ROWS.length,
@@ -2186,7 +2186,7 @@
         }
         const plate = packedPlates[currentPackedIndex];
         const destColumns = plate.columns && plate.columns.length ? plate.columns : COLS;
-        packedSummary.textContent = `出力 ${currentPackedIndex + 1}/${packedPlates.length}`;
+        packedSummary.textContent = `${plate.displayName || plate.id} · ${currentPackedIndex + 1}/${packedPlates.length}`;
 
         const table = document.createElement("table");
         table.className = "packed-table";
@@ -2382,7 +2382,7 @@
         }
         const order = packedLayout?.layoutDirection || layoutDirection || "row";
         const wellOrder = buildWellOrder();
-        const header = ["well_position", ...packedPlates.flatMap((plate, idx) => [plate.id || `Output ${idx + 1}`, `${plate.id || `Output ${idx + 1}`}_growth_week`])];
+        const header = ["well_position", ...packedPlates.flatMap((plate, idx) => [plate.displayName || plate.id || `Output ${idx + 1}`, `${plate.displayName || plate.id || `Output ${idx + 1}`}_growth_week`])];
         const lines = [header.join("\t")];
 
         wellOrder.forEach((wellId) => {
@@ -2533,7 +2533,7 @@
         ctx.stroke();
         ctx.strokeRect(0, 0, width, height);
 
-        const filenameBase = (plate.id || `packed_${currentPackedIndex + 1}`).replace(/[^a-zA-Z0-9_-]+/g, "_");
+        const filenameBase = (plate.displayName || plate.id || `packed_${currentPackedIndex + 1}`).replace(/[\\/:*?"<>|\x00-\x1f]+/g, "_");
         canvas.toBlob((blob) => {
           if (!blob) {
             setStatus("PNGの生成に失敗しました。", true);
@@ -2549,7 +2549,7 @@
                 const items = Array.isArray(existing) ? existing : [];
                 items.unshift({
                   id: `${Date.now()}_${Math.random().toString(16).slice(2)}`,
-                  title: plate.id || `Packed Plate ${currentPackedIndex + 1}`,
+                  title: plate.displayName || plate.id || `Packed Plate ${currentPackedIndex + 1}`,
                   filename: `${filenameBase}.png`,
                   createdAt: new Date().toISOString(),
                   dataUrl,
@@ -2729,6 +2729,8 @@
         const name = prompt("ログ名を入力してください:", `Log ${new Date().toLocaleString()}`)?.trim();
         if (!name) return;
         saveLogBtn.disabled = true;
+        packedPlates.forEach((plate,i)=>{plate.displayName=name+"_"+String(i+1).padStart(2,"0");});
+        renderPacked();
         const payload = buildLogSnapshot();
         const projectId = currentSaveProjectId;
         persistCurrentDraft();

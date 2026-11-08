@@ -7,6 +7,12 @@
   'use strict';
   const clone = value => JSON.parse(JSON.stringify(value));
   const well = (r,c) => 'ABCDEFGH'[r] + (c+1);
+  const MAX_SELECTED=24;
+  const originKey=p=>p.ref+'#'+p.index;
+  function plateName(entry,index){
+    const p=entry.payload.packedPlates[index];
+    return p.displayName || (p.sourceRecordName||entry.name||'プレート').replace(/(_ed|_done)$/g,'')+'_'+String((p.outputOrigin?.index??index)+1).padStart(2,'0');
+  }
   function position(value) {
     if (typeof value !== 'string' || !/^[A-H](?:[1-9]|1[0-2])$/.test(value)) throw Error('ウェルが不正です。');
     return [value.charCodeAt(0)-65, Number(value.slice(1))-1];
@@ -18,7 +24,7 @@
     return p.sourceOrigin || {namespace:ref.replace(/[^\w-]/g,'-'), uid:p.uid || 'source-'+(index+1), plate:String(index+1), label:p.label || 'Plate '+(index+1)};
   }
   function assemble(selections) {
-    if (!selections.length || selections.length>2) throw Error('1〜2枚を選択してください。');
+    if (!selections.length || selections.length>MAX_SELECTED) throw Error(`1〜${MAX_SELECTED}枚を選択してください。`);
     const entries = [...new Map(selections.map(s=>[s.entry.ref,s.entry])).values()];
     if (new Set(entries.map(e=>e.project_id)).size!==1) throw Error('同じプロジェクトのプレートを選んでください。');
     const data = {version:2, recordType:'edited_plate', plates:[], packedPlates:[], sourceColorMap:[], currentSaveProjectId:entries[0].project_id,
@@ -42,12 +48,15 @@
         remap.set(String(i+1),sourceIndices.get(key));
       });
       for (const [index, plate] of (snapshot.packedPlates || []).entries()) {
+        // Separate files can share unselected historical outputs. Merge only the
+        // chosen physical plates across files; originals retain their other plates.
+        if(entries.length>1&&!selections.some(s=>s.entry.ref===entry.ref&&s.index===index))continue;
         grid(plate.grid);
         const origin=plate.outputOrigin || {ref:entry.ref,index};
         const originKey=origin.ref+':'+origin.index;
         if(outputOrigins.has(originKey))throw Error('同じ出力プレートの別の版を同時には編集できません。');
         outputOrigins.add(originKey);
-        const copy=clone(plate);copy.outputOrigin=clone(origin);copy.label=plate.label||plate.id||'出力 '+(index+1);
+        const copy=clone(plate);copy.outputOrigin=clone(origin);copy.label=plate.label||plate.id||'出力 '+(index+1);copy.displayName=plateName(entry,index);
         copy.sourceRecordName=plate.sourceRecordName||entry.name;
         let id=plate.id||'DEST-'+(index+1),suffix=2;
         while(data.packedPlates.some(p=>p.id===id))id=(plate.id||'DEST')+' ('+suffix+++')';
@@ -74,12 +83,12 @@
     data.plateEdit.sourceCorrectionHistory=entries.flatMap(e=>[
       ...clone(e.payload.plateEdit?.sourceCorrectionHistory||[]),
       ...(e.payload.plateEdit?.operations||[]).filter(a=>a.type==='correct-source').map(a=>({
-        at:a.at,record:e.name,output:e.payload.packedPlates[a.from].id,well:a.wells[0],
+        at:a.at,record:e.name,output:e.payload.packedPlates[a.from].displayName||e.payload.packedPlates[a.from].id,well:a.wells[0],
         before:a.before.sourcePlate+'-'+a.before.sourceWell,after:a.sourcePlate+'-'+a.sourceWell
       }))
     ]);
     data.plateEdit.selectedPlates=clone(selected);
-    return {data, selected, name:entries.map(e=>e.name.replace(/_ed$/,'')).join(' + ').slice(0,117)+'_ed'};
+    return {data, selected, name:[...new Set(entries.map(e=>e.name.replace(/_(?:ed|done)$/,'')))].join(' + ').slice(0,117)+'_ed'};
   }
   function cellAt(data, plate, name) {
     if(!Number.isInteger(plate)||!data.packedPlates[plate])throw Error('プレートが見つかりません。');
@@ -99,7 +108,7 @@
       if(cell.sourcePlate===source&&cell.sourceWell===target)return clone(data);
       for(const [pi,p] of next.packedPlates.entries())for(let r=0;r<8;r++)for(let c=0;c<12;c++){
         const other=p.grid[r][c];
-        if(other?.sourcePlate===source&&other.sourceWell===target)throw Error(`入力元 ${source}-${target} は ${p.id} / ${well(r,c)} で使用済みです。`);
+        if(other?.sourcePlate===source&&other.sourceWell===target)throw Error(`入力元 ${source}-${target} は ${p.displayName||p.id} / ${well(r,c)} で使用済みです。`);
       }
       const before={sourcePlate:cell.sourcePlate,sourceWell:cell.sourceWell};
       const old=next.plates[Number(cell.sourcePlate)-1], dest=next.plates[Number(source)-1];
@@ -128,5 +137,25 @@
     return next;
   }
   function rectangle(a,b){const [ar,ac]=position(a),[br,bc]=position(b),out=[];for(let r=Math.min(ar,br);r<=Math.max(ar,br);r++)for(let c=Math.min(ac,bc);c<=Math.max(ac,bc);c++)out.push(well(r,c));return out;}
-  return {clone,well,position,assemble,apply,cellAt,rectangle};
+  function complete(selections){
+    const result=assemble(selections),indices=result.selected;
+    result.data.packedPlates=indices.map(i=>result.data.packedPlates[i]);
+    result.data.plateEdit.initialPackedPlates=clone(result.data.packedPlates);
+    result.selected=indices.map((_,i)=>i);result.data.plateEdit.selectedPlates=clone(result.selected);
+    result.data.plateEdit.collection='completed';
+    result.name=result.name.replace(/_ed$/,'').slice(0,115)+'_done';
+    return result;
+  }
+  function provenance(data){
+    const namespaces=[...new Set(data.plates.map(p=>p.sourceOrigin?.namespace||'current'))];
+    return data.plates.map((p,i)=>({badge:String.fromCharCode(65+namespaces.indexOf(p.sourceOrigin?.namespace||'current')%26)+(namespaces.indexOf(p.sourceOrigin?.namespace||'current')>=26?Math.floor(namespaces.indexOf(p.sourceOrigin?.namespace||'current')/26)+1:''),label:p.label||'入力 '+(i+1),plate:p.sourceOrigin?.plate||String(i+1)}));
+  }
+  function catalogKey(entry,index){return originKey(entry.payload.packedPlates[index].outputOrigin||{ref:entry.ref,index})}
+  function visible(entry,index,catalog,view){
+    const item=catalog[catalogKey(entry,index)]||{status:'active'};
+    if(item.status!==view)return false;
+    if(item.completed_ref)return entry.ref===item.completed_ref;
+    return entry.payload.plateEdit?.collection!=='completed';
+  }
+  return {clone,well,position,assemble,apply,cellAt,rectangle,complete,provenance,plateName,catalogKey,visible,MAX_SELECTED};
 });

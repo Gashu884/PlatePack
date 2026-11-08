@@ -233,6 +233,14 @@ def _initialize(conn) -> None:
     conn.execute("CREATE INDEX IF NOT EXISTS idx_logs_created_at ON logs(created_at)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_logs_project_created_at ON logs(project_id, created_at)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_folders_parent ON folders(parent_id)")
+    conn.execute("""CREATE TABLE IF NOT EXISTS output_plate_states (
+      project_id TEXT NOT NULL REFERENCES folders(id) ON DELETE CASCADE,
+      origin_key TEXT NOT NULL,
+      status TEXT NOT NULL CHECK(status IN ('active','hidden','completed')),
+      completed_ref TEXT REFERENCES logs(id) ON DELETE SET NULL,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY(project_id, origin_key)
+    )""")
 
 
 def init_db() -> bool:
@@ -408,9 +416,67 @@ def create_log(name: str, payload: Dict[str, Any], project_id: Optional[str] = N
         _execute(conn,
                  "INSERT INTO logs (id, name, created_at, payload_json, project_id, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
                  (log_id, cleaned, created_at, stored_payload, project, created_at))
+        if payload.get('recordType') == 'edited_plate':
+            meta = payload['plateEdit']
+            origin_keys = set()
+            for plate in payload['packedPlates']:
+                origin = plate.get('outputOrigin')
+                if not origin:
+                    if meta.get('collection') == 'completed':
+                        raise StorageValidationError('元の出力プレートを確認できません。')
+                    continue
+                origin_key = _output_origin_key(origin)
+                if origin_key in origin_keys:
+                    raise StorageValidationError('同じ出力プレートが重複しています。')
+                origin_keys.add(origin_key)
+                if meta.get('collection') == 'completed':
+                    _execute(conn, """INSERT INTO output_plate_states(project_id,origin_key,status,completed_ref,updated_at)
+                      VALUES (?,?,'completed',?,?) ON CONFLICT(project_id,origin_key)
+                      DO UPDATE SET status='completed',completed_ref=excluded.completed_ref,updated_at=excluded.updated_at""",
+                      (project, origin_key, log_id, created_at))
+                else:
+                    previous = _execute(conn, 'SELECT completed_ref FROM output_plate_states WHERE project_id=? AND origin_key=?', (project, origin_key)).fetchone()
+                    if previous and previous['completed_ref'] in meta['parentRefs']:
+                        _execute(conn, 'UPDATE output_plate_states SET completed_ref=?,updated_at=? WHERE project_id=? AND origin_key=?', (log_id, created_at, project, origin_key))
     return LogSummary(log_id, cleaned, created_at, project, created_at,
                       record_type=payload.get("recordType") if payload.get("recordType") in ("electrophoresis", "edited_plate") else "plate",
                       parent_refs=payload.get("plateEdit", {}).get("rootRefs", []) if payload.get("recordType") == "edited_plate" else [])
+
+
+def _output_origin_key(origin):
+    if not isinstance(origin, dict):
+        raise StorageValidationError('出力プレートの参照が不正です。')
+    ref, index = origin.get('ref'), origin.get('index')
+    if not isinstance(ref, str) or not re.fullmatch(r'(?:local:)?[\w-]{1,128}', ref) or type(index) is not int or not 0 <= index < 2000:
+        raise StorageValidationError('出力プレートの参照が不正です。')
+    return f'{ref}#{index}'
+
+
+def output_plate_states(project_id):
+    with _database() as conn:
+        project = _require_project(conn, project_id)
+        rows = _execute(conn, 'SELECT * FROM output_plate_states WHERE project_id=?', (project,)).fetchall()
+        return {r['origin_key']: {'status': 'active' if r['status']=='completed' and not r['completed_ref'] else r['status'], 'completed_ref':r['completed_ref']} for r in rows}
+
+
+def set_output_plate_states(project_id, selections, status):
+    if status not in ('active', 'hidden') or not 1 <= len(selections) <= 24:
+        raise StorageValidationError('対象プレートと表示状態を確認してください。')
+    with _database(write=True) as conn:
+        project = _require_project(conn, project_id)
+        for selection in selections:
+            row = _execute(conn, 'SELECT payload_json,project_id FROM logs WHERE id=?', (selection['ref'],)).fetchone()
+            if not row or row['project_id'] != project:
+                raise StorageValidationError('同じプロジェクトのDB保存済みプレートを選択してください。')
+            data = row['payload_json'] if isinstance(row['payload_json'], dict) else json.loads(row['payload_json'])
+            index = selection['index']
+            if type(index) is not int or not 0 <= index < len(data.get('packedPlates', [])):
+                raise StorageValidationError('プレート番号が不正です。')
+            origin_key = _output_origin_key(data['packedPlates'][index].get('outputOrigin', {'ref':selection['ref'],'index':index}))
+            _execute(conn, """INSERT INTO output_plate_states(project_id,origin_key,status,updated_at)
+              VALUES (?,?,?,?) ON CONFLICT(project_id,origin_key)
+              DO UPDATE SET status=excluded.status,updated_at=excluded.updated_at""", (project,origin_key,status,_now_iso()))
+    return output_plate_states(project_id)
 
 
 def list_logs(limit: int = 50, project_id: Optional[str] = None, offset: int = 0) -> List[LogSummary]:

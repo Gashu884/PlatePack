@@ -133,6 +133,56 @@ process.stdout.write(JSON.stringify(c.apply(data,{type:'correct-source',from:1,w
         del self.payload['plateEdit']['initialSourcePlates']
         validate_edit(self.payload)
 
+    def test_hidden_states_persist_and_restore_without_mutating_plate_data(self):
+        with TestClient(app) as client:
+            saved = client.post('/api/logs', json={'name':'Layout_ed','payload':self.payload}).json()
+            selection = {'ref':saved['id'],'index':0}
+            body = {'project_id':'default-project','selections':[selection],'status':'hidden'}
+            response = client.post('/api/output-plates/states',json=body)
+            self.assertEqual(response.status_code,200,response.text)
+            self.assertEqual(response.json()['raw-one#0']['status'],'hidden')
+            self.assertEqual(client.get('/api/output-plates/states?project_id=default-project').json(),response.json())
+            self.assertEqual(client.get('/api/logs/'+saved['id']).json()['payload'],self.payload)
+            body['status']='active'
+            self.assertEqual(client.post('/api/output-plates/states',json=body).json()['raw-one#0']['status'],'active')
+
+    def test_state_batch_is_atomic_and_rejects_invalid_or_cross_project_selection(self):
+        with TestClient(app) as client:
+            saved = client.post('/api/logs', json={'name':'Layout_ed','payload':self.payload}).json()
+            body = {'project_id':'default-project','selections':[{'ref':saved['id'],'index':0},{'ref':'missing','index':0}],'status':'hidden'}
+            self.assertEqual(client.post('/api/output-plates/states',json=body).status_code,422)
+            self.assertEqual(client.get('/api/output-plates/states?project_id=default-project').json(),{})
+            project = client.post('/api/folders',json={'name':'Other','kind':'project','parent_id':'default-person'}).json()
+            body.update(project_id=project['id'], selections=[{'ref':saved['id'],'index':0}])
+            self.assertEqual(client.post('/api/output-plates/states',json=body).status_code,422)
+
+    def test_completion_file_and_states_commit_together_and_preserve_original(self):
+        with TestClient(app) as client:
+            saved = client.post('/api/logs',json={'name':'Layout_ed','payload':self.payload}).json()
+            entry = client.get('/api/logs/'+saved['id']).json();entry['ref']=entry['id']
+            script="const c=require('./frontend/assets/plate-editor-core.js'),entry=JSON.parse(require('fs').readFileSync(0,'utf8'));process.stdout.write(JSON.stringify(c.complete([{entry,index:1}])));"
+            done=json.loads(subprocess.check_output(['node','-e',script],input=json.dumps(entry).encode(),cwd=ROOT))
+            response=client.post('/api/logs',json={'name':done['name'],'payload':done['data']})
+            self.assertEqual(response.status_code,200,response.text)
+            state=client.get('/api/output-plates/states?project_id=default-project').json()
+            self.assertNotIn('raw-one#0',state)
+            self.assertEqual(state['raw-two#0'],{'status':'completed','completed_ref':response.json()['id']})
+            self.assertEqual(len(done['data']['packedPlates']),1)
+            self.assertEqual(client.get('/api/logs/'+saved['id']).json()['payload'],self.payload)
+            restore=client.post('/api/output-plates/states',json={'project_id':'default-project','selections':[{'ref':response.json()['id'],'index':0}],'status':'active'})
+            self.assertEqual(restore.json()['raw-two#0']['status'],'active')
+            self.assertEqual(restore.json()['raw-two#0']['completed_ref'],response.json()['id'])
+
+    def test_invalid_completion_rolls_back_file_and_all_visibility_changes(self):
+        self.payload['plateEdit']['collection']='completed'
+        self.payload['packedPlates'][1]['outputOrigin']['index']=-1
+        self.payload['plateEdit']['initialPackedPlates'][1]['outputOrigin']['index']=-1
+        with TestClient(app) as client:
+            response=client.post('/api/logs',json={'name':'Bad_done','payload':self.payload})
+            self.assertEqual(response.status_code,422,response.text)
+            self.assertEqual(client.get('/api/logs').json(),[])
+            self.assertEqual(client.get('/api/output-plates/states?project_id=default-project').json(),{})
+
 
 if __name__ == '__main__':
     unittest.main()

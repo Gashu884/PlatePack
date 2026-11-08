@@ -78,6 +78,8 @@
     } catch(e) { return e.message; }
   }
   function sampleId(state,binding) { return `PP:${binding.sourceNamespace||state.namespace}:${binding.originUid||binding.sourceUid}:${binding.sourceWell}`; }
+  function plateLabel(snapshot,binding){return binding?.kind==='packed'?(snapshot.packedPlates||[]).find(p=>p.id===binding.plateKey)?.displayName||binding.plateKey:binding?.plateKey;}
+  function wellLabel(snapshot,binding){return binding.editedOutput&&binding.kind==='packed'?`${plateLabel(snapshot,binding)} / ${binding.well}`:`${binding.sourcePlate}-${binding.sourceWell}`;}
   function exportSession(state,snapshot,session,hash) {
     validate(state);
     const g=state.gels.find(x=>x.sha256===hash);
@@ -90,11 +92,11 @@
       const error=bindingError(snapshot,link.binding);
       if (error) throw Error(`ROI #${r.id}: ${error}。全ROIの対応を指定してからGelPoolへ書き出してください。`);
       if(r.platepack?.skipped)r.decision=r.platepack.previousDecision||'auto';
-      r.sample=sampleId(state,link.binding);r.well=link.binding.editedOutput&&link.binding.kind==='packed'?`${link.binding.plateKey} / ${link.binding.well}`:`${link.binding.sourcePlate}-${link.binding.sourceWell}`;
+      r.sample=sampleId(state,link.binding);r.well=wellLabel(snapshot,link.binding);
       r.platepack={...clone(link.binding),namespace:state.namespace};
     }
     result.history ||= [];result.history.push({at:new Date().toISOString(),action:'PlatePack: 手動ROI・ウェル対応を適用',before,after:clone(result.config)});
     result.updatedAt=new Date().toISOString();return result;
   }
-  return {empty,validate,importSession,resolve,bind,bindingError,sampleId,exportSession};
+  return {empty,validate,importSession,resolve,bind,bindingError,sampleId,exportSession,plateLabel,wellLabel};
 });

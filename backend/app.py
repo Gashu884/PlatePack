@@ -14,14 +14,14 @@ try:
     from backend.api.logs_db import (
         FolderConflictError, RecordNotFoundError, StorageValidationError,
         copy_log, create_folder, create_log, delete_log, get_log, init_db,
-        list_folders, list_logs, storage_health, update_folder, update_log,
+        list_folders, list_logs, storage_health, update_folder, update_log, output_plate_states, set_output_plate_states,
     )
 except ModuleNotFoundError:  # pragma: no cover
     from api.generate_html import ReportRequest, build_html_report, sample_payload
     from api.logs_db import (
         FolderConflictError, RecordNotFoundError, StorageValidationError,
         copy_log, create_folder, create_log, delete_log, get_log, init_db,
-        list_folders, list_logs, storage_health, update_folder, update_log,
+        list_folders, list_logs, storage_health, update_folder, update_log, output_plate_states, set_output_plate_states,
     )
 
 app = FastAPI(
@@ -48,6 +48,27 @@ class LogCreateRequest(BaseModel):
         if not cleaned:
             raise ValueError("Log name must not be blank.")
         return cleaned
+
+
+class OutputPlateSelection(BaseModel):
+    ref: str = Field(min_length=1, max_length=134)
+    index: int = Field(ge=0, lt=2000)
+
+
+class OutputPlateStateRequest(BaseModel):
+    project_id: str
+    selections: list[OutputPlateSelection] = Field(min_length=1, max_length=24)
+    status: str = Field(pattern='^(active|hidden)$')
+
+
+@app.get('/api/output-plates/states')
+def api_output_states(project_id: str):
+    return _storage_call(output_plate_states, project_id)
+
+
+@app.post('/api/output-plates/states')
+def api_set_output_states(body: OutputPlateStateRequest):
+    return _storage_call(set_output_plate_states, body.project_id, [s.model_dump() for s in body.selections], body.status)
 
 
 class LogSummaryResponse(BaseModel):
