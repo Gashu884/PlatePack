@@ -1291,9 +1291,9 @@
     <div class="page">
       <div class="page-main">
         <header>
-          <h1><a class="page-title-link" href="/" title="Polymerase Chain Republic" aria-label="Polymerase Chain Republic ホーム">PCR</a></h1>
+          <h1><a class="page-title-link pcr-wordmark" href="/" title="Polymerase Chain Republic" aria-label="Polymerase Chain Republic ホーム">PCR</a></h1>
 
-          <p class="page-subtitle">Packer</p>
+          <p class="page-subtitle">サンプリング</p>
 
         </header>
 
@@ -1416,7 +1416,7 @@
                     <button type="button" class="ghost" id="backupJsonBtn">JSON ↓</button>
                     <button type="button" class="ghost" id="restoreJsonBtn">JSONを開く</button>
                     <input type="file" id="restoreJsonInput" accept=".json,application/json" hidden />
-			            <a class="ghost" id="logsLink" href="/results" style="text-decoration:none; display:inline-flex; align-items:center; justify-content:center; height:30px; padding:0 0.6rem;">Database</a>
+			            <a class="ghost" id="logsLink" href="/results" style="text-decoration:none; display:inline-flex; align-items:center; justify-content:center; height:30px; padding:0 0.6rem;">データベース</a>
 			            </div>
 			          </div>
           <p id="storageNotice" class="storage-notice"></p>
@@ -3212,7 +3212,7 @@
               item?.source === "local"
                 ? `/plates?log=${encodeURIComponent(`local:${item?.id || ""}`)}`
                 : `/plates?log=${encodeURIComponent(item?.id || "")}`;
-            open.textContent = "Packerで開く";
+            open.textContent = "サンプリングで開く";
 
             const dl = document.createElement("button");
             dl.type = "button";

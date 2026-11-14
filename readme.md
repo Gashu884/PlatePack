@@ -2,6 +2,8 @@
 
 96ウェルプレートの試料配置、電気泳動画像のバンド定量、再PCRの管理、等量プールの分注量計算を行うアプリです。配置結果を印刷用HTMLとして出力できます。
 
+公開URL: https://polymerase-chain-republic.vercel.app/
+
 画面・出力ファイル・APIの正式名称は Polymerase Chain Republic、略称は PCR です。既存データとの互換性のため、保存キー、IndexedDB名、JSONの `platepack` フィールド、固定サンプルID、解析バージョン、`PLATEPACK_DB_PATH` と既定DBファイル名は維持しています。
 
 ## 構成

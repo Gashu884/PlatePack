@@ -5,7 +5,7 @@ window.PlatePackProjects = (() => {
     const results=await Promise.allSettled([storage.readFolders(),storage.fetchJson('/api/folders')]);
     const map=new Map();for(const result of results)if(result.status==='fulfilled')for(const f of result.value)map.set(f.id,f);
     if(results[1].status==='fulfilled')await storage.mergeFolders(results[1].value).catch(()=>{});
-    if(!map.size)throw Error('保存先を読み込めません。Databaseの接続を確認してください。');
+    if(!map.size)throw Error('保存先を読み込めません。データベースの接続を確認してください。');
     return [...map.values()];
   }
   async function create(currentProject){
