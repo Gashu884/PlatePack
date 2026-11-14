@@ -1,4 +1,4 @@
-/* PlatePack experiment workflow: persisted originals, fixed identities, explicit pool approval. */
+/* Polymerase Chain Republic experiment workflow: persisted originals, fixed identities, explicit pool approval. */
 window.Electro = (() => {
   const el=id=>document.getElementById(id), copy=x=>JSON.parse(JSON.stringify(x));
   const CHUNK=256*1024;
@@ -195,7 +195,7 @@ window.Electro = (() => {
     el('downloadOriginal').onclick=()=>guarded(async()=>{if(state)download(state.image.name,await getBlob(state.image.sha256),'application/octet-stream')});
     el('saveExperiment').onclick=()=>guarded(saveRecord);el('backupExperiment').onclick=()=>guarded(backup);
     el('restoreExperiment').onchange=e=>guarded(async()=>{const f=e.target.files[0];if(!f)return;if(f.size>160*1024*1024)throw Error('実験一式JSONは160 MB以下にしてください。');if(dirty&&!confirm('現在の作業を置き換えます。保存済みですか？'))return;await restoreRecord(JSON.parse(await f.text()));el('recordStatus').textContent='復元済み'});
-    el('save').onclick=()=>guarded(async()=>{if(!state)return;const out=copy(state);out.raw=b64(await getBlob(state.image.sha256));download(prefix()+'_gelpool.json',JSON.stringify(out),'application/json')});
+    el('save').onclick=()=>guarded(async()=>{if(!state)return;const out=copy(state);out.raw=b64(await getBlob(state.image.sha256));download(prefix()+'_pcr_electrophoresis.json',JSON.stringify(out),'application/json')});
     el('sessionFile').onchange=e=>guarded(async()=>{const f=e.target.files[0];if(!f)return;if(!record.plate)throw Error('先にプレートを選択してください。');const s=JSON.parse(await f.text());if(record.sessions.length>=32&&!record.sessions.some(x=>x.image.sha256===s.image?.sha256))throw Error('1実験は32画像までです。');await adopt(await api('/api/restore',s));invalidate()});
     el('mapping').hidden=true; // identities are assigned through the plate dialog only
     window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue=''}});

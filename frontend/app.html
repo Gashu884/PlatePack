@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>PlatePack</title>
+    <title>Polymerase Chain Republic</title>
     <style>
       :root {
         color-scheme: light;
@@ -1291,7 +1291,7 @@
     <div class="page">
       <div class="page-main">
         <header>
-          <h1><a class="page-title-link" href="/">PlatePack</a></h1>
+          <h1><a class="page-title-link" href="/" title="Polymerase Chain Republic" aria-label="Polymerase Chain Republic ホーム">PCR</a></h1>
 
           <p class="page-subtitle">Packer</p>
 
@@ -2602,7 +2602,7 @@
 
       function validateSnapshot(snapshot) {
         if (!snapshot || !Array.isArray(snapshot.plates) || !snapshot.plates.length || snapshot.plates.length > 999) {
-          throw new Error("PlatePackのJSON形式を確認してください。現在の入力は保持しています。");
+          throw new Error("PCRのJSON形式を確認してください。現在の入力は保持しています。");
         }
         const isWell = well => typeof well === "string" && /^[A-H]([1-9]|1[0-2])$/.test(well);
         snapshot.plates.forEach(plate => {
@@ -2708,13 +2708,13 @@
         });
       }
 
-      function downloadBackup(name = "PlatePack backup", payload = buildLogSnapshot()) {
+      function downloadBackup(name = "Polymerase Chain Republic backup", payload = buildLogSnapshot()) {
         const backup = { name, created_at: new Date().toISOString(), payload };
         const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
-        link.download = `platepack_backup_${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
+        link.download = `pcr_backup_${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
         document.body.appendChild(link); link.click(); link.remove();
         setTimeout(() => URL.revokeObjectURL(url), 1000);
       }
@@ -2985,7 +2985,7 @@
 
         function validatePayload(payload) {
           if (!payload || !Array.isArray(payload.plates) || !payload.plates.length || payload.plates.length > 999) {
-            throw new Error("PlatePackのJSON形式を確認してください。プレート情報が必要です。");
+            throw new Error("PCRのJSON形式を確認してください。プレート情報が必要です。");
           }
           const isWell = well => typeof well === "string" && /^[A-H]([1-9]|1[0-2])$/.test(well);
           const isWeek = week => Number.isInteger(week) && week >= 1 && week <= 5;

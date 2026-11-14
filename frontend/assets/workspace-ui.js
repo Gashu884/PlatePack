@@ -1,4 +1,4 @@
-/* Progressive disclosure shared by the local PlatePack screens. */
+/* Progressive disclosure shared by the local Polymerase Chain Republic screens. */
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);

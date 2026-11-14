@@ -435,7 +435,7 @@
   }
       function validatePayload(snapshot) {
         if (!snapshot || !Array.isArray(snapshot.plates) || !snapshot.plates.length || snapshot.plates.length > 999) {
-          throw new Error("PlatePackのJSON形式を確認してください。現在の入力は保持しています。");
+          throw new Error("PCRのJSON形式を確認してください。現在の入力は保持しています。");
         }
         const validGrowthWeek = value => Number.isInteger(value) && value >= 1 && value <= 5;
         const isWell = well => typeof well === "string" && /^[A-H]([1-9]|1[0-2])$/.test(well);

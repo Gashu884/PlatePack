@@ -36,7 +36,7 @@
   }
   function importSession(state, session) {
     const image = session?.image, c = session?.config;
-    if (!image || !c || !Array.isArray(c.rois)) throw Error('GelPoolの「解析を保存」または「台帳一式JSON」のファイルを選んでください。');
+    if (!image || !c || !Array.isArray(c.rois)) throw Error('PCR Electrophoresisの「解析を保存」または「台帳一式JSON」のファイルを選んでください。');
     const next = clone(state), existing = next.gels.find(g => g.sha256 === image.sha256);
     const results = session.quantification?.results || [];
     const gel = { sha256:image.sha256, name:image.name, width:image.width, height:image.height, preview:image.preview,
@@ -83,19 +83,19 @@
   function exportSession(state,snapshot,session,hash) {
     validate(state);
     const g=state.gels.find(x=>x.sha256===hash);
-    if (!g || session?.image?.sha256!==hash) throw Error('この画像の元のGelPool解析JSONを再読み込みしてください。');
+    if (!g || session?.image?.sha256!==hash) throw Error('この画像の元のPCR Electrophoresis解析JSONを再読み込みしてください。');
     const result=clone(session),before=clone(result.config),ids=result.config.rois.map(r=>r.id);
     if (ids.length!==g.rois.length || ids.some(id=>!g.rois.some(r=>r.id===id))) throw Error('ROI番号が一致しません。最新の解析JSONを読み込んでください。');
     for (const r of result.config.rois) {
       const link=g.rois.find(x=>x.id===r.id);
       if(link.skipped){const previousDecision=r.platepack?.skipped?r.platepack.previousDecision:r.decision;r.decision='exclude';r.sample='';r.well='';r.platepack={namespace:state.namespace,skipped:true,previousDecision:previousDecision||'auto'};continue;}
       const error=bindingError(snapshot,link.binding);
-      if (error) throw Error(`ROI #${r.id}: ${error}。全ROIの対応を指定してからGelPoolへ書き出してください。`);
+      if (error) throw Error(`ROI #${r.id}: ${error}。全ROIの対応を指定してからPCR Electrophoresisへ書き出してください。`);
       if(r.platepack?.skipped)r.decision=r.platepack.previousDecision||'auto';
       r.sample=sampleId(state,link.binding);r.well=wellLabel(snapshot,link.binding);
       r.platepack={...clone(link.binding),namespace:state.namespace};
     }
-    result.history ||= [];result.history.push({at:new Date().toISOString(),action:'PlatePack: 手動ROI・ウェル対応を適用',before,after:clone(result.config)});
+    result.history ||= [];result.history.push({at:new Date().toISOString(),action:'Polymerase Chain Republic: 手動ROI・ウェル対応を適用',before,after:clone(result.config)});
     result.updatedAt=new Date().toISOString();return result;
   }
   return {empty,validate,importSession,resolve,bind,bindingError,sampleId,exportSession,plateLabel,wellLabel};

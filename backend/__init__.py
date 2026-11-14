@@ -1,2 +1,2 @@
-"""Backend package for PlatePack."""
+"""Backend package for Polymerase Chain Republic."""
 

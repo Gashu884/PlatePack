@@ -1,4 +1,4 @@
-"""Log storage for PlatePack UI snapshots (SQLite locally, Postgres on Vercel)."""
+"""Log storage for Polymerase Chain Republic UI snapshots (SQLite locally, Postgres on Vercel)."""
 
 from __future__ import annotations
 

@@ -1,2 +1,2 @@
-"""Backend API helpers for PlatePack."""
+"""Backend API helpers for Polymerase Chain Republic."""
 

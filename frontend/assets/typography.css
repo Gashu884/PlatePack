@@ -13,3 +13,5 @@ body{line-height:1.6}button,input,select,textarea{font-size:14px}h1{font-size:28
 .well-week,.cell-week{font-size:12px!important}
 .project-create{max-width:440px;width:90%;border:1px solid #cbd5e1;border-radius:12px;padding:24px;color:#182638;background:white}
 .project-create label{display:block;margin:16px 0}.project-create input,.project-create select{width:100%;box-sizing:border-box;padding:10px}.project-create .actions{display:flex;gap:12px;justify-content:flex-end}.project-create::backdrop{background:#18263866}
+
+.brand-abbreviation{display:inline-block;font-size:14px;letter-spacing:.08em;vertical-align:middle;margin-left:.4em;color:#607085}

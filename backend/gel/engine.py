@@ -1,4 +1,4 @@
-"""GelPool: deterministic grid-assisted fluorescence densitometry."""
+"""PCR Electrophoresis: deterministic grid-assisted fluorescence densitometry."""
 import base64, hashlib, io
 import numpy as np
 from PIL import Image

@@ -1,4 +1,4 @@
-"""FastAPI application entrypoint for PlatePack HTML API."""
+"""FastAPI application entrypoint for Polymerase Chain Republic HTML API."""
 
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ except ModuleNotFoundError:  # pragma: no cover
     )
 
 app = FastAPI(
-    title="PlatePack HTML API",
+    title="Polymerase Chain Republic HTML API",
     version="1.0.0",
     description="Generate printable HTML reports for plate packing plans.",
 )

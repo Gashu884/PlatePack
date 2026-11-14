@@ -41,7 +41,7 @@
         r.well=links.wellLabel(plate,b);
         r.platepack={...core.clone(b),namespace:next.links.namespace};
       }
-      session.history ||= [];session.history.push({at,action:'PlatePack: 入力元の訂正を反映',before,after:core.clone(session.config)});
+      session.history ||= [];session.history.push({at,action:'Polymerase Chain Republic: 入力元の訂正を反映',before,after:core.clone(session.config)});
       session.updatedAt=at;
       // Recompute pooling and exports against corrected identities before confirmation.
       delete session.measuredConfig;delete session.measuredVersion;delete session.measuredAt;
