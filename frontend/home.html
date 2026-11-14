@@ -124,14 +124,13 @@
         <div class="browser project-finder">
           <aside class="sidebar">
             <div class="sidebar-heading"><span>メンバーとプロジェクト</span><button id="createMember" class="icon-btn" aria-label="メンバーを作成" title="メンバーを作成">＋</button></div>
-            <button id="finderRoot" class="tree-root"><span class="folder-icon"></span>メンバー</button>
             <nav id="projectTree" aria-label="メンバーとプロジェクト"></nav>
           </aside>
           <main class="content">
             <div class="navigation"><nav id="finderPath" aria-label="現在のフォルダ"></nav><label class="search"><span>検索</span><input id="projectSearch" type="search" aria-label="このフォルダ内を検索" autocomplete="off"></label></div>
             <div class="toolbar"><div class="toolbar-group"><button id="finderUp" class="btn" type="button">上のフォルダへ</button><button id="createProject" class="btn" type="button">＋ 新規プロジェクト</button><button id="renameFolder" class="btn" type="button" disabled>名前変更</button><button id="openFolder" class="btn primary" type="button" disabled>開く</button></div></div>
             <p id="projectNotice" class="notice" role="status">読み込み中…</p>
-            <div class="list-scroll"><table id="projectFileList" aria-label="メンバー・プロジェクト・作業モード"><thead><tr><th class="name-column">名前</th><th>種類</th><th>更新日時</th><th class="row-action">操作</th></tr></thead><tbody id="projectList"></tbody></table><p id="finderEmpty" class="empty" hidden>項目がありません</p></div>
+            <div class="list-scroll"><table id="projectFileList" aria-label="メンバー・プロジェクト・作業モード"><thead><tr><th class="name-column">名前</th><th>更新日時</th><th class="row-action">操作</th></tr></thead><tbody id="projectList"></tbody></table><p id="finderEmpty" class="empty" hidden>項目がありません</p></div>
             <footer class="browser-footer"><span id="finderCount">0件</span><button id="finderRefresh" class="text-btn" type="button">更新</button></footer>
           </main>
         </div>

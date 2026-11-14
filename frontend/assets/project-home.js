@@ -24,8 +24,7 @@
     const f=folder(current);$('projectTree').replaceChildren();
     const sorted=items=>items.sort((a,b)=>a.name.localeCompare(b.name,'ja'));
     for(const member of sorted(folders.filter(f=>f.kind==='person'))){$('projectTree').append(treeButton(member));for(const project of sorted(folders.filter(f=>f.parent_id===member.id&&f.kind==='project')))$('projectTree').append(treeButton(project));}
-    $('finderRoot').classList.toggle('active',!f);
-    const path=[{id:null,name:'メンバー'}];if(f?.kind==='project'&&folder(f.parent_id))path.push(folder(f.parent_id));if(f)path.push(f);
+    const path=[{id:null,name:'ホーム'}];if(f?.kind==='project'&&folder(f.parent_id))path.push(folder(f.parent_id));if(f)path.push(f);
     $('finderPath').replaceChildren();path.forEach((part,i)=>{if(i)$('finderPath').append(node('span','path-separator','/'));const b=node('button','',part.name);b.onclick=()=>navigate(part.id);if(i===path.length-1)b.setAttribute('aria-current','page');$('finderPath').append(b);});
     const query=$('projectSearch').value.toLocaleLowerCase();
     const items=(f?.kind==='project'?modes.map(([path,name])=>({path,name,kind:'mode'})):sorted(folders.filter(x=>f?x.parent_id===f.id:x.kind==='person'))).filter(x=>x.name.toLocaleLowerCase().includes(query));
@@ -33,7 +32,7 @@
     for(const item of items){
       const row=node('tr');row.tabIndex=0;row.dataset.key=item.id||item.path;row.setAttribute('aria-selected','false');
       const cell=node('td'),name=node('div','name-cell');name.append(node('span',item.path?'mode-icon':'folder-icon',item.path?'↗':undefined),node('span','name-text',item.name));cell.append(name);
-      row.append(cell,node('td','',item.kind==='person'?'メンバー':item.kind==='project'?'プロジェクト':'作業モード'),node('td','',item.updated_at?new Date(item.updated_at).toLocaleString('ja-JP'):'—'));
+      row.append(cell,node('td','',item.updated_at?new Date(item.updated_at).toLocaleString('ja-JP'):'—'));
       const actions=node('td'),button=node('button','row-open','開く');button.onclick=e=>{e.stopPropagation();open(item);};actions.append(button);row.append(actions);
       row.onclick=()=>select(item);row.ondblclick=()=>open(item);row.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();open(item);}if(e.key===' '){e.preventDefault();select(item);}};$('projectList').append(row);
     }
@@ -45,7 +44,6 @@
   async function editName(title,initial,save){
     const dialog=node('dialog','project-create');const form=node('form');form.method='dialog';const heading=node('h2','',title),label=node('label','','名前'),input=node('input');input.required=true;input.maxLength=120;input.value=initial;label.append(input);const status=node('p');status.setAttribute('role','status');const actions=node('div','actions'),cancel=node('button','','キャンセル'),submit=node('button','','保存');cancel.type='button';cancel.onclick=()=>dialog.close();submit.type='submit';actions.append(cancel,submit);form.append(heading,label,status,actions);dialog.append(form);document.body.append(dialog);dialog.onclose=()=>dialog.remove();form.onsubmit=async e=>{e.preventDefault();const name=input.value.trim();if(!name)return;submit.disabled=true;try{await save(name);dialog.close();await load();}catch(e){status.textContent=e.message;submit.disabled=false;}};dialog.showModal();input.focus();
   }
-  $('finderRoot').onclick=()=>navigate(null);
   $('finderUp').onclick=()=>navigate(folder(current)?.kind==='project'?folder(current).parent_id:null);
   $('projectSearch').oninput=render;$('finderRefresh').onclick=load;
   $('openFolder').onclick=()=>{if(selected)open(selected);};
