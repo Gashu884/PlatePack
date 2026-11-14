@@ -40,7 +40,7 @@ window.Electro = (() => {
   async function autosave(){
     sync();if(record.confirmed?.signature!==signature())record.confirmed=null;
     const snapshot=copy(record);dirty=true;
-    saving=saving.catch(()=>{}).then(()=>idb('put','draft',snapshot));
+    saving=saving.catch(()=>{}).then(()=>idb('put','draft:'+snapshot.projectId,snapshot));
     try{await saving}catch{toast('下書きの自動保存ができません。実験一式JSONを保存してください。')}
   }
   async function guarded(fn){if(running)return;running=true;el('busy').hidden=false;el('busy').textContent='処理中…';try{return await fn()}catch(e){toast(e.message);el('recordStatus').textContent=e.message;console.error(e)}finally{running=false;el('busy').hidden=true}}
@@ -88,7 +88,7 @@ window.Electro = (() => {
     return p;
   }
   async function openEntry(ref){
-    const e=await entry(ref);if(!e)throw Error('データが見つかりません。');el('viewPlate').href=(e.payload.plateEdit&&!e.payload.electrophoresis?'/output-plates?log=':'/plates?log=')+encodeURIComponent(ref);el('viewPlate').hidden=false;
+    const e=await entry(ref);if(!e)throw Error('データが見つかりません。');if(PCRProject.id&&e.project_id!==PCRProject.id)throw Error('別のプロジェクトの記録です。');el('viewPlate').href=(e.payload.plateEdit&&!e.payload.electrophoresis?'/output-plates?log=':'/plates?log=')+encodeURIComponent(ref);el('viewPlate').hidden=false;
     if(e.payload.electrophoresis?.blob){
       const stored=JSON.parse(new TextDecoder().decode(await getBlob(e.payload.electrophoresis.blob)));stored.projectId=e.project_id;await restoreRecord(stored);dirty=false;
       el('recordStatus').textContent='DB読込済み';return;
@@ -113,7 +113,7 @@ window.Electro = (() => {
   async function restoreRecord(value){
     if(value.version!==1||!Array.isArray(value.sessions)||value.sessions.length>32)throw Error('実験一式JSONの形式が不正です。');
     if(!Number.isInteger(value.groupSize)||value.groupSize<1||value.groupSize>384)throw Error('チューブのサンプル数が不正です。');
-    const candidate=copy(value);candidate.plate=ensurePlate(candidate.plate);PlatePackGelLinks.validate(candidate.links);
+    const candidate=copy(value);if(PCRProject.id&&candidate.projectId!==PCRProject.id)throw Error('別のプロジェクトの実験です。元のプロジェクトで開いてください。');candidate.plate=ensurePlate(candidate.plate);PlatePackGelLinks.validate(candidate.links);
     // Verify all referenced originals before replacing the open experiment.
     for(const session of candidate.sessions){const bytes=session.raw?unb64(session.raw):await getBlob(session.image.sha256);if(await putBlob(bytes)!==session.image.sha256)throw Error('元画像が一致しません。');delete session.raw;}
     const selected=candidate.sessions.find(s=>s.image.sha256===candidate.active)||candidate.sessions[0];
@@ -200,7 +200,7 @@ window.Electro = (() => {
     el('mapping').hidden=true; // identities are assigned through the plate dialog only
     window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue=''}});
     for(const id of ['exportAll','exportPCR','exportPool','measureAll','gelLinkBtn','saveExperiment'])el(id).disabled=true;
-    await guarded(async()=>{await loadProjects();const ref=new URLSearchParams(location.search).get('log');if(ref){await openEntry(ref);return;}const draft=await idb('get','draft');if(draft?.sessions?.length){el('recordStatus').textContent='下書きあり';const restore=document.createElement('button');restore.textContent='復元';restore.onclick=()=>guarded(()=>restoreRecord(draft));el('recordStatus').append(' ',restore)} });
+    await guarded(async()=>{await PCRProject.ready;await loadProjects(PCRProject.id);record.projectId=PCRProject.id;const ref=new URLSearchParams(location.search).get('log');if(ref){await openEntry(ref);return;}const draft=(await idb('get','draft:'+PCRProject.id))||await idb('get','draft');if(draft?.projectId===PCRProject.id&&draft?.sessions?.length){el('recordStatus').textContent='下書きあり';const restore=document.createElement('button');restore.textContent='復元';restore.onclick=()=>guarded(()=>restoreRecord(draft));el('recordStatus').append(' ',restore)} });
   }
   return {api,autosave,render,download,start};
 })();

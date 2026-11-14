@@ -1458,7 +1458,7 @@
       let verticalDividers = new Set();
       let horizontalDividers = new Set();
       let selectedGrowthWeek = 1;
-      let currentSaveProjectId = "default-project";
+      let currentSaveProjectId = new URLSearchParams(location.search).get("project") || "default-project";
       let draftReady = false;
       let lastDraftJson = "";
       let draftRevision = 0;
@@ -2656,7 +2656,7 @@
         }));
         currentPlateIndex = Math.max(0, Math.min(Math.floor(Number(snapshot.currentPlateIndex) || 0), plates.length - 1));
         selectedGrowthWeek = validGrowthWeek(snapshot.selectedGrowthWeek) ? snapshot.selectedGrowthWeek : 1;
-        currentSaveProjectId = typeof snapshot.currentSaveProjectId === "string" ? snapshot.currentSaveProjectId : "default-project";
+        currentSaveProjectId = PCRProject.id || (typeof snapshot.currentSaveProjectId === "string" ? snapshot.currentSaveProjectId : "default-project");
         inputReadDirection = snapshot.inputReadDirection === "column" ? "column" : "row";
         layoutDirection = snapshot.layoutDirection === "column" ? "column" : "row";
         wellLabelMode = snapshot.wellLabelMode === "rowCol" ? "rowCol" : "colRow";
@@ -2767,6 +2767,7 @@
             ? await PlatePackStorage.getLog(logId.slice(6))
             : await PlatePackStorage.fetchJson(`/api/logs/${encodeURIComponent(logId)}`);
           if (!entry?.payload) throw new Error("ログが見つかりません。");
+          if (PCRProject.id && entry.project_id !== PCRProject.id) throw new Error("別のプロジェクトの記録です。");
           applyLogSnapshot(entry.payload);
           currentSaveProjectId = entry.project_id || "default-project";
           setStatus("ログを読み込みました。");
@@ -2805,6 +2806,8 @@
       async function initializeWorkspace() {
         const view = document.getElementById("view-plates");
         view.inert = true;
+        try { await PCRProject.ready; } catch { return; }
+        currentSaveProjectId = PCRProject.id;
         try {
           const draft = await PlatePackStorage.readDraft();
           if (draft) {
@@ -2825,7 +2828,7 @@
           lastDraftJson = JSON.stringify(buildLogSnapshot());
           view.inert = false;
         }
-        loadSaveProjects().catch(() => {});
+        await loadSaveProjects().catch(() => {});
         PlatePackStorage.fetchJson("/api/storage-health").then(health => {
           if (!health.available || !health.durable) {
             document.getElementById("storageNotice").textContent = "DB保存不可 · JSONを保存してください。";

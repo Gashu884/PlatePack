@@ -18,6 +18,18 @@ body{line-height:1.6}button,input,select,textarea{font-size:14px}h1{font-size:28
 
 /* Republic wordmark: strong italic lettering with room to wrap on phones. */
 .pcr-wordmark{font-family:Arial,"Helvetica Neue",sans-serif!important;font-style:italic!important;font-weight:900!important;letter-spacing:-.035em;text-decoration:none}
-#view-home h1.pcr-wordmark{font-size:clamp(32px,5.3vw,56px);line-height:1.12;max-width:100%;overflow-wrap:break-word;padding-right:.12em}
+#view-home h1.pcr-wordmark{font-size:clamp(24px,3.53vw,37px);line-height:1.12;max-width:100%;overflow-wrap:break-word;padding-right:.12em}
 .pcr-wordmark .brand-abbreviation{font-size:.48em;font-weight:900;letter-spacing:-.02em;color:inherit;margin-left:0;vertical-align:baseline}
 a.brand.pcr-wordmark,a.page-title-link.pcr-wordmark{font-weight:900!important;font-style:italic!important}
+
+[hidden]{display:none!important}
+.project-navigation{display:flex;align-items:center;gap:8px 16px;flex-wrap:wrap;padding:12px 20px;margin-bottom:16px;border-bottom:1px solid #d5dde5;background:#fff;font-size:14px}
+.project-navigation a{color:#52667a;text-decoration:none;padding:4px 0}
+.project-navigation .project-name{font-weight:700;color:#182638;margin-right:auto}
+.project-navigation a[aria-current=page]{color:#205f9e;box-shadow:0 2px #205f9e}
+.project-list-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:20px;flex-wrap:wrap}
+.project-list-heading h2{margin:0}.project-list-heading button{padding:10px 16px;border:1px solid #cbd5e1;border-radius:8px;background:white;cursor:pointer}
+.project-search{display:flex;align-items:center;gap:12px;margin-bottom:20px}.project-search input{padding:10px;border:1px solid #cbd5e1;border-radius:8px;max-width:100%;box-sizing:border-box}
+.project-error{padding:16px;background:#fff0e8;color:#8a3018}
+.project-scoped .sidebar{display:none}.project-scoped .browser{grid-template-columns:minmax(0,1fr)}
+.project-scoped #saveProjectSelect,.project-scoped #projectSelect,.project-scoped #project{opacity:1;color:inherit}

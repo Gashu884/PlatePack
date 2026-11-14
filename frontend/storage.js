@@ -4,8 +4,8 @@ window.PlatePackStorage = (() => {
   const LOGS_KEY = "PLATEPACK_LOGS_V2";
   const FOLDERS_KEY = "PLATEPACK_FOLDERS_V1";
   const OUTPUT_STATES_KEY = "PLATEPACK_OUTPUT_STATES_V1";
-  const DRAFT_KEY = "PLATEPACK_DRAFT_V2";
-  const PREVIOUS_KEY = "PLATEPACK_DRAFT_PREVIOUS_V2";
+  const BASE_DRAFT_KEY = "PLATEPACK_DRAFT_V2";
+  const BASE_PREVIOUS_KEY = "PLATEPACK_DRAFT_PREVIOUS_V2";
   let databasePromise;
   let writeQueue = Promise.resolve();
   let lastTimestamp = 0;
@@ -348,7 +348,12 @@ window.PlatePackStorage = (() => {
     return record && Number.isFinite(record.savedAt) && Array.isArray(record.snapshot?.plates) && record.snapshot.plates.length;
   }
 
+  function draftKeys(){
+    const project=window.PCRProject?.id;
+    return project?[BASE_DRAFT_KEY+':'+project,BASE_PREVIOUS_KEY+':'+project]:[BASE_DRAFT_KEY,BASE_PREVIOUS_KEY];
+  }
   async function readDraft() {
+    const [DRAFT_KEY,PREVIOUS_KEY]=draftKeys();
     const results = await Promise.allSettled([
       Promise.resolve().then(() => localGet(DRAFT_KEY)),
       Promise.resolve().then(() => localGet(PREVIOUS_KEY)),
@@ -359,10 +364,16 @@ window.PlatePackStorage = (() => {
     if (!copies.length && results.some(r => (r.status === "fulfilled" && r.value != null) || (r.status === "rejected" && r.reason instanceof SyntaxError))) {
       throw new Error("自動保存データを復元できません。元のデータを保護しています。");
     }
-    return copies[0] || null;
+    if(copies.length)return copies[0];
+    if(window.PCRProject?.id){
+      const legacy=await Promise.allSettled([Promise.resolve().then(()=>localGet(BASE_DRAFT_KEY)),databaseGet(BASE_DRAFT_KEY)]);
+      return legacy.filter(r=>r.status==='fulfilled'&&validDraft(r.value)&&(r.value.snapshot.currentSaveProjectId||'default-project')===window.PCRProject.id).map(r=>r.value).sort((a,b)=>b.savedAt-a.savedAt)[0]||null;
+    }
+    return null;
   }
 
   function writeDraftSync(record) {
+    const [DRAFT_KEY,PREVIOUS_KEY]=draftKeys();
     // Preserve the last valid draft before replacing it.
     let previous;
     try { previous = localGet(DRAFT_KEY); } catch {}
@@ -371,6 +382,7 @@ window.PlatePackStorage = (() => {
   }
 
   function writeDraft(record, localSaved = false) {
+    const [DRAFT_KEY,PREVIOUS_KEY]=draftKeys();
     return serialized(async () => {
       let localOk = localSaved;
       if (!localOk) { try { writeDraftSync(record); localOk = true; } catch {} }

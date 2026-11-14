@@ -25,3 +25,39 @@ window.PlatePackProjects = (() => {
   }
   return {folders,create};
 })();
+
+
+/* One project is the context for every workflow page. */
+window.PCRProject = (() => {
+  const params=new URLSearchParams(location.search);
+  let id=params.get('project');
+  const routes=[['/plates','サンプリング'],['/output-plates','プレート管理'],['/electrophoresis','バンド定量'],['/results','データベース']];
+  const href=path=>path+'?project='+encodeURIComponent(id);
+  const ready=(async()=>{
+    if(location.pathname==='/')return null;
+    if(params.get('log')){
+      const ref=params.get('log');
+      const entry=ref.startsWith('local:')?await PlatePackStorage.getLog(ref.slice(6)):await PlatePackStorage.fetchJson('/api/logs/'+encodeURIComponent(ref));
+      if(!entry)throw Error('記録が見つかりません。');
+      if(id&&id!==entry.project_id)throw Error('選択中のプロジェクトとは異なる記録です。');
+      id=entry.project_id;
+    }
+    if(!id){location.replace('/');return new Promise(()=>{});}
+    const all=await PlatePackProjects.folders(),project=all.find(f=>f.id===id&&f.kind==='project');
+    if(!project)throw Error('プロジェクトが見つかりません。ホームから選び直してください。');
+    params.set('project',id);history.replaceState(null,'',location.pathname+'?'+params);
+    document.body.classList.add('project-scoped');
+    const bar=document.createElement('nav');bar.className='project-navigation';bar.setAttribute('aria-label','プロジェクト内の作業');
+    const home=document.createElement('a');home.href='/';home.textContent='プロジェクト一覧';bar.append(home);
+    const name=document.createElement('a');name.href=href('/');name.className='project-name';name.textContent=(all.find(f=>f.id===project.parent_id)?.name||'メンバー')+' / '+project.name;bar.append(name);
+    for(const [path,label] of routes){const a=document.createElement('a');a.href=href(path);a.textContent=label;if(path===location.pathname)a.setAttribute('aria-current','page');bar.append(a);}
+    document.body.prepend(bar);
+    document.querySelectorAll('a[href="/"]').forEach(a=>{if(a!==home)a.href=href('/');});
+    for(const [path] of routes)document.querySelectorAll('a[href="'+path+'"]').forEach(a=>a.href=href(path));
+    for(const key of ['saveProjectSelect','project','projectSelect']){const select=document.getElementById(key);if(select)select.disabled=true;}
+    for(const key of ['createSaveProject','newProject','newProjectBtn','newPersonBtn','rootBtn']){const button=document.getElementById(key);if(button)button.hidden=true;}
+    return project;
+  })();
+  ready.catch(e=>{const p=document.createElement('p');p.className='project-error';p.textContent=e.message;const a=document.createElement('a');a.href='/';a.textContent='プロジェクト一覧へ';p.append(' ',a);document.body.prepend(p);document.querySelectorAll('main,section,.database-shell').forEach(n=>n.inert=true);});
+  return {get id(){return id},ready,href};
+})();

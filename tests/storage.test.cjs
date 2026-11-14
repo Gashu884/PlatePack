@@ -29,7 +29,7 @@ function createSharedLocks() {
   };
 }
 
-function createStorage({ localData = {}, databaseData = {}, localFailures = [], databaseFailures = [], databaseAvailable = true, now = 1000, sharedLocal, sharedDatabase, locks, uuidPrefix = "new" } = {}) {
+function createStorage({ localData = {}, databaseData = {}, localFailures = [], databaseFailures = [], databaseAvailable = true, now = 1000, sharedLocal, sharedDatabase, locks, uuidPrefix = "new", projectScope } = {}) {
   const local = sharedLocal || new Map(Object.entries(localData).map(([key, value]) => [key, typeof value === "string" ? value : JSON.stringify(value)]));
   const database = sharedDatabase || new Map(Object.entries(databaseData).map(([key, value]) => [key, clone(value)]));
   const localFail = new Set(localFailures);
@@ -71,7 +71,7 @@ function createStorage({ localData = {}, databaseData = {}, localFailures = [], 
     createObjectStore() {},
   };
   const context = vm.createContext({
-    window: {},
+    window: projectScope ? {PCRProject:projectScope} : {},
     localStorage: {
       getItem(key) { return local.has(key) ? local.get(key) : null; },
       setItem(key, value) {
@@ -487,4 +487,30 @@ test('two tabs changing different local plates preserve both visibility choices'
   const a=createStorage({sharedLocal:local,sharedDatabase:database,locks}),b=createStorage({sharedLocal:local,sharedDatabase:database,locks});
   await Promise.all([a.storage.setOutputPlateStates('default-project',[{ref:'local:old',index:0}],'hidden'),b.storage.setOutputPlateStates('default-project',[{ref:'local:old',index:1}],'hidden')]);
   assert.equal(Object.keys(await a.storage.readOutputPlateStates('default-project')).length,2);
+});
+
+
+test('project drafts remain separate across project switches and browser reloads', async () => {
+  const scope={id:'project-a'};
+  const {storage,local,database}=createStorage({projectScope:scope});
+  const a=draft(2000,'A'), b=draft(3000,'B');
+  await storage.writeDraft(a);
+  scope.id='project-b';
+  assert.equal(await storage.readDraft(),null);
+  await storage.writeDraft(b);
+  scope.id='project-a';assert.deepEqual(clone(await storage.readDraft()),a);
+  scope.id='project-b';assert.deepEqual(clone(await storage.readDraft()),b);
+  assert.equal(local.has(DRAFT),false);
+  const reloaded=createStorage({projectScope:{id:'project-a'},sharedLocal:local,sharedDatabase:database});
+  assert.deepEqual(clone(await reloaded.storage.readDraft()),a);
+});
+
+test('legacy draft is recovered only inside its original project and kept intact', async () => {
+  const legacy=draft(1000,'legacy');legacy.snapshot.currentSaveProjectId='project-a';
+  const scope={id:'project-b'};
+  const {storage,local}=createStorage({projectScope:scope,localData:{[DRAFT]:legacy}});
+  assert.equal(await storage.readDraft(),null);
+  scope.id='project-a';assert.deepEqual(clone(await storage.readDraft()),legacy);
+  await storage.writeDraft(draft(2000,'new'));
+  assert.deepEqual(JSON.parse(local.get(DRAFT)),legacy);
 });

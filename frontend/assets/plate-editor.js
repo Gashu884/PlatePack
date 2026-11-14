@@ -83,7 +83,7 @@
       }
       if(view==='completed'){
         const links=el('div',undefined,'toolbar'),roi=el('button','ROI対応へ'),download=el('button','JSON ↓');
-        roi.onclick=()=>guarded(async()=>{const saved=await ensureCompletedGroup(group);location.href='/electrophoresis?log='+encodeURIComponent(saved.ref)});
+        roi.onclick=()=>guarded(async()=>{const saved=await ensureCompletedGroup(group);location.href='/electrophoresis?project='+encodeURIComponent(PCRProject.id)+'&log='+encodeURIComponent(saved.ref)});
         download.onclick=()=>guarded(async()=>downloadEntry(await ensureCompletedGroup(group)));
         links.append(roi,download);box.append(links);
       }
@@ -276,6 +276,7 @@
   $('editSelected').onclick=()=>start([...picked.values()]);$('clearSelection').onclick=()=>{picked.clear();updatePicked()};$('refresh').onclick=()=>guarded(load);$('project').onchange=()=>{params.delete('parent');params.delete('log');history.replaceState(null,'','/output-plates?project='+encodeURIComponent($('project').value));guarded(load)};
   window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue=''}});
   guarded(async()=>{
+    await PCRProject.ready;params.set("project",PCRProject.id);
     const folders=await PlatePackProjects.folders();for(const f of folders.filter(f=>f.kind==='project'))$('project').add(new Option((folders.find(p=>p.id===f.parent_id)?.name||'メンバー')+' / '+f.name,f.id));
     const ref=params.get('log');let opened=null;if(ref){opened=await readEntry(ref);if(!opened)throw Error('データが見つかりません。');params.set('project',opened.project_id)}
     if(params.get('project'))$('project').value=params.get('project');if(!$('project').value)throw Error('プロジェクトが見つかりません。');

@@ -3,6 +3,7 @@
   'use strict';
   const storage = window.PlatePackStorage;
   const DEFAULT_PROJECT = 'default-project';
+  const scopedProject=()=>window.PCRProject?.id;
   const DEFAULT_PERSON = 'default-person';
   const CLIPBOARD_KEY = 'PLATEPACK_DATABASE_CLIPBOARD_V1';
   const $ = id => document.getElementById(id);
@@ -50,7 +51,7 @@
   async function fetchAllLogs() {
     const result = [];
     for (let offset = 0; ; offset += 1000) {
-      const batch = await api('/api/logs?limit=1000&offset=' + offset);
+      const batch = await api('/api/logs?limit=1000&offset=' + offset + (scopedProject()?'&project_id='+encodeURIComponent(scopedProject()):''));
       if (!Array.isArray(batch)) throw new Error('DBの一覧を読み込めません。');
       result.push(...batch);
       if (batch.length < 1000) return result;
@@ -67,6 +68,7 @@
     try { localStorage.setItem(CLIPBOARD_KEY, JSON.stringify(data)); } catch {}
   }
   async function refresh() {
+    if(window.PCRProject){await PCRProject.ready;currentFolder=PCRProject.id;}
     $('itemCount').textContent = '読み込み中…';
     const results = await Promise.allSettled([storage.readFolders(), storage.readLogs(), api('/api/folders')]);
     const localFolders = results[0].status === 'fulfilled' ? results[0].value : [];
@@ -103,9 +105,9 @@
     folders = Array.from(merged.values());
     logs = [
       ...remoteLogs.map(item => ({...item,project_id:item.project_id || DEFAULT_PROJECT,source:'db'})),
-      ...localLogs.map(item => ({...item,project_id:item.project_id || DEFAULT_PROJECT,source:'local'})),
+      ...localLogs.filter(item=>!scopedProject()||item.project_id===scopedProject()).map(item => ({...item,project_id:item.project_id || DEFAULT_PROJECT,source:'local'})),
     ];
-    if (currentFolder && !folder(currentFolder)) currentFolder = folder(DEFAULT_PROJECT) ? DEFAULT_PROJECT : null;
+    if (currentFolder && !folder(currentFolder)) {if(scopedProject())throw Error('プロジェクトが見つかりません。');currentFolder = folder(DEFAULT_PROJECT) ? DEFAULT_PROJECT : null;}
     selected = new Set([...selected].filter(key => logs.some(item => keyFor(item) === key) || folders.some(item => 'folder:' + item.id === key)));
     readClipboard();
     render();
@@ -113,6 +115,7 @@
     if (errors.length) message([...new Set(errors)].join(' '), true);
   }
   function navigate(id) {
+    if(scopedProject()&&id!==scopedProject())return;
     currentFolder = id;
     selected.clear();
     selectionAnchor = null;
@@ -170,11 +173,11 @@
   }
   function renderPath() {
     $('outputPlatesLink').href='/output-plates'+(folder(currentFolder)?.kind==='project'?'?project='+encodeURIComponent(currentFolder):'');
-    const path = [{id:null,name:'Database'}];
+    const path = scopedProject() ? [] : [{id:null,name:'データベース'}];
     const current = folder(currentFolder);
     if (current?.kind === 'project') {
       const person = folder(current.parent_id);
-      if (person) path.push(person);
+      if (person && !scopedProject()) path.push(person);
     }
     if (current) path.push(current);
     $('pathbar').replaceChildren();
@@ -218,7 +221,7 @@
   }
   async function openItem(item) {
     if (item.source === 'folder') return navigate(item.id);
-    try { const entry=await getEntry(item); location.href = (entry.payload.electrophoresis ? '/electrophoresis?log=' : entry.payload.plateEdit ? '/output-plates?log=' : '/plates?log=') + encodeURIComponent(item.source === 'local' ? 'local:' + item.id : item.id); } catch(e) { message(e.message,true); }
+    try { const entry=await getEntry(item); location.href = (entry.payload.electrophoresis ? '/electrophoresis?log=' : entry.payload.plateEdit ? '/output-plates?log=' : '/plates?log=') + encodeURIComponent(item.source === 'local' ? 'local:' + item.id : item.id)+'&project='+encodeURIComponent(item.project_id); } catch(e) { message(e.message,true); }
   }
   function renderList() {
     visibleItems = getVisibleItems();

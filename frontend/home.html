@@ -119,6 +119,12 @@
 
         </header>
 
+        <section id="projectChooser" aria-labelledby="projectListHeading">
+          <div class="project-list-heading"><h2 id="projectListHeading">プロジェクト</h2><button id="createProject" type="button">＋ 新規プロジェクト</button></div>
+          <label class="project-search">検索<input id="projectSearch" type="search" placeholder="メンバー・プロジェクト名" autocomplete="off"></label>
+          <p id="projectNotice" role="status">読み込み中…</p><div id="projectList" class="cards"></div>
+        </section>
+        <section id="projectWorkspace" hidden><div class="project-list-heading"><div><a href="/">プロジェクト一覧</a><h2 id="activeProjectName"></h2><p id="activeProjectMember" class="muted"></p></div></div>
         <div class="cards">
           <a class="card card-link" href="/plates" data-help="ウェルを選び、出力プレートへ配置します。">
             <h2>サンプリング</h2>
@@ -131,8 +137,12 @@
 
           </a>
         </div>
+        </section>
       </div>
     </section>
+  <script src="/assets/storage.js"></script>
+  <script src="/assets/projects.js"></script>
+  <script src="/assets/project-home.js"></script>
   <script src="/assets/workspace-ui.js"></script>
 </body>
 </html>
