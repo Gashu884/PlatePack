@@ -1,0 +1,15 @@
+#view-home .shell{max-width:1400px}
+.project-finder{min-height:560px}
+#finderPath{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+#finderPath button{background:none;border:0;color:#617084;cursor:pointer;padding:4px}
+#finderPath button[aria-current=page]{color:#182638;font-weight:600}
+#projectTree .tree-item{font-size:14px}
+#projectFileList tr[aria-selected=true]{background:#dceafa}
+#projectFileList tbody tr{cursor:default}
+#projectFileList .name-cell{min-height:32px}
+#projectFileList .mode-icon{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border:1px solid #adc3d5;border-radius:4px;font-size:12px;color:#386481;background:#f1f7fc}
+#projectNotice{margin:0 24px 12px}
+#projectNotice:empty{display:none}
+#projectFileList .row-open{white-space:nowrap}
+#projectTree button:focus-visible,#projectFileList tr:focus-visible{outline:2px solid #245e95;outline-offset:-2px}
+@media(max-width:600px){.project-finder{min-height:520px}#projectFileList{min-width:560px}.project-finder .sidebar{max-height:180px}}

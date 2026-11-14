@@ -8,11 +8,11 @@ window.PlatePackProjects = (() => {
     if(!map.size)throw Error('保存先を読み込めません。データベースの接続を確認してください。');
     return [...map.values()];
   }
-  async function create(currentProject){
+  async function create(currentProject,memberId){
     const all=await folders(),dialog=document.createElement('dialog');dialog.className='project-create';
     dialog.innerHTML='<form method="dialog"><h2>新規プロジェクト</h2><label>メンバー<select name="member" required></select></label><label>プロジェクト名<input name="name" maxlength="120" required autocomplete="off"></label><p role="status"></p><div class="actions"><button type="button" data-cancel>キャンセル</button><button type="submit">作成</button></div></form>';
     const select=dialog.querySelector('select');for(const f of all.filter(x=>x.kind==='person'))select.add(new Option(f.name,f.id));
-    const parent=all.find(x=>x.id===currentProject)?.parent_id;if(parent)select.value=parent;
+    const parent=memberId||all.find(x=>x.id===currentProject)?.parent_id;if(parent)select.value=parent;
     document.body.append(dialog);dialog.showModal();
     return new Promise(resolve=>{
       let result=null;dialog.addEventListener('close',()=>{dialog.remove();resolve(result)},{once:true});dialog.querySelector('[data-cancel]').onclick=()=>dialog.close();
