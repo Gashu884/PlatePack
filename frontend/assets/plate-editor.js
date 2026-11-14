@@ -2,6 +2,8 @@
   'use strict';
   const $=id=>document.getElementById(id), core=PlateEditor, storage=PlatePackStorage;
   const params=new URLSearchParams(location.search);
+  const embedded=params.get('embedded')==='1'&&parent!==window,workspaceToken=params.get('workspace');
+  const notify=(type,data={})=>{if(embedded)parent.postMessage({channel:'pcr-plate-workspace',token:workspaceToken,type,...data},location.origin);};
   let entries=[], picked=new Map(), current=null, original=null, undo=[], selection=null, gesture=null, rangeMode=false, targeting=false, dirty=false, busy=false, savedRef=null, pendingSave=null, catalog={}, view=['active','completed','hidden'].includes(params.get('view'))?params.get('view'):'active', doneBoards=new Set(), catalogReady=false, localCatalogReady=false, remoteCatalog={}, localCatalog={}, groups=new Map(), repairEntry=null, repackPreview=null;
   const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
   const note=(text,error=false)=>{$('notice').textContent=text;$('notice').dataset.error=error;};
@@ -9,7 +11,7 @@
   const key=(entry,index)=>entry.ref+'#'+index;
   const count=plate=>plate.grid.flat().filter(Boolean).length;
   const canonical=v=>Array.isArray(v)?'['+v.map(canonical).join(',')+']':v&&typeof v==='object'?'{'+Object.keys(v).sort().map(k=>JSON.stringify(k)+':'+canonical(v[k])).join(',')+'}':JSON.stringify(v);
-  async function guarded(fn){if(busy)return;busy=true;document.body.classList.add('saving');try{await fn()}catch(e){note(e.message,true)}finally{busy=false;document.body.classList.remove('saving')}}
+  async function guarded(fn){if(busy)return;busy=true;notify('state',{dirty,busy});document.body.classList.add('saving');try{await fn()}catch(e){note(e.message,true)}finally{busy=false;notify('state',{dirty,busy});document.body.classList.remove('saving')}}
   async function readEntry(ref){return ref.startsWith('local:')?storage.getLog(ref.slice(6)):request('/api/logs/'+encodeURIComponent(ref));}
   async function load(){
     repairEntry=null;$('reconcileOutput').hidden=true;picked.clear();const project=$('project').value;entries=[];renderOverview();note('読み込み中…');
@@ -97,8 +99,8 @@
   }
   function start(list){
     repairEntry=null;$('reconcileOutput').hidden=true;
-    try{current=core.assemble(list,{mergeSources:true});original=core.clone(current.data);undo=[];selection=null;doneBoards.clear();savedRef=list.every(s=>s.entry.ref===list[0].entry.ref)&&list[0].entry.payload.recordType==='edited_plate'?list[0].entry.ref:null;pendingSave=null;dirty=false;rangeMode=false;targeting=false;
-      $('overview').hidden=true;$('editor').hidden=false;$('project').disabled=true;$('refresh').disabled=true;$('editTitle').textContent=current.name;note('');renderEditor();window.scrollTo(0,0);
+    try{current=core.assemble(list,{mergeSources:true});original=core.clone(current.data);undo=[];selection=null;doneBoards.clear();if(embedded)for(const i of current.selected)doneBoards.add(i);savedRef=list.every(s=>s.entry.ref===list[0].entry.ref)&&list[0].entry.payload.recordType==='edited_plate'?list[0].entry.ref:null;pendingSave=null;dirty=false;rangeMode=false;targeting=false;
+      $('overview').hidden=true;$('editor').hidden=false;$('project').disabled=true;$('refresh').disabled=true;$('editTitle').textContent=embedded?list.map(s=>core.plateName(s.entry,s.index)).join(' / '):current.name;note('');renderEditor();window.scrollTo(0,0);
     }catch(e){
       const candidates=[...new Map(list.map(s=>[s.entry.ref,s.entry])).values()].filter(e=>!e.ref.startsWith('local:')&&core.orphanOutputs(e).length);
       if(candidates.length===1){repairEntry=candidates[0];$('reconcileOutput').hidden=false;}
@@ -137,6 +139,7 @@
     try{const next=core.apply(current.data,action);if(canonical(next)===canonical(current.data))return true;undo.push(core.clone(current.data));current.data=next;dirty=true;savedRef=null;pendingSave=null;selection=null;targeting=false;note('');renderEditor();return true}catch(e){note(e.message,true);$('sourceError').textContent=e.message;targeting=false;mark();return false}
   }
   function renderEditor(){
+    notify('state',{dirty,busy});
     $('boards').replaceChildren();$('undo').disabled=!undo.length;$('reset').disabled=canonical(current.data)===canonical(original);$('saveState').textContent=dirty?'未保存':savedRef?'保存済み':'編集前';
     $('electrophoresis').hidden=!savedRef;$('electrophoresis').href=savedRef?'/electrophoresis?log='+encodeURIComponent(savedRef):'';
     const origins=core.provenance(current.data);
@@ -210,7 +213,7 @@
   $('range').onclick=()=>{rangeMode=!rangeMode;targeting=false;mark()};$('move').onclick=()=>{targeting=!targeting;rangeMode=false;mark()};
   $('delete').onclick=()=>{if(selection)change({type:'delete',from:selection.plate,wells:selection.wells})};
   $('reset').onclick=()=>{if(confirm('今回の編集を開始時の配置に戻しますか？')){undo.push(core.clone(current.data));current.data=core.clone(original);dirty=true;selection=null;targeting=false;rangeMode=false;savedRef=null;pendingSave=null;renderEditor()}};
-  $('back').onclick=()=>{if(dirty&&!confirm('未保存の変更を破棄して一覧へ戻りますか？'))return;dirty=false;if(params.get('log')||params.get('parent')){location.href='/?project='+encodeURIComponent($('project').value);return;}current=null;picked.clear();params.delete('log');history.replaceState(null,'','/output-plates?project='+encodeURIComponent($('project').value)+(params.get('parent')?'&parent='+encodeURIComponent(params.get('parent')):''));$('editor').hidden=true;$('overview').hidden=false;$('project').disabled=false;$('refresh').disabled=false;renderOverview();note('')};
+  $('back').onclick=()=>{if(embedded){notify('close-request');return;}if(dirty&&!confirm('未保存の変更を破棄して一覧へ戻りますか？'))return;dirty=false;if(params.get('log')||params.get('parent')){location.href='/?project='+encodeURIComponent($('project').value);return;}current=null;picked.clear();params.delete('log');history.replaceState(null,'','/output-plates?project='+encodeURIComponent($('project').value)+(params.get('parent')?'&parent='+encodeURIComponent(params.get('parent')):''));$('editor').hidden=true;$('overview').hidden=false;$('project').disabled=false;$('refresh').disabled=false;renderOverview();note('')};
   async function saveCurrent(){
     if(savedRef&&!dirty){note('保存済みです。');return savedRef}
     if(!pendingSave){const payload=core.clone(current.data);payload.plateEdit.savedAt=new Date().toISOString();pendingSave={payload,project: $('project').value,name:current.name,ref:null};}
@@ -220,7 +223,7 @@
     if(verified.project_id!==p.project||canonical(verified.payload)!==canonical(p.payload))throw Error('保存内容を照合できませんでした。再度「保存」を押してください。');
     remoteCatalog=await request('/api/output-plates/states?project_id='+encodeURIComponent(p.project));catalog={...localCatalog,...remoteCatalog};
     savedRef=p.ref;dirty=false;entries.unshift({...verified,ref:verified.id});pendingSave=null;
-    renderEditor();note('「編集プレート」に保存しました。');history.replaceState(null,'','/output-plates?project='+encodeURIComponent(p.project)+'&log='+encodeURIComponent(savedRef));return savedRef;
+    renderEditor();note('保存しました。');if(embedded)notify('saved');else history.replaceState(null,'','/output-plates?project='+encodeURIComponent(p.project)+'&log='+encodeURIComponent(savedRef));return savedRef;
   }
   $('save').onclick=()=>guarded(saveCurrent);
   function overviewPage(){
@@ -246,6 +249,7 @@
     const out=await request('/api/logs',{name:result.name,project_id:$('project').value,payload});
     const verified=await readEntry(out.id);
     if(canonical(verified.payload)!==canonical(payload))throw Error('保存を照合できませんでした。一覧を更新してください。');
+    if(embedded){dirty=false;notify('completed');return;}
     overviewPage();await load();
     const affected=new Set(list.map(s=>s.entry.payload.packedPlates[s.index].outputOrigin?.ref||s.entry.ref));
     const completed=core.overviewGroups(entries,catalog).filter(g=>affected.has(g.root.ref)&&g.completed);
@@ -274,12 +278,21 @@
   });
   document.querySelectorAll('[data-view]').forEach(button=>button.onclick=()=>{view=button.dataset.view;picked.clear();renderOverview();note('')});
   $('editSelected').onclick=()=>start([...picked.values()]);$('clearSelection').onclick=()=>{picked.clear();updatePicked()};$('refresh').onclick=()=>guarded(load);$('project').onchange=()=>{params.delete('parent');params.delete('log');history.replaceState(null,'','/output-plates?project='+encodeURIComponent($('project').value));guarded(load)};
-  window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue=''}});
+  window.addEventListener('beforeunload',e=>{if(dirty&&!embedded){e.preventDefault();e.returnValue=''}});
+  if(embedded){
+    $('back').textContent='タブを閉じる';
+    window.addEventListener('message',event=>{if(event.source!==parent||event.origin!==location.origin||event.data?.channel!=='pcr-plate-workspace'||event.data.token!==workspaceToken)return;if(event.data.type==='close'){dirty=false;notify('closed');}});
+    let lastHeight=0;new ResizeObserver(()=>{const height=document.body.scrollHeight;if(height!==lastHeight){lastHeight=height;notify('height',{height});}}).observe(document.body);
+  }
   guarded(async()=>{
     await PCRProject.ready;params.set("project",PCRProject.id);
     const folders=await PlatePackProjects.folders();for(const f of folders.filter(f=>f.kind==='project'))$('project').add(new Option((folders.find(p=>p.id===f.parent_id)?.name||'メンバー')+' / '+f.name,f.id));
     const ref=params.get('log');let opened=null;if(ref){opened=await readEntry(ref);if(!opened)throw Error('データが見つかりません。');params.set('project',opened.project_id)}
     if(params.get('project'))$('project').value=params.get('project');if(!$('project').value)throw Error('プロジェクトが見つかりません。');
-    await load();if(opened){const entry={...opened,ref};const requested=params.get('plate');const chosen=(requested!==null?[Number(requested)]:(entry.payload.plateEdit?.selectedPlates || entry.payload.packedPlates.map((_,i)=>i))).slice(0,core.MAX_SELECTED);if(chosen.some(i=>!Number.isInteger(i)||!entry.payload.packedPlates[i]))throw Error('プレートが見つかりません。');start(chosen.map(index=>({entry,index})))}
+    if(embedded&&opened){
+      entries=[{...opened,ref}];
+      try{remoteCatalog=await request('/api/output-plates/states?project_id='+encodeURIComponent(opened.project_id));catalogReady=true;}catch(e){note(e.message,true);}
+      try{localCatalog=await storage.readOutputPlateStates(opened.project_id);localCatalogReady=true;}catch{}catalog={...localCatalog,...remoteCatalog};
+    }else await load();if(opened){const entry={...opened,ref};const requested=params.get('plate');const chosen=(requested!==null?[Number(requested)]:(entry.payload.plateEdit?.selectedPlates || entry.payload.packedPlates.map((_,i)=>i))).slice(0,core.MAX_SELECTED);if(chosen.some(i=>!Number.isInteger(i)||!entry.payload.packedPlates[i]))throw Error('プレートが見つかりません。');start(chosen.map(index=>({entry,index})))}
   });
 })();

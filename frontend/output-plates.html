@@ -1,8 +1,8 @@
 <!doctype html>
 <html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Polymerase Chain Republic · プレート管理</title>
-<link rel="stylesheet" href="/assets/typography.css"><link rel="stylesheet" href="/assets/plate-editor.css"><link rel="stylesheet" href="/assets/workspace-ui.css">
-</head><body>
+<link rel="stylesheet" href="/assets/typography.css"><link rel="stylesheet" href="/assets/plate-editor.css?v=workspace2"><link rel="stylesheet" href="/assets/workspace-ui.css">
+<script>if(new URLSearchParams(location.search).get("embedded")==="1"&&parent!==window)document.documentElement.classList.add("embedded-plate-editor");</script></head><body>
 <header><a href="/" class="brand pcr-wordmark" title="Polymerase Chain Republic" aria-label="Polymerase Chain Republic ホーム">PCR</a><h1>プレート管理</h1><a href="/results" id="databaseLink">データベース</a></header>
 <main>
   <div class="toolbar"><label>プロジェクト <select id="project" aria-label="プロジェクト"></select></label><button id="refresh">更新</button><span id="recordCount"></span></div>
@@ -34,5 +34,5 @@
     <div class="toolbar"><button type="button" id="cancelSource">キャンセル</button><button type="submit" class="primary">訂正</button></div>
   </form>
 </dialog>
-<script src="/assets/storage.js"></script><script src="/assets/projects.js"></script><script src="/assets/plate-editor-core.js"></script><script src="/assets/plate-editor.js"></script><script src="/assets/workspace-ui.js"></script>
+<script src="/assets/storage.js"></script><script src="/assets/projects.js"></script><script src="/assets/plate-editor-core.js"></script><script src="/assets/plate-editor.js?v=workspace2"></script><script src="/assets/workspace-ui.js"></script>
 </body></html>

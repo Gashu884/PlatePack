@@ -11,3 +11,14 @@
 .plate-completed{display:block;font-size:12px;color:#176d55;margin-bottom:6px}
 
 #repackDialog{max-width:600px;max-height:80vh;overflow:auto;border:1px solid #c8d5ce;border-radius:12px;padding:24px;color:inherit}#repackDialog::backdrop{background:#20332e55}#repackDialog h2{font-size:18px}#repackDialog p,#repackChanges{font-size:14px}#repackError{color:#a32d32}
+
+/* The tab surface exposes only the editor; project navigation stays in the host. */
+.embedded-plate-editor body{background:#fff}
+.embedded-plate-editor header,.embedded-plate-editor .project-navigation,.embedded-plate-editor main>.toolbar,.embedded-plate-editor #overview,.embedded-plate-editor #reconcileOutput,.embedded-plate-editor #electrophoresis{display:none!important}
+.embedded-plate-editor main{padding:12px 16px;max-width:none}
+.embedded-plate-editor .sticky-tools{margin:0 0 12px;top:0;background:#f7f9fc}
+.embedded-plate-editor #boards{grid-template-columns:1fr;margin-top:12px}
+.embedded-plate-editor .board-title>input{display:none}
+.embedded-plate-editor .well-grid{min-width:552px;max-width:1000px;margin:auto}
+.embedded-plate-editor #editTitle{font-size:16px}
+.embedded-plate-editor #completeBoards{background:#176d55;color:#fff;border-color:#176d55}

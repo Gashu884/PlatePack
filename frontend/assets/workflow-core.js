@@ -7,7 +7,7 @@
     for(const group of groups){
       const items=group.items.filter(item=>item.status===view);if(!items.length)continue;
       out.push({kind:'group',entry:group.root,name:group.root.name,count:items.length});
-      for(const item of items){seen.add(item.entry.ref+'#'+item.index);out.push({...item,kind:'plate',name:editor.plateName(item.entry,item.index)});}
+      for(const item of items){seen.add(item.entry.ref+'#'+item.index);out.push({...item,kind:'plate',groupRef:group.root.ref,name:editor.plateName(item.entry,item.index)});}
     }
     for(const entry of plates.filter(e=>e.payload.plateEdit))for(const [index] of entry.payload.packedPlates.entries()){
       if(seen.has(entry.ref+'#'+index)||!editor.visible(entry,index,catalog,view))continue;

@@ -2,6 +2,7 @@
   'use strict';
   const $=id=>document.getElementById(id), params=new URLSearchParams(location.search), api=PCRWorkflowAPI.request;
   let folders=[],current=params.get('project')||params.get('member'),selected=null,entries=[],catalog={},attachments=[],view=['input','active','completed','hidden'].includes(params.get('state'))?params.get('state'):'active',generation=0,loading=false;
+  const workspace=PCRPlateWorkspace({onSaved:project=>{if(project===current)loadRecords();},onCompleted:project=>{if(project===current){loadRecords();notice('編集完了にしました。');}}});
   const folder=id=>folders.find(f=>f.id===id);
   const node=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;};
   const notice=text=>$('projectNotice').textContent=text;
@@ -11,7 +12,8 @@
   function treeButton(f){const b=node('button','tree-item '+f.kind);b.type='button';b.classList.toggle('active',current===f.id);b.append(node('span','folder-icon'),node('span','folder-name',f.name));b.onclick=()=>navigate(f.id);return b;}
   function open(item){
     if(!item.entry){navigate(item.id);return;}
-    if(item.kind==='group'){location.href='/output-plates?project='+encodeURIComponent(current)+'&parent='+encodeURIComponent(item.entry.ref)+'&view='+view;return;}
+    if(item.kind==='plate'){workspace.open(item,current);return;}
+    if(item.kind==='group'){const plates=PCRWorkflow.rows(entries,catalog,view,PlateEditor).filter(i=>i.kind==='plate'&&i.groupRef===item.entry.ref);for(const plate of plates.slice(0,24))workspace.open(plate,current);if(plates.length>24)notice('一度に開けるのは24枚までです。残りは各プレートから開いてください。');return;}
     const path=item.kind==='input'?'/plates':item.kind==='analysis'?'/electrophoresis':'/output-plates';
     location.href=path+'?project='+encodeURIComponent(current)+'&log='+encodeURIComponent(item.entry.ref)+(item.index!==undefined?'&plate='+item.index:'');
   }
@@ -46,8 +48,18 @@
     for(const e of analyses){const a=node('a','attachment-line','解析：'+e.name);a.href='/electrophoresis?project='+encodeURIComponent(current)+'&log='+encodeURIComponent(e.ref);details.append(a);}
     details.onclick=e=>e.stopPropagation();details.ondblclick=e=>e.stopPropagation();name.append(details);
   }
+  function plateCard(item){
+    const card=node('article','compact-plate-card'),button=node('button','compact-plate-open');button.type='button';button.setAttribute('aria-label',item.name+' を編集');button.title=item.name;
+    const plate=item.entry.payload.packedPlates[item.index],mini=node('span','compact-plate-grid');mini.setAttribute('aria-hidden','true');
+    for(const cell of plate.grid.flat()){const well=node('span',cell?'filled':'');if(cell?.color&&/^#[a-f0-9]{6}$/i.test(cell.color))well.style.backgroundColor=cell.color;mini.append(well);}
+    button.append(node('span','compact-plate-name',item.name),mini,node('span','compact-plate-count',plate.grid.flat().filter(Boolean).length+'/96'));button.onclick=()=>open(item);card.append(button);
+    const tools=node('div','compact-plate-tools');photos(item,tools);
+    if(view==='hidden'||view==='completed')tools.append(action('作業中に戻す',()=>setState(item,'active')));else tools.append(action('非表示',()=>setState(item,'hidden')));
+    if(view==='completed')tools.append(action('非表示',()=>setState(item,'hidden')));
+    card.append(tools);plateDetails(item,card);return card;
+  }
   function render(){
-    const f=folder(current),isProject=f?.kind==='project';$('projectTree').replaceChildren();
+    const f=folder(current),isProject=f?.kind==='project';workspace.showProject(isProject?current:null);$('projectTree').replaceChildren();
     const sorted=items=>items.sort((a,b)=>a.name.localeCompare(b.name,'ja'));
     for(const member of sorted(folders.filter(f=>f.kind==='person'))){$('projectTree').append(treeButton(member));for(const project of sorted(folders.filter(f=>f.parent_id===member.id&&f.kind==='project')))$('projectTree').append(treeButton(project));}
     const path=[{id:null,name:'ホーム'}];if(isProject&&folder(f.parent_id))path.push(folder(f.parent_id));if(f)path.push(f);
@@ -56,9 +68,11 @@
     document.querySelectorAll('[data-state]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.state===view)));
     const query=$('projectSearch').value.toLocaleLowerCase();
     let items=isProject?PCRWorkflow.rows(entries,catalog,view,PlateEditor):sorted(folders.filter(x=>f?x.parent_id===f.id:x.kind==='person'));
-    if(query&&isProject){const match=new Set(items.filter(i=>i.name.toLocaleLowerCase().includes(query)).map(i=>i.entry.ref));items=items.filter(i=>i.name.toLocaleLowerCase().includes(query)||match.has(i.entry.ref));}else items=items.filter(x=>x.name.toLocaleLowerCase().includes(query));
+    if(query&&isProject){const match=new Set(items.filter(i=>i.name.toLocaleLowerCase().includes(query)).map(i=>i.groupRef||i.entry.ref));items=items.filter(i=>i.name.toLocaleLowerCase().includes(query)||match.has(i.groupRef||i.entry.ref));}else items=items.filter(x=>x.name.toLocaleLowerCase().includes(query));
     $('projectList').replaceChildren();selected=null;$('openFolder').disabled=true;$('renameFolder').disabled=true;$('finderUp').disabled=!f;
     for(const item of items){
+      if(item.kind==='plate'&&item.groupRef)continue;
+      if(item.kind==='plate'){const row=node('tr','workflow-gallery');const cell=node('td');cell.colSpan=3;cell.append(plateCard(item));row.append(cell);$('projectList').append(row);continue;}
       const row=node('tr',item.kind==='plate'?'workflow-plate':item.kind==='group'?'workflow-group':'');row.tabIndex=0;row.dataset.key=key(item);row.setAttribute('aria-selected','false');
       const cell=node('td'),name=node('div','name-cell');name.append(node('span',item.entry?'file-icon':'folder-icon',item.kind==='plate'?'96':undefined),node('span','name-text',item.name+(item.count?'（'+item.count+'枚）':'')));cell.append(name);
       if(item.kind==='plate')plateDetails(item,cell);
@@ -72,6 +86,7 @@
         if(view==='completed')actions.append(action('作業中に戻す',()=>setState(item,'active')));
       }
       row.append(actions);row.onclick=()=>select(item);row.ondblclick=()=>open(item);row.onkeydown=e=>{if(e.target!==row)return;if(e.key==='Enter'){e.preventDefault();open(item);}if(e.key===' '){e.preventDefault();select(item);}};$('projectList').append(row);
+      if(item.kind==='group'){const gallery=node('tr','workflow-gallery'),cell=node('td'),strip=node('div','compact-plate-strip');cell.colSpan=3;for(const plate of items.filter(i=>i.kind==='plate'&&i.groupRef===item.entry.ref))strip.append(plateCard(plate));cell.append(strip);gallery.append(cell);$('projectList').append(gallery);}
     }
     $('finderEmpty').hidden=!!items.length||loading;$('finderCount').textContent=items.filter(i=>i.kind!=='group').length+'件';$('newRegistration').disabled=loading;
   }

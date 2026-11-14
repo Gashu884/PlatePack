@@ -21,3 +21,26 @@
 .attachment-menu{position:relative}.attachment-menu summary{list-style:none;cursor:pointer;border:1px solid #c6d5e2;border-radius:5px;padding:2px 8px;font-size:18px}
 .attachment-menu[open]>button{position:absolute;right:0;top:100%;z-index:20;background:white;border:1px solid #c6d5e2;border-radius:6px;padding:10px;white-space:nowrap;box-shadow:0 5px 15px #17283920}
 .plate-attachments{margin:8px 0 4px 26px;font-size:12px;font-weight:400}.attachment-line{display:flex;gap:16px;margin:6px 0;overflow-wrap:anywhere}
+
+.workflow-gallery>td{padding:12px 20px 20px!important;border-top:0!important}
+.compact-plate-strip{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start}
+.compact-plate-card{width:160px;border:1px solid #d5dee8;border-radius:8px;background:white;padding:8px;flex:none}
+.compact-plate-open{display:flex;flex-direction:column;gap:7px;width:100%;border:0;background:transparent;color:#203447;padding:2px;cursor:pointer;text-align:left}
+.compact-plate-open:hover .compact-plate-grid{outline:2px solid #80a9c6;outline-offset:3px}
+.compact-plate-name{font-size:11px;font-weight:600;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.compact-plate-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:2px;width:100%;background:#f3f6f8;padding:5px;border-radius:5px}
+.compact-plate-grid>span{aspect-ratio:1;border-radius:50%;background:#e0e7eb}.compact-plate-grid>span.filled{background:#578e7a}
+.compact-plate-count{font-size:11px;color:#718193;align-self:flex-end}
+.compact-plate-tools{display:flex;align-items:center;justify-content:space-between;gap:4px;border-top:1px solid #edf0f3;margin-top:6px;padding-top:5px}
+.compact-plate-tools button{font-size:11px}.compact-plate-card .plate-attachments{margin:6px 0;font-size:11px}.compact-plate-card .attachment-line{display:block;overflow-wrap:anywhere}.compact-plate-card .attachment-line>a{display:block}
+.plate-workspace-tabs{display:flex;align-items:stretch;gap:4px;padding:0 20px;border-bottom:1px solid #d5dee8;overflow-x:auto}
+.workspace-tab-holder{display:flex;align-items:center;flex:none;border-radius:6px 6px 0 0;background:#f5f7fa}
+.workspace-tab{border:0;background:transparent;padding:12px 14px;color:#617084;white-space:nowrap;cursor:pointer;max-width:250px;overflow:hidden;text-overflow:ellipsis;font-size:13px}
+.workspace-tab[aria-selected=true]{color:#205f9e;box-shadow:inset 0 -3px #205f9e;background:#edf4fa;font-weight:600}
+.workspace-tab-close{border:0;background:transparent;color:#718193;font-size:18px;padding:5px 8px;cursor:pointer}
+.workspace-tab-close:hover{color:#203447;background:#dce5ed;border-radius:4px}
+.workspace-editor-frame{display:block;border:0;width:100%;height:850px;background:white}
+.workspace-editor-panel{min-width:0}
+#recordListPanel{display:flex;flex-direction:column;flex:1;min-height:430px}
+
+.compact-plate-tools{flex-wrap:wrap}
