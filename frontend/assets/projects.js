@@ -30,7 +30,7 @@ window.PlatePackProjects = (() => {
 /* One project is the context for every workflow page. */
 window.PCRProject = (() => {
   const params=new URLSearchParams(location.search);
-  let id=params.get('project');
+  let id=params.get('project'), contextEntry=null;
   const routes=[['/plates','サンプリング'],['/output-plates','プレート管理'],['/electrophoresis','バンド定量'],['/results','データベース']];
   const href=path=>path+'?project='+encodeURIComponent(id);
   const ready=(async()=>{
@@ -38,7 +38,7 @@ window.PCRProject = (() => {
     if(params.get('log')){
       const ref=params.get('log');
       const entry=ref.startsWith('local:')?await PlatePackStorage.getLog(ref.slice(6)):await PlatePackStorage.fetchJson('/api/logs/'+encodeURIComponent(ref));
-      if(!entry)throw Error('記録が見つかりません。');
+      if(!entry)throw Error('記録が見つかりません。');contextEntry=entry;
       if(id&&id!==entry.project_id)throw Error('選択中のプロジェクトとは異なる記録です。');
       id=entry.project_id;
     }
@@ -50,10 +50,10 @@ window.PCRProject = (() => {
     const bar=document.createElement('nav');bar.className='project-navigation';bar.setAttribute('aria-label','プロジェクト内の作業');
     const home=document.createElement('a');home.href='/';home.textContent='プロジェクト一覧';bar.append(home);
     const name=document.createElement('a');name.href=href('/');name.className='project-name';name.textContent=(all.find(f=>f.id===project.parent_id)?.name||'メンバー')+' / '+project.name;bar.append(name);
-    for(const [path,label] of routes){const a=document.createElement('a');a.href=href(path);a.textContent=label;if(path===location.pathname)a.setAttribute('aria-current','page');bar.append(a);}
+    if(contextEntry){const record=document.createElement('span');record.className='project-record-name';record.textContent=contextEntry.name;bar.append(record);}
     document.body.prepend(bar);
     document.querySelectorAll('a[href="/"]').forEach(a=>{if(a!==home)a.href=href('/');});
-    for(const [path] of routes)document.querySelectorAll('a[href="'+path+'"]').forEach(a=>a.href=href(path));
+    for(const [path] of routes)document.querySelectorAll('a[href="'+path+'"]').forEach(a=>{a.href=path==='/results'?href('/'):href(path);if(path==='/results')a.textContent='一覧に戻る';});
     for(const key of ['saveProjectSelect','project','projectSelect']){const select=document.getElementById(key);if(select)select.disabled=true;}
     for(const key of ['createSaveProject','newProject','newProjectBtn','newPersonBtn','rootBtn']){const button=document.getElementById(key);if(button)button.hidden=true;}
     return project;

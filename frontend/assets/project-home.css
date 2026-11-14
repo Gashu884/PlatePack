@@ -13,3 +13,11 @@
 #projectFileList .row-open{white-space:nowrap}
 #projectTree button:focus-visible,#projectFileList tr:focus-visible{outline:2px solid #245e95;outline-offset:-2px}
 @media(max-width:600px){.project-finder{min-height:520px}#projectFileList{min-width:560px}.project-finder .sidebar{max-height:180px}}
+.workflow-views{display:flex;gap:8px;padding:4px 24px 16px;flex-wrap:wrap}
+.workflow-views button{border:1px solid #d5dee8;border-radius:6px;background:#fff;padding:7px 14px;cursor:pointer;color:#617084}
+.workflow-views button[aria-pressed=true]{background:#dceafa;color:#194d7f;border-color:#b7cfe6}
+.workflow-group{background:#f7f9fc;font-weight:600}.workflow-plate .name-cell{padding-left:24px}
+.workflow-actions{white-space:normal;min-width:240px}.workflow-actions>button,.workflow-actions>details{display:inline-block;margin:3px}
+.attachment-menu{position:relative}.attachment-menu summary{list-style:none;cursor:pointer;border:1px solid #c6d5e2;border-radius:5px;padding:2px 8px;font-size:18px}
+.attachment-menu[open]>button{position:absolute;right:0;top:100%;z-index:20;background:white;border:1px solid #c6d5e2;border-radius:6px;padding:10px;white-space:nowrap;box-shadow:0 5px 15px #17283920}
+.plate-attachments{margin:8px 0 4px 26px;font-size:12px;font-weight:400}.attachment-line{display:flex;gap:16px;margin:6px 0;overflow-wrap:anywhere}

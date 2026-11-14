@@ -1459,6 +1459,7 @@
       let horizontalDividers = new Set();
       let selectedGrowthWeek = 1;
       let currentSaveProjectId = new URLSearchParams(location.search).get("project") || "default-project";
+      let registeredEntry = null, registrationTimer = null, registrationQueue = Promise.resolve(), registrationPending = false, registrationFailed = false, registrationVersion = 0;
       let draftReady = false;
       let lastDraftJson = "";
       let draftRevision = 0;
@@ -2053,6 +2054,7 @@
             tsvBtn.disabled = packedPlates.length === 0;
             return;
           }
+          if(registeredEntry)document.getElementById("view-plates").inert=true;
           sourceColorMap = new Map();
           const pastelPalette = [
             "#c7d2fe",
@@ -2107,11 +2109,17 @@
           renderPacked();
           window.dispatchEvent(new Event("platepack:packed"));
           persistCurrentDraft();
+          if(registeredEntry){
+            packedPlates.forEach((plate,i)=>{plate.displayName=registeredEntry.name+'_'+String(i+1).padStart(2,'0');});
+            await saveRegistration('output');registrationPending=false;
+            location.href='/?project='+encodeURIComponent(currentSaveProjectId)+'&state=active';
+          }
         } catch (error) {
           setStatus(error.message, true);
           tsvBtn.disabled = packedPlates.length === 0;
         } finally {
           packLayoutBtn.disabled = false;
+          if(registeredEntry)document.getElementById("view-plates").inert=false;
         }
       }
 
@@ -2587,6 +2595,7 @@
       function buildLogSnapshot() {
         return {
           version: 2,
+          ...(registeredEntry ? {workflow: {...registeredEntry.payload.workflow,recordId:registeredEntry.id}} : {}),
           gelLinks,
           plates: plates.map(plate => ({
             uid: plate.uid, label: plate.label, memo: plate.memo || "", wells: Array.from(plate.wells),
@@ -2694,6 +2703,7 @@
         if (json === lastDraftJson) return;
         lastDraftJson = json;
         const revision = ++draftRevision;
+        if (registeredEntry && !packedPlates.length) scheduleRegistration();
         const record = { savedAt: Date.now(), snapshot };
         let localSaved = false;
         try { PlatePackStorage.writeDraftSync(record); localSaved = true; } catch {}
@@ -2725,7 +2735,30 @@
         return JSON.stringify(value);
       }
 
+      function scheduleRegistration(){
+        if(!registeredEntry || registeredEntry.payload.workflow.stage!=='input')return;
+        registrationPending=true;registrationVersion++;clearTimeout(registrationTimer);
+        registrationTimer=setTimeout(()=>saveRegistration('input').catch(error=>setStatus(error.message,true)),650);
+      }
+      async function saveRegistration(stage){
+        clearTimeout(registrationTimer);registrationPending=true;const version=++registrationVersion;
+        const snapshot=buildLogSnapshot();
+        const operation=registrationQueue.catch(()=>{}).then(async()=>{
+          if(!registeredEntry)return;
+          setStatus(stage==='output'?'出力を保存中…':'入力を保存中…');
+          try{
+            const saved=await PlatePackStorage.fetchJson('/api/workflow/registrations/'+encodeURIComponent(registeredEntry.id),{
+              method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({expected_updated_at:registeredEntry.updated_at,payload:snapshot,stage})
+            });
+            registeredEntry=saved;registrationFailed=false;if(version===registrationVersion)registrationPending=false;setStatus(stage==='output'?'出力済み':'入力を保存しました。');
+            return saved;
+          }catch(error){registrationFailed=true;throw error;}
+        });
+        registrationQueue=operation;return operation;
+      }
+      window.addEventListener('beforeunload',event=>{if(registeredEntry&&(registrationPending||registrationFailed)){event.preventDefault();event.returnValue='';}});
       async function saveLog() {
+        if(registeredEntry){try{const stage=packedPlates.length?'output':'input';await saveRegistration(stage);if(stage==='output')location.href='/?project='+encodeURIComponent(currentSaveProjectId)+'&state=active';}catch(error){setStatus(error.message,true);}return;}
         const name = prompt("ログ名を入力してください:", `Log ${new Date().toLocaleString()}`)?.trim();
         if (!name) return;
         saveLogBtn.disabled = true;
@@ -2768,7 +2801,10 @@
             : await PlatePackStorage.fetchJson(`/api/logs/${encodeURIComponent(logId)}`);
           if (!entry?.payload) throw new Error("ログが見つかりません。");
           if (PCRProject.id && entry.project_id !== PCRProject.id) throw new Error("別のプロジェクトの記録です。");
+          if(entry.payload.workflow?.stage==='output'&&!entry.payload.plateEdit){location.replace('/output-plates?project='+encodeURIComponent(entry.project_id)+'&log='+encodeURIComponent(entry.id));return true;}
+          registeredEntry=entry.payload.workflow?.stage==='input'&&!logId.startsWith('local:')?entry:null;
           applyLogSnapshot(entry.payload);
+          if(registeredEntry){const local=await PlatePackStorage.readDraft();if(local?.snapshot?.workflow?.recordId===entry.id&&local.savedAt>Date.parse(entry.updated_at)&&!local.snapshot.packedPlates?.length){applyLogSnapshot(local.snapshot);registrationPending=true;}}
           currentSaveProjectId = entry.project_id || "default-project";
           setStatus("ログを読み込みました。");
           return true;
@@ -2809,7 +2845,7 @@
         try { await PCRProject.ready; } catch { return; }
         currentSaveProjectId = PCRProject.id;
         try {
-          const draft = await PlatePackStorage.readDraft();
+          const draft = new URLSearchParams(location.search).has("log") ? null : await PlatePackStorage.readDraft();
           if (draft) {
             applyLogSnapshot(draft.snapshot);
             setSaveState("下書き復元済み", "saved");
@@ -2827,6 +2863,10 @@
           draftReady = view.dataset.restoreError !== "true";
           lastDraftJson = JSON.stringify(buildLogSnapshot());
           view.inert = false;
+        }
+        if(registeredEntry){
+          saveLogBtn.textContent='入力を保存';packLayoutBtn.textContent='出力';document.querySelector('.page-subtitle').textContent='入力プレート';if(registrationPending)scheduleRegistration();
+          const title=document.createElement('span');title.className='registration-name';title.textContent=registeredEntry.name;document.querySelector('#view-plates header').append(title);
         }
         await loadSaveProjects().catch(() => {});
         PlatePackStorage.fetchJson("/api/storage-health").then(health => {

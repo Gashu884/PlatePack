@@ -169,11 +169,11 @@ window.Electro = (() => {
     if(record.confirmed?.signature!==signature())record.confirmed=null;
     const snapshot=copy(record),project=el('projectSelect').value,name=snapshot.name;
     const key=await putBlob(encoder.encode(JSON.stringify(snapshot)));
-    const payload={...copy(snapshot.plate),recordType:'electrophoresis',electrophoresis:{version:1,blob:key,images:snapshot.sessions.map(s=>({name:s.image.name,sha256:s.image.sha256})),confirmed:!!snapshot.confirmed}};
+    const payload={...copy(snapshot.plate),recordType:'electrophoresis',electrophoresis:{version:1,blob:key,images:snapshot.sessions.map(s=>({name:s.image.name,sha256:s.image.sha256})),confirmed:!!snapshot.confirmed,plateRef:snapshot.plateRef,plateIndex:snapshot.plateIndex,originKey:snapshot.plateIndex===undefined?undefined:(()=>{const o=snapshot.plate.packedPlates[snapshot.plateIndex].outputOrigin||{ref:snapshot.plateRef,index:snapshot.plateIndex};return o.ref+'#'+o.index;})(),attachmentIds:snapshot.attachmentIds||[]}};
     const saved=await request('/api/logs',{name,payload,project_id:project}),verified=await request('/api/logs/'+encodeURIComponent(saved.id));
     if(verified.project_id!==project||JSON.stringify(verified.payload.electrophoresis)!==JSON.stringify(payload.electrophoresis))throw Error('保存の照合に失敗しました。実験一式JSONを保存してください。');
     dirty=false;el('recordStatus').textContent='DB保存済み：'+name;
-    history.replaceState(null,'','/electrophoresis?log='+encodeURIComponent(saved.id));el('viewPlate').href=(record.plate.plateEdit?'/output-plates?log=':'/plates?log=')+encodeURIComponent(record.plateRef||saved.id);el('viewPlate').hidden=false;await loadFiles();await autosave();dirty=false;
+    history.replaceState(null,'','/electrophoresis?project='+encodeURIComponent(project)+'&log='+encodeURIComponent(saved.id));el('viewPlate').href=(record.plate.plateEdit?'/output-plates?log=':'/plates?log=')+encodeURIComponent(record.plateRef||saved.id);el('viewPlate').hidden=false;await loadFiles();await autosave();dirty=false;
   }
   async function backup(){sync();const full=copy(record);for(const s of full.sessions)s.raw=b64(await getBlob(s.image.sha256));download(record.name+'_experiment.json',JSON.stringify(full),'application/json')}
   async function start(){
@@ -200,7 +200,17 @@ window.Electro = (() => {
     el('mapping').hidden=true; // identities are assigned through the plate dialog only
     window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue=''}});
     for(const id of ['exportAll','exportPCR','exportPool','measureAll','gelLinkBtn','saveExperiment'])el(id).disabled=true;
-    await guarded(async()=>{await PCRProject.ready;await loadProjects(PCRProject.id);record.projectId=PCRProject.id;const ref=new URLSearchParams(location.search).get('log');if(ref){await openEntry(ref);return;}const draft=(await idb('get','draft:'+PCRProject.id))||await idb('get','draft');if(draft?.projectId===PCRProject.id&&draft?.sessions?.length){el('recordStatus').textContent='下書きあり';const restore=document.createElement('button');restore.textContent='復元';restore.onclick=()=>guarded(()=>restoreRecord(draft));el('recordStatus').append(' ',restore)} });
+    await guarded(async()=>{await PCRProject.ready;await loadProjects(PCRProject.id);record.projectId=PCRProject.id;const ref=new URLSearchParams(location.search).get('log');if(ref){await openEntry(ref);const params=new URLSearchParams(location.search),attachment=params.get('attachment');
+      if(attachment){
+        const image=await request('/api/workflow/attachments/'+encodeURIComponent(attachment));
+        const index=Number(params.get('plate')),plate=record.plate.packedPlates?.[index];
+        const origin=plate?.outputOrigin||{ref,index};
+        if(!plate||image.project_id!==PCRProject.id||image.origin_key!==origin.ref+'#'+origin.index)throw Error('画像とプレートの対応が一致しません。');
+        record.plateIndex=index;record.attachmentIds=[attachment];
+        el('experimentName').value=(record.plateName+' / '+image.name).slice(0,120);record.name=el('experimentName').value;
+        await adopt(await request('/api/electrophoresis/detect',{sha256:image.hash,name:image.name,rows:4,cols:24}));
+        el('recordStatus').textContent='添付画像を開きました。ROIとウェル対応を確認してください。';
+      }return;}const draft=(await idb('get','draft:'+PCRProject.id))||await idb('get','draft');if(draft?.projectId===PCRProject.id&&draft?.sessions?.length){el('recordStatus').textContent='下書きあり';const restore=document.createElement('button');restore.textContent='復元';restore.onclick=()=>guarded(()=>restoreRecord(draft));el('recordStatus').append(' ',restore)} });
   }
   return {api,autosave,render,download,start};
 })();

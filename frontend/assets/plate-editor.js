@@ -2,7 +2,7 @@
   'use strict';
   const $=id=>document.getElementById(id), core=PlateEditor, storage=PlatePackStorage;
   const params=new URLSearchParams(location.search);
-  let entries=[], picked=new Map(), current=null, original=null, undo=[], selection=null, gesture=null, rangeMode=false, targeting=false, dirty=false, busy=false, savedRef=null, pendingSave=null, catalog={}, view='active', doneBoards=new Set(), catalogReady=false, localCatalogReady=false, remoteCatalog={}, localCatalog={}, groups=new Map(), repairEntry=null, repackPreview=null;
+  let entries=[], picked=new Map(), current=null, original=null, undo=[], selection=null, gesture=null, rangeMode=false, targeting=false, dirty=false, busy=false, savedRef=null, pendingSave=null, catalog={}, view=['active','completed','hidden'].includes(params.get('view'))?params.get('view'):'active', doneBoards=new Set(), catalogReady=false, localCatalogReady=false, remoteCatalog={}, localCatalog={}, groups=new Map(), repairEntry=null, repackPreview=null;
   const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
   const note=(text,error=false)=>{$('notice').textContent=text;$('notice').dataset.error=error;};
   const request=(path,body)=>storage.fetchJson(path,body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{});
@@ -13,7 +13,7 @@
   async function readEntry(ref){return ref.startsWith('local:')?storage.getLog(ref.slice(6)):request('/api/logs/'+encodeURIComponent(ref));}
   async function load(){
     repairEntry=null;$('reconcileOutput').hidden=true;picked.clear();const project=$('project').value;entries=[];renderOverview();note('読み込み中…');
-    $('databaseLink').href='/results?project='+encodeURIComponent(project);
+    $('databaseLink').href='/?project='+encodeURIComponent(project);$('databaseLink').textContent='一覧に戻る';
     catalogReady=false;localCatalogReady=false;
     try{remoteCatalog=await request('/api/output-plates/states?project_id='+encodeURIComponent(project));catalogReady=true}catch{remoteCatalog={}}
     try{localCatalog=await storage.readOutputPlateStates(project);localCatalogReady=true}catch{localCatalog={}}
@@ -73,7 +73,7 @@
     const parent=params.get('parent');$('records').replaceChildren();groups.clear();let total=0;
     for(const group of core.overviewGroups(entries,catalog)){
       if(parent&&![group.root.ref,...group.root.aliases||[]].includes(parent))continue;
-      const items=group.items.filter(s=>view==='completed'?group.completed:view==='hidden'?s.status==='hidden':!group.completed&&s.status!=='hidden');
+      const items=group.items.filter(s=>s.status===view);
       if(!items.length)continue;
       total+=items.length;
       const box=el('section',undefined,'record');heading(group,box,items);box.append(plateCards(group,items));
@@ -81,7 +81,7 @@
         const options=el('details'),summary=el('summary','配置'),rebuild=el('button','入力から再生成');
         rebuild.onclick=()=>guarded(()=>previewRepack(group.root));options.append(summary,rebuild);box.append(options);
       }
-      if(view==='completed'){
+      if(view==='completed'&&group.completed){
         const links=el('div',undefined,'toolbar'),roi=el('button','ROI対応へ'),download=el('button','JSON ↓');
         roi.onclick=()=>guarded(async()=>{const saved=await ensureCompletedGroup(group);location.href='/electrophoresis?project='+encodeURIComponent(PCRProject.id)+'&log='+encodeURIComponent(saved.ref)});
         download.onclick=()=>guarded(async()=>downloadEntry(await ensureCompletedGroup(group)));
@@ -210,7 +210,7 @@
   $('range').onclick=()=>{rangeMode=!rangeMode;targeting=false;mark()};$('move').onclick=()=>{targeting=!targeting;rangeMode=false;mark()};
   $('delete').onclick=()=>{if(selection)change({type:'delete',from:selection.plate,wells:selection.wells})};
   $('reset').onclick=()=>{if(confirm('今回の編集を開始時の配置に戻しますか？')){undo.push(core.clone(current.data));current.data=core.clone(original);dirty=true;selection=null;targeting=false;rangeMode=false;savedRef=null;pendingSave=null;renderEditor()}};
-  $('back').onclick=()=>{if(dirty&&!confirm('未保存の変更を破棄して一覧へ戻りますか？'))return;dirty=false;current=null;picked.clear();params.delete('log');history.replaceState(null,'','/output-plates?project='+encodeURIComponent($('project').value)+(params.get('parent')?'&parent='+encodeURIComponent(params.get('parent')):''));$('editor').hidden=true;$('overview').hidden=false;$('project').disabled=false;$('refresh').disabled=false;renderOverview();note('')};
+  $('back').onclick=()=>{if(dirty&&!confirm('未保存の変更を破棄して一覧へ戻りますか？'))return;dirty=false;if(params.get('log')||params.get('parent')){location.href='/?project='+encodeURIComponent($('project').value);return;}current=null;picked.clear();params.delete('log');history.replaceState(null,'','/output-plates?project='+encodeURIComponent($('project').value)+(params.get('parent')?'&parent='+encodeURIComponent(params.get('parent')):''));$('editor').hidden=true;$('overview').hidden=false;$('project').disabled=false;$('refresh').disabled=false;renderOverview();note('')};
   async function saveCurrent(){
     if(savedRef&&!dirty){note('保存済みです。');return savedRef}
     if(!pendingSave){const payload=core.clone(current.data);payload.plateEdit.savedAt=new Date().toISOString();pendingSave={payload,project: $('project').value,name:current.name,ref:null};}
@@ -280,6 +280,6 @@
     const folders=await PlatePackProjects.folders();for(const f of folders.filter(f=>f.kind==='project'))$('project').add(new Option((folders.find(p=>p.id===f.parent_id)?.name||'メンバー')+' / '+f.name,f.id));
     const ref=params.get('log');let opened=null;if(ref){opened=await readEntry(ref);if(!opened)throw Error('データが見つかりません。');params.set('project',opened.project_id)}
     if(params.get('project'))$('project').value=params.get('project');if(!$('project').value)throw Error('プロジェクトが見つかりません。');
-    await load();if(opened){const entry={...opened,ref};const chosen=(entry.payload.plateEdit?.selectedPlates || entry.payload.packedPlates.map((_,i)=>i)).slice(0,core.MAX_SELECTED);start(chosen.map(index=>({entry,index})))}
+    await load();if(opened){const entry={...opened,ref};const requested=params.get('plate');const chosen=(requested!==null?[Number(requested)]:(entry.payload.plateEdit?.selectedPlates || entry.payload.packedPlates.map((_,i)=>i))).slice(0,core.MAX_SELECTED);if(chosen.some(i=>!Number.isInteger(i)||!entry.payload.packedPlates[i]))throw Error('プレートが見つかりません。');start(chosen.map(index=>({entry,index})))}
   });
 })();

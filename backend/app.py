@@ -335,3 +335,6 @@ app.include_router(electrophoresis_router)
 @app.get("/electrophoresis", response_class=HTMLResponse)
 def serve_electrophoresis():
     return _serve_html(ROOT_DIR / "frontend" / "electrophoresis.html", "Electrophoresis")
+
+from backend.api.workflow import router as workflow_router
+app.include_router(workflow_router)

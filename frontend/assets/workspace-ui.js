@@ -73,7 +73,7 @@
     profile:'橙色の端点をドラッグして、ベースラインと積分範囲を編集します。',
     widthExcluded:'このバンドを共通ROI幅の基準候補から外します。',
     markerConfirmed:'500 bpの位置と積分範囲を確認したらチェックします。',
-    saveExperiment:'元画像・ROI・対応・測定・プール計画をDatabaseに保存します。',
+    saveExperiment:'元画像・ROI・対応・測定・プール計画をこのプレートの解析として保存します。',
     saveLogBtn:'プレート配置をDBに保存し、JSONバックアップも出力します。',
     packLayoutBtn:'選択したウェルを出力レイアウトへ配置します。',
     inputDirectionBtn:'入力ウェルを読み取る順序を切り替えます。',
@@ -171,6 +171,7 @@
     actions.append(button('保存',()=>save.showModal(),'このプロジェクトにDB保存します。'),exports,$('logsLink'));
     const outputLink=node('a','ui-button','プレート管理');outputLink.href='/output-plates';outputLink.addEventListener('click',()=>{outputLink.href='/output-plates?project='+encodeURIComponent($('saveProjectSelect').value)});actions.append(outputLink);
     head.append(actions);
+    if(new URLSearchParams(location.search).has('log')){outputLink.hidden=true;}
     const bar = node('nav','ui-work-nav');layout.before(bar);
     const view = tabs(bar,[['input','入力',input],['layout','配置',arrangement],['output','結果',outputPanel]],key=>{inputPanel.hidden=key==='output';});
     const next = button('配置へ →',()=>view.activate('layout'),'出力先の空ウェルと区切りを設定します。');input.append(next);

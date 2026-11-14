@@ -350,7 +350,9 @@ window.PlatePackStorage = (() => {
 
   function draftKeys(){
     const project=window.PCRProject?.id;
-    return project?[BASE_DRAFT_KEY+':'+project,BASE_PREVIOUS_KEY+':'+project]:[BASE_DRAFT_KEY,BASE_PREVIOUS_KEY];
+    const ref=typeof location!=='undefined'?new URLSearchParams(location.search).get('log'):null;
+    const suffix=project+(ref?':'+ref:'');
+    return project?[BASE_DRAFT_KEY+':'+suffix,BASE_PREVIOUS_KEY+':'+suffix]:[BASE_DRAFT_KEY,BASE_PREVIOUS_KEY];
   }
   async function readDraft() {
     const [DRAFT_KEY,PREVIOUS_KEY]=draftKeys();
