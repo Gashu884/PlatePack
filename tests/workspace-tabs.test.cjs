@@ -13,11 +13,11 @@ function setup(){
  const elements=Object.fromEntries(['plateWorkspaceTabs','plateWorkspacePanels','recordListPanel'].map(id=>[id,new Element('section')]));
  const handlers={},saved=[],completed=[];let answer=true,uuid=0;
  const window={addEventListener:(type,fn)=>handlers[type]=fn};
- const context=vm.createContext({window,document:{getElementById:id=>elements[id],createElement:tag=>new Element(tag)},crypto:{randomUUID:()=>String(++uuid)},location:{origin:'https://example.test'},confirm:()=>answer});
+ const context=vm.createContext({window,document:{getElementById:id=>elements[id],createElement:tag=>new Element(tag)},crypto:{randomUUID:()=>String(++uuid)},location:{origin:'https://example.test'},confirm:()=>answer,PCRGelRegistration:options=>{context.uploadOptions=options;}});
  vm.runInContext(source,context);const tabs=window.PCRPlateWorkspace({onSaved:p=>saved.push(p),onCompleted:p=>completed.push(p)});
  const frames=()=>elements.plateWorkspacePanels.children.map(p=>p.children[0]);
  const send=(frame,type,data={},origin='https://example.test',token)=>{const key=new URL(frame.src,'https://example.test').searchParams.get('workspace');handlers.message({origin,source:frame.contentWindow,data:{channel:'pcr-plate-workspace',token:token??key,type,...data}});};
- return {tabs,elements,frames,send,saved,completed,handlers,setAnswer:v=>answer=v};
+ return {tabs,elements,frames,send,saved,completed,handlers,context,setAnswer:v=>answer=v};
 }
 const plate=n=>({origin:'root#'+n,name:'plate '+n,index:n,entry:{ref:'root',name:'record'}});
 test('reopening the same physical plate activates its existing editor and keeps separate plates alive',()=>{const s=setup();s.tabs.open(plate(0),'project');s.tabs.open(plate(1),'project');const first=s.frames()[0];s.send(first,'state',{dirty:true});s.tabs.showList();s.tabs.open(plate(0),'project');assert.equal(s.frames().length,2);assert.equal(s.frames()[0],first);assert.equal(s.elements.recordListPanel.hidden,true);assert.equal(s.elements.plateWorkspacePanels.children[0].hidden,false);});
@@ -25,3 +25,25 @@ test('completion removes only the acknowledged tab and triggers project refresh'
 test('messages from another origin or with a wrong token cannot close or save a tab',()=>{const s=setup();s.tabs.open(plate(0),'project');const f=s.frames()[0];s.send(f,'completed',{},'https://foreign.test');s.send(f,'saved',{},'https://example.test','wrong');assert.equal(s.frames().length,1);assert.deepEqual(s.saved,[]);assert.deepEqual(s.completed,[]);});
 test('dirty close cancellation retains the editor; accepted close waits for child acknowledgment',()=>{const s=setup();s.tabs.open(plate(0),'project');const f=s.frames()[0];s.send(f,'state',{dirty:true});s.setAnswer(false);const close=s.elements.plateWorkspaceTabs.children[1].children[1];close.click();assert.equal(f.contentWindow.messages.length,0);s.setAnswer(true);close.click();assert.equal(s.frames().length,1);assert.equal(f.contentWindow.messages[0].data.type,'close');s.send(f,'closed');assert.equal(s.frames().length,0);});
 test('an editor cannot be closed during a save and dirty tabs warn before leaving the page',()=>{const s=setup();s.tabs.open(plate(0),'project');const f=s.frames()[0];s.send(f,'state',{dirty:true,busy:true});const close=s.elements.plateWorkspaceTabs.children[1].children[1];assert.equal(close.disabled,true);close.click();assert.equal(f.contentWindow.messages.length,0);let prevented=false;const event={preventDefault(){prevented=true;}};s.handlers.beforeunload(event);assert.equal(prevented,true);});
+
+
+test('plate editing, image registration and quantification use independent tabs without navigating the host',()=>{
+ const s=setup(),p=plate(0),image={id:'image-a',name:'gel.tif'};
+ s.tabs.open(p,'project');s.tabs.openAnalysis(p,'project',image);
+ let frames=s.frames();assert.equal(frames.length,2);assert.ok(frames[1].src.startsWith('/electrophoresis?'));assert.ok(frames[1].src.includes('attachment=image-a'));
+ s.tabs.openAnalysis(p,'project',image);assert.equal(s.frames().length,2);
+ s.tabs.openUpload(p,'project');const panels=s.elements.plateWorkspacePanels.children;assert.equal(panels.length,3);assert.equal(panels[2].hidden,false);
+ assert.equal(s.context.uploadOptions.item,p);s.context.uploadOptions.onState({busy:true,dirty:true});assert.equal(s.elements.plateWorkspaceTabs.children[3].children[1].disabled,true);
+ s.context.uploadOptions.onState({busy:false,dirty:false});s.context.uploadOptions.onSaved();assert.deepEqual(s.saved,['project']);
+ s.context.uploadOptions.onAnalyze(image);assert.equal(s.elements.plateWorkspacePanels.children[1].hidden,false);assert.equal(s.elements.plateWorkspacePanels.children.length,3);
+});
+test('opening a saved analysis activates a record tab and saving it keeps it open',()=>{
+ const s=setup(),item={name:'saved analysis',entry:{ref:'analysis-1'}};
+ s.tabs.openAnalysis(item,'project');const frame=s.frames()[0];assert.ok(frame.src.includes('log=analysis-1'));assert.equal(frame.src.includes('attachment='),false);
+ s.send(frame,'state',{dirty:true});s.send(frame,'saved');assert.equal(s.frames().length,1);assert.deepEqual(s.saved,['project']);
+});
+test('a close request racing with analysis work can be retried after the work ends',()=>{
+ const s=setup();s.tabs.openAnalysis(plate(0),'project',{id:'i',name:'gel'});const frame=s.frames()[0];s.send(frame,'state',{dirty:false});
+ const close=s.elements.plateWorkspaceTabs.children[1].children[1];close.click();assert.equal(close.disabled,true);
+ s.send(frame,'close-blocked');assert.equal(close.disabled,false);s.send(frame,'state',{dirty:true,busy:false});close.click();s.send(frame,'closed');assert.equal(s.frames().length,0);
+});

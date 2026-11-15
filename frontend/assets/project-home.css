@@ -44,3 +44,12 @@
 #recordListPanel{display:flex;flex-direction:column;flex:1;min-height:430px}
 
 .compact-plate-tools{flex-wrap:wrap}
+
+.gel-registration{padding:24px;min-height:480px}
+.gel-registration h2{font-size:20px;margin:0 0 12px}.gel-registration h3{font-size:15px;margin:28px 0 12px}
+.gel-registration-help{font-size:13px;color:#617084}
+.gel-registration-form{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:24px 0 12px}
+.gel-registration-filename{font-size:13px;overflow-wrap:anywhere}
+.gel-registration-status{font-size:13px;min-height:24px;color:#205f9e;overflow-wrap:anywhere}
+.gel-registration-image{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:16px 0;border-bottom:1px solid #e8edf2;font-size:13px}
+.gel-registration-image>span{flex:1 1 200px;overflow-wrap:anywhere}.gel-registration-image a{color:#205f9e}

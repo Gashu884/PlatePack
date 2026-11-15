@@ -14,6 +14,7 @@
     if(!item.entry){navigate(item.id);return;}
     if(item.kind==='plate'){workspace.open(item,current);return;}
     if(item.kind==='group'){const plates=PCRWorkflow.rows(entries,catalog,view,PlateEditor).filter(i=>i.kind==='plate'&&i.groupRef===item.entry.ref);for(const plate of plates.slice(0,24))workspace.open(plate,current);if(plates.length>24)notice('一度に開けるのは24枚までです。残りは各プレートから開いてください。');return;}
+    if(item.kind==='analysis'){workspace.openAnalysis(item,current);return;}
     const path=item.kind==='input'?'/plates':item.kind==='analysis'?'/electrophoresis':'/output-plates';
     location.href=path+'?project='+encodeURIComponent(current)+'&log='+encodeURIComponent(item.entry.ref)+(item.index!==undefined?'&plate='+item.index:'');
   }
@@ -32,20 +33,15 @@
   }
   function photos(item,host){
     const menu=node('details','attachment-menu'),summary=node('summary','','＋');summary.title='プレートに追加';summary.setAttribute('aria-label',item.name+' に追加');menu.append(summary);
-    const input=node('input');input.type='file';input.accept='.tif,.tiff,.png,image/png,image/tiff';input.hidden=true;
-    const choose=action('泳動写真を登録',()=>{input.click();menu.open=false;});menu.append(choose,input);host.append(menu);
-    input.onchange=()=>guarded(async()=>{
-      const file=input.files[0];if(!file)return;if(item.entry.ref.startsWith('local:'))throw Error('画像を添付する前に、この記録をDBへ登録してください。');
-      choose.disabled=true;notice('画像を保存中…');try{const hash=await PCRWorkflowAPI.upload(file,(n,total)=>notice('画像を保存中… '+n+'/'+total));await api('/api/workflow/attachments',{ref:item.entry.ref,index:item.index,name:file.name,sha256:hash});await loadRecords();notice('泳動写真を保存しました。');}finally{choose.disabled=false;input.value='';}
-    });
+    const choose=action('泳動写真を登録',()=>{workspace.openUpload(item,current);menu.open=false;});menu.append(choose);host.append(menu);
   }
   function plateDetails(item,name){
     const images=attachments.filter(a=>a.origin_key===item.origin),analyses=entries.filter(e=>PCRWorkflow.analysisMatches(e,item));
     if(!images.length&&!analyses.length)return;
     const details=node('details','plate-attachments');details.append(node('summary','',images.length+'画像'+(analyses.length?'・解析 '+analyses.length:' ')));
     for(const image of images){const line=node('div','attachment-line');const download=node('a','',image.name);download.href='/api/workflow/attachments/'+encodeURIComponent(image.id)+'/file';download.download=image.name;
-      const analyze=node('a','','定量を開く');analyze.href='/electrophoresis?project='+encodeURIComponent(current)+'&log='+encodeURIComponent(item.entry.ref)+'&plate='+item.index+'&attachment='+encodeURIComponent(image.id);line.append(download,analyze);details.append(line);}
-    for(const e of analyses){const a=node('a','attachment-line','解析：'+e.name);a.href='/electrophoresis?project='+encodeURIComponent(current)+'&log='+encodeURIComponent(e.ref);details.append(a);}
+      const analyze=node('a','','定量を開く');analyze.href='/electrophoresis?project='+encodeURIComponent(current)+'&log='+encodeURIComponent(item.entry.ref)+'&plate='+item.index+'&attachment='+encodeURIComponent(image.id);analyze.onclick=event=>{event.preventDefault();event.stopPropagation();workspace.openAnalysis(item,current,image);};line.append(download,analyze);details.append(line);}
+    for(const e of analyses){const a=node('a','attachment-line','解析：'+e.name);a.href='/electrophoresis?project='+encodeURIComponent(current)+'&log='+encodeURIComponent(e.ref);a.onclick=event=>{event.preventDefault();event.stopPropagation();workspace.openAnalysis({entry:e,name:e.name},current);};details.append(a);}
     details.onclick=e=>e.stopPropagation();details.ondblclick=e=>e.stopPropagation();name.append(details);
   }
   function plateCard(item){

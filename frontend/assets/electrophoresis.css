@@ -25,3 +25,13 @@ summary{cursor:pointer;font-size:14px;color:var(--ink)}
 #recordStatus{font-size:14px;margin:6px 0}
 .experiment-bar{padding-block:12px}.experiment-fields{gap:10px}
 #empty button{margin:0}.settings{padding-top:20px}.inspector{padding-top:20px}
+
+/* The host supplies project navigation; analysis controls remain inside its tab. */
+.embedded-electrophoresis .project-navigation,.embedded-electrophoresis header>.brand,.embedded-electrophoresis header>span,.embedded-electrophoresis header .navlink,.embedded-electrophoresis #viewPlate{display:none!important}
+.embedded-electrophoresis header{min-height:0;padding:10px 16px;gap:10px}
+.embedded-electrophoresis .top-actions{margin-left:0;width:100%;justify-content:flex-end}
+.embedded-electrophoresis .ui-tabs{padding-inline:12px}
+.embedded-electrophoresis .ui-tabs [role=tab]{padding:12px 16px;font-size:14px}
+.embedded-electrophoresis .ui-electro main{padding:12px}
+.embedded-electrophoresis .ui-electro .gel-viewport{height:480px;min-height:320px;max-height:600px}
+.embedded-electrophoresis .ui-electro .results-panel .table-scroll{max-height:500px}

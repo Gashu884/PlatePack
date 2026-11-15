@@ -5,7 +5,7 @@ let state=null, selected=0, img=new Image(), undo=[], committed=null, filter='al
 const colors={detected:'#40cbb0',review:'#dfbc58',repcr:'#f19569',excluded:'#81958e'};
 function toast(t){$('toast').textContent=t;$('toast').style.display='block';clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').style.display='none',5000)}
 async function api(path,data,headers){return Electro.api(path,data,headers)}
-async function busy(fn){$('busy').hidden=false;try{return await fn()}catch(e){toast(e.message);console.error(e)}finally{$('busy').hidden=true}}
+async function busy(fn){Electro.activity(1);$('busy').hidden=false;try{return await fn()}catch(e){toast(e.message);console.error(e)}finally{Electro.activity(-1);$('busy').hidden=true}}
 async function autosave(){return Electro.autosave()}
 function log(action,before){state.history??=[];state.history.push({at:new Date().toISOString(),action,before,after:clone(state.config)});state.updatedAt=new Date().toISOString()}
 async function adopt(s){clearTimeout(textSaveTimer);state=s;markerSelected=null;markerPlace=false;state.history??=[];state.createdAt??=new Date().toISOString();selected=0;undo=[];committed=clone(state.config);img=new Image();await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=reject;img.src=state.image.preview});$('empty').hidden=true;$('gel').hidden=false;syncInputs();render();await autosave()}
@@ -38,7 +38,7 @@ $('redetect').onclick=()=>{if(!state)return;busy(async()=>{let before=clone(stat
 for(let k of ['roiWidth','roiHeight','snrThreshold','minSignal','poolTotal','poolMin','poolMax','poolStep'])$(k).onchange=()=>{if(!state)return;state.config[k]=+$(k).value/(k==='minSignal'?100:1);if(k==='roiWidth')state.config.widthMode='manual';if(['roiWidth','roiHeight'].includes(k))state.config.rois.forEach(r=>{r.baseline=null;r.reviewed=false});if(['snrThreshold','minSignal'].includes(k))state.config.rois.forEach(r=>r.reviewed=false);commit('設定変更: '+k)};
 for(let k of ['sample','well','decision','note','reviewed'])$(k).onchange=()=>{if(!state)return;current()[0][k]=k==='reviewed'?$(k).checked:$(k).value;commit('サンプル情報: '+k)};
 let textSaveTimer;
-for(let k of ['sample','well','poolGroup','note']){ $(k).onchange=null; $(k).oninput=()=>{if(!state)return;current()[0][k]=$(k).value;clearTimeout(textSaveTimer);textSaveTimer=setTimeout(()=>commit('サンプル情報: '+k),450)};}
+for(let k of ['sample','well','poolGroup','note']){ $(k).onchange=null; $(k).oninput=()=>{if(!state)return;current()[0][k]=$(k).value;Electro.markDirty();clearTimeout(textSaveTimer);textSaveTimer=setTimeout(()=>commit('サンプル情報: '+k),450)};}
 $('resetBase').onclick=()=>{if(state){current()[0].baseline=null;current()[0].reviewed=false;if(markerSelected!=null)current()[0].confirmed=false;commit('ベースラインを自動に戻す')}};
 $('confirmNext').onclick=async()=>{if(!state)return;current()[0].reviewed=true;await commit('確認済み');select(selected+1)};$('prev').onclick=()=>select(selected-1);$('next').onclick=()=>select(selected+1);
 $('calibrate').onclick=()=>{if(!state)return;calibration={row:current()[0].row,points:[]};drawGel();toast(`${calibration.row+1}段の最初、最後のサンプル中心を順にクリックしてください。`)};
