@@ -91,4 +91,29 @@ class ElectrophoresisTests(unittest.TestCase):
         b=io.BytesIO();Image.new('RGB',(100,100)).save(b,format='PNG');key=self.upload(b.getvalue())
         self.assertEqual(self.client.post('/api/electrophoresis/detect',json={'sha256':key}).status_code,422)
 
+    def test_auto_layout_distinguishes_48_and_96_and_keeps_blank_sample_slots(self):
+        for rows in (2,4):
+            with self.subTest(rows=rows):
+                h=rows*220+140;y,x=np.mgrid[:h,:1050];a=np.zeros((h,1050));a[30:h-30,50:1000]=12
+                for r in range(rows):
+                    for c in range(24):
+                        for center,signal,width in ((100+r*220,65,3),(160+r*220,130 if c!=8 else 0,4),(200+r*220,12,4)):
+                            a+=signal*np.exp(-.5*((y-center)/width)**2)*np.exp(-.5*((x-(130+c*34))/7)**2)
+                    for center in range(110+r*220,201+r*220,12):
+                        a+=100*np.exp(-.5*((y-center)/2)**2)*np.exp(-.5*((x-96)/5)**2)
+                pixels=np.round(a).astype('uint8');stream=io.BytesIO();Image.fromarray(pixels).save(stream,format='TIFF');raw=stream.getvalue();key=self.upload(raw)
+                out=self.client.post('/api/electrophoresis/detect',json={'sha256':key,'rows':'auto','cols':24})
+                self.assertEqual(out.status_code,200,out.text);cfg=out.json()['config']
+                self.assertEqual(cfg['rows'],rows);self.assertEqual(len(cfg['rois']),rows*24)
+                self.assertEqual([r['id'] for r in cfg['rois']],list(range(1,rows*24+1)))
+                self.assertEqual(cfg['grid']['targetRows'],[160+220*r for r in range(rows)])
+                self.assertAlmostEqual(cfg['grid']['pitch'],34,delta=.5)
+                for r in range(rows):
+                    blank=cfg['rois'][r*24+8];self.assertEqual(blank['col'],8);self.assertAlmostEqual(blank['x'],130+8*34,delta=3)
+                self.assertEqual(len(cfg['markers']),rows);self.assertEqual(read_blob(key),raw)
+                decoded,_=decode(raw,'original.tif');np.testing.assert_array_equal(decoded,pixels)
+                explicit=self.client.post('/api/electrophoresis/redetect',json={'sha256':key,'rows':rows,'cols':24})
+                self.assertEqual(explicit.status_code,200,explicit.text)
+                self.assertEqual(explicit.json()['config']['grid']['targetRows'],cfg['grid']['targetRows'])
+
 if __name__=='__main__':unittest.main()

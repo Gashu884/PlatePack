@@ -47,11 +47,11 @@ def detect_grid(a, rows=4, cols=24, maximum=255):
     inds=max(runs,key=len)
     if len(inds)<cols*3: raise ValueError('ゲル領域を推定できません。明るいバンドのある画像を使ってください。')
     left,right=int(inds[0]),int(inds[-1])
-    # Search pitch near the expected 24-lane layout; periodicity rejects gel edges.
+    # Search near the requested lane pitch; periodicity rejects gel edges.
     p0=(right-left)/(cols+2)
     yp=a[:,left:right].mean(axis=1)
     hp=smooth(yp,3)-smooth(yp,max(15,int(p0*1.2)))
-    candidates=peaks(hp,max(12,int(p0*.65)),rows*8)
+    candidates=peaks(hp,max(12,int(p0*.65)),(rows or 8)*8)
     ranked=[]
     for y in candidates:
         x=smooth(a[max(0,y-5):min(H,y+6),left:right].mean(axis=0),7)
@@ -61,16 +61,25 @@ def detect_grid(a, rows=4, cols=24, maximum=255):
             v=np.dot(x[:-p],x[p:])/(np.linalg.norm(x[:-p])*np.linalg.norm(x[p:])+1e-9)
             best=max(best,v)
         ranked.append((float(max(hp[y],0)*max(best,0)),y))
-    chosen=sorted(y for score,y in sorted(ranked,reverse=True)[:2*rows])
-    targets=chosen[1::2]
-    if len(targets)!=rows: raise ValueError('段数を推定できません。段数設定を確認してください。')
+    # Wells and the dye front can also be periodic. Select the strongest band
+    # rows directly rather than assuming that every second peak is a band.
+    chosen=[]
+    strongest=max((score for score,y in ranked),default=0)
+    for score,y in sorted(ranked,reverse=True):
+        if score<=0 or (rows is None and score<strongest*.2):continue
+        if all(abs(y-other)>p0*2 for other in chosen):chosen.append(y)
+        if len(chosen)==(rows or 8):break
+    targets=sorted(chosen)
+    if not targets or (rows is not None and len(targets)!=rows):
+        raise ValueError('段数を推定できません。段数設定を確認してください。')
+    rows=len(targets)
     # Pool horizontal band profiles; fit a periodic grid with a left ladder slot.
     bandx=np.mean([a[max(0,y-8):min(H,y+9)].mean(axis=0) for y in targets],axis=0)
     bx=smooth(bandx,9)-smooth(bandx,max(11,int(p0)))
     vertical=smooth(np.maximum(a[3:]-a[:-3],0).sum(axis=0),9)
     marker=left+int(np.argmax(vertical[left:min(W,left+int(p0*4))]))
     best=(-1e99,None,None)
-    # First slot is the left ladder; all 24 sample slots retained even if absent.
+    # First slot is the left ladder; retain every sample slot, including blanks.
     for pitch in np.arange(p0*.85,p0*1.15,.2):
         for start in np.arange(marker+pitch*.8,marker+pitch*1.3,1):
             centers=start+np.arange(cols)*pitch

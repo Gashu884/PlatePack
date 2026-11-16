@@ -161,9 +161,10 @@ def analyze(action: str, data: dict):
             return plan
         a,meta=image_for(data)
         if action in ('detect','redetect'):
-            rows=int(data.get('rows',4));cols=int(data.get('cols',24))
-            if not 1<=rows<=8 or not 2<=cols<=48 or rows*cols>384:raise ValueError('段数または列数が範囲外です。')
+            rows=None if data.get('rows')=='auto' else int(data.get('rows',4));cols=int(data.get('cols',24))
+            if (rows is not None and (not 1<=rows<=8 or rows*cols>384)) or not 2<=cols<=48:raise ValueError('段数または列数が範囲外です。')
             cfg=setup(detect_grid(a,rows,cols,meta['maximum']),meta)
+            if cfg['rows']*cfg['cols']>384:raise ValueError('段数または列数が範囲外です。')
         elif action in ('measure','auto-width','restore'):
             cfg=checked_config(data['config'],a)
             if action=='auto-width':apply_auto_width(a,cfg,meta['maximum'])

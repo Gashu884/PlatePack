@@ -65,7 +65,7 @@ window.Electro = (() => {
       if(!record.plate)throw Error('先に対応するプレートデータを読み込んでください。');
       sync();if(record.sessions.length>=32)throw Error('1実験は32画像までです。別の実験として保存してください。');const key=await putBlob(data);
       if(record.sessions.some(s=>s.image.sha256===key))throw Error('この画像は登録済みです。泳動画像の選択から開いてください。');
-      const out=await request('/api/electrophoresis/detect',{sha256:key,name:decodeURIComponent(headers['X-Filename']),rows:+headers['X-Rows'],cols:+headers['X-Cols']});
+      const out=await request('/api/electrophoresis/detect',{sha256:key,name:decodeURIComponent(headers['X-Filename']),rows:headers['X-Rows']==='auto'?'auto':+headers['X-Rows'],cols:+headers['X-Cols']});
       out.config.groupSize=record.groupSize;out.config.rois.forEach(r=>r.poolGroup='Pool'+(1+Math.floor((r.id-1)/record.groupSize)));invalidate();return out;
     }
     if(path==='/api/restore'){
@@ -224,9 +224,9 @@ window.Electro = (() => {
         if(draft?.projectId===PCRProject.id&&draft.plateRef===ref&&draft.plateIndex===index&&draft.sessions?.some(s=>s.image.sha256===image.hash)){
           await restoreRecord(draft);markDirty();el('recordStatus').textContent='この画像の下書きを復元しました。';return;
         }
-        await adopt(await request('/api/electrophoresis/detect',{sha256:image.hash,name:image.name,rows:4,cols:24}));
+        await adopt(await request('/api/electrophoresis/detect',{sha256:image.hash,name:image.name,rows:'auto',cols:24}));
         el('recordStatus').textContent='添付画像を開きました。ROIとウェル対応を確認してください。';
       }return;}const draft=(await idb('get','draft:'+PCRProject.id))||await idb('get','draft');if(draft?.projectId===PCRProject.id&&draft?.sessions?.length){el('recordStatus').textContent='下書きあり';const restore=document.createElement('button');restore.textContent='復元';restore.onclick=()=>guarded(()=>restoreRecord(draft));el('recordStatus').append(' ',restore)} });
   }
-  return {api,autosave,render,download,start,markDirty,activity};
+  return {api,autosave,render,download,start,markDirty,activity,isBusy:()=>running||activityCount>0};
 })();

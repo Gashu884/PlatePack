@@ -35,3 +35,9 @@ summary{cursor:pointer;font-size:14px;color:var(--ink)}
 .embedded-electrophoresis .ui-electro main{padding:12px}
 .embedded-electrophoresis .ui-electro .gel-viewport{height:480px;min-height:320px;max-height:600px}
 .embedded-electrophoresis .ui-electro .results-panel .table-scroll{max-height:500px}
+/* File drops remain inside the analysis tab. */
+.gel-viewport.is-dragging{outline:3px solid #40cbb0;outline-offset:-3px}
+.gel-viewport.is-dragging::after{content:'画像をドロップして登録';position:absolute;inset:0;display:grid;place-items:center;background:rgba(12,35,31,.86);color:#fff;font-weight:700;pointer-events:none;z-index:2}
+.image-tools select{max-width:220px}.image-tools{flex-wrap:wrap}
+.image-tools label{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.gel-panel .panel-head{flex-wrap:wrap;gap:12px}
