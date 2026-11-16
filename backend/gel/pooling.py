@@ -1,6 +1,7 @@
 """Relative pooling: maximum feasible sample count, explicit cross-gel calibration."""
 import math
 from collections import defaultdict
+from .engine import VERSION
 
 
 def optimize_pool(items, minimum=1., maximum=20., step=.1):
@@ -61,7 +62,6 @@ def plan_project(runs, options, choices=None):
             ref=ref_by_row.get(roi['row']);error=None;signal=m['relativeSignal']
             if roi.get('decision')=='exclude':error='除外指定'
             elif m.get('repcr'):error='再PCR対象・未検出'
-            elif m.get('saturatedFraction',0)>0:error='飽和：別露光または再泳動を確認'
             elif not m.get('eligible',m.get('include')):error='バンドの判定を要確認'
             elif not width_ok:error='共通ROI幅を要確認'
             if use_marker:
@@ -104,4 +104,4 @@ def plan_project(runs, options, choices=None):
                 plans.append({'group':tube,**result,'selected':outs,'count':len(outs),'total':round(sum(volumes),6),'spread':round(max(volumes)-min(volumes),6),'uniqueVolumes':sorted(set(volumes)),'maxRoundingErrorPct':max(abs(r['roundingErrorPct']) for r in selected)})
         else:plans.append({'group':group,**result})
     pending=[r for r in chosen if r['error'] and r['error']!='除外指定']
-    return {'records':all_records,'samples':chosen,'plans':plans,'blockers':sorted(set(blockers)),'useMarker':use_marker,'count':sum(p['count'] for p in plans),'sampleCount':len(chosen),'pendingCount':len(pending),'ready':any(p['count'] for p in plans) and not blockers,'mode':'最大サンプル数 → 最小液量比 → 最小液量差','version':'platepack-gel-1.0.0'}
+    return {'records':all_records,'samples':chosen,'plans':plans,'blockers':sorted(set(blockers)),'useMarker':use_marker,'count':sum(p['count'] for p in plans),'sampleCount':len(chosen),'pendingCount':len(pending),'ready':any(p['count'] for p in plans) and not blockers,'mode':'最大サンプル数 → 最小液量比 → 最小液量差','version':VERSION}

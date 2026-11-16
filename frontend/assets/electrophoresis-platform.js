@@ -150,7 +150,7 @@ window.Electro = (() => {
     if(!state)return;clearTimeout(textSaveTimer);checkMapping(state);
     if(state.config.markers.some(m=>!m.confirmed))throw Error('各段の500 bpマーカーの位置・積分範囲を確認してください。');
     const q=await api('/api/measure',{sha256:state.image.sha256,config:state.config});
-    if(q.markerResults.some(m=>!m.valid))throw Error('500 bpマーカーに微弱・飽和・複数ピークなどがあります。ROIと積分範囲を確認してください。');
+    if(q.markerResults.some(m=>!m.valid))throw Error('500 bpマーカーが未確認、微弱、または複数ピークなどの状態です。ROIと積分範囲を確認してください。');
     state.quantification=q;state.measuredConfig=ElectrophoresisChecks.key(state.config);state.measuredVersion=q.version;state.measuredAt=new Date().toISOString();invalidate();render();await autosave();toast('測定完了');
   }
   async function plan(){

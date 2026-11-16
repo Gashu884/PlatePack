@@ -48,11 +48,11 @@ class PoolTests(unittest.TestCase):
         p=plan_project([a],{'scope':'groups','step':.1});self.assertFalse(p['ready']);self.assertIn('重複',p['blockers'][0])
         a=self.run_fixture('A',[20]*49)
         p=plan_project([a],{'scope':'groups','step':.1});self.assertFalse(p['ready']);self.assertIn('指定したサンプル数',p['blockers'][0])
-    def test_saturated_sample_cannot_be_forced_into_pool(self):
+    def test_maximum_pixel_metadata_does_not_exclude_a_sample_from_pool(self):
         a=self.run_fixture('A',[20]);a['config']['rois'][0]['decision']='include'
         a['quantification']['results'][0]['saturatedFraction']=.0001
         p=plan_project([a],{'scope':'groups','step':.1,'useMarker':True})
-        self.assertEqual(p['count'],0);self.assertIn('飽和',p['samples'][0]['error'])
+        self.assertEqual(p['count'],1);self.assertIsNone(p['samples'][0]['error']);self.assertTrue(p['ready'])
 
     def test_blank_names_never_merge_between_gels(self):
         a=self.run_fixture('A',[20],['']);b=self.run_fixture('B',[20],[''])

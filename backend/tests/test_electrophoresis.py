@@ -51,6 +51,33 @@ class ElectrophoresisTests(unittest.TestCase):
         q2=self.client.post('/api/electrophoresis/measure',json={'sha256':s['image']['sha256'],'config':cfg}).json()
         self.assertEqual(q2['results'][0]['area'],0);self.assertEqual(len(q2['results']),2)
 
+    def test_maximum_pixels_do_not_warn_or_exclude_samples_and_markers(self):
+        template=self.fixture()
+        for bits,maximum in ((8,255),(16,65535)):
+            with self.subTest(bits=bits):
+                y=np.arange(100);a=np.ones((100,150))*10
+                for x,height in ((20,300),(60,300),(100,80)):
+                    a[:,x-5:x+5]+=height*np.exp(-.5*((y-50)/3)**2)[:,None]
+                pixels=np.round(np.clip(a*maximum/255,0,maximum)).astype('uint8' if bits==8 else 'uint16')
+                stream=io.BytesIO();Image.fromarray(pixels).save(stream,format='TIFF');raw=stream.getvalue();key=self.upload(raw)
+                session=copy.deepcopy(template);session['image']={'name':'exposure.tif','sha256':key};session['config']['imageHash']=key
+                session['quantification']={'results':[{'status':'review','flags':['飽和画素あり']}]}
+                restored=self.client.post('/api/electrophoresis/restore',json=session)
+                self.assertEqual(restored.status_code,200,restored.text);q=restored.json()['quantification']
+                self.assertGreater(q['results'][0]['saturatedFraction'],0)
+                self.assertGreater(q['markerResults'][0]['saturatedFraction'],0)
+                self.assertEqual(q['results'][0]['status'],'detected');self.assertTrue(q['markerResults'][0]['valid'])
+                self.assertFalse(any('飽和' in flag for m in q['results']+q['markerResults'] for flag in m['flags']))
+                measured=self.client.post('/api/electrophoresis/measure',json={'sha256':key,'config':session['config']})
+                self.assertEqual(measured.status_code,200,measured.text)
+                self.assertAlmostEqual(measured.json()['results'][0]['area'],q['results'][0]['area'])
+                session['measuredVersion']='platepack-gel-1.0.0'
+                self.assertEqual(self.client.post('/api/electrophoresis/plan',json={'sessions':[session]}).status_code,422)
+                session['measuredVersion']=q['version']
+                plan=self.client.post('/api/electrophoresis/plan',json={'sessions':[session]})
+                self.assertEqual(plan.status_code,200,plan.text);self.assertEqual(plan.json()['count'],2)
+                self.assertEqual(plan.json()['version'],q['version']);self.assertEqual(read_blob(key),raw)
+
     def test_repcr_uses_marker_correction_and_keeps_original_tube(self):
         a=self.fixture();b=self.fixture(scale=2,name='repeat.tif');b['config']['rois']=b['config']['rois'][:1];b['config']['rois'][0]['poolGroup']='WrongRepeatTube'
         r=self.client.post('/api/electrophoresis/plan',json={'sessions':[a,b],'groupSize':48});self.assertEqual(r.status_code,200,r.text)

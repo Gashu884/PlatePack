@@ -2,7 +2,7 @@
 import base64, hashlib, io
 import numpy as np
 from PIL import Image
-VERSION = 'platepack-gel-1.0.0'
+VERSION = 'platepack-gel-1.1.0'
 
 def smooth(a, k):
     k = max(1, int(k) | 1)
@@ -162,7 +162,6 @@ def measure(a, r, cfg, maximum):
     local=smooth(residual,3); pp=[i for i in peaks(local, max(3,n//6)) if l<=i<=rr and local[i]>peak*.45]
     flags=[]
     if not detected: flags.append('未検出・微弱')
-    if sat>0: flags.append('飽和画素あり')
     if len(pp)>1: flags.append('複数ピーク')
     if max(residual[l],residual[rr])>peak*.3 and peak>0: flags.append('積分範囲を確認')
     if clipped: flags.append('画像端で切断')
