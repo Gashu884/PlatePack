@@ -4,19 +4,25 @@ window.PCRFreePoolingUI=({host,getRecord,getActive,onChange,onRecalculate,onExpo
   const heading=node('div','free-heading'),title=node('h2','','バンドを選んで分注量を計算'),summary=node('p','free-summary'),tools=node('div','free-tools'),fields=node('div','free-fields'),status=node('p','free-status'),tableWrap=node('div','table-scroll'),table=node('table','free-table');
   const choose=node('select'),name=node('input'),reference=node('select'),volume=node('input'),step=node('input');
   choose.setAttribute('aria-label','計算セット');name.setAttribute('aria-label','計算セット名');reference.setAttribute('aria-label','相対値の基準');volume.setAttribute('aria-label','基準バンドの分注量');step.setAttribute('aria-label','液量の丸め刻み');
+  name.placeholder='セット名を入力';name.maxLength=120;
   volume.type=step.type='number';volume.min='0.001';step.min='0';volume.step=step.step='0.1';status.setAttribute('role','status');
   const label=(text,control)=>{const n=node('label','',text);n.append(control);return n;};
-  function pools(){const r=getRecord();if(!r.freePools?.length)r.freePools=[PCRFreePooling.create('pool-1','セット1')];return r.freePools;}
+  function pools(){const r=getRecord();if(!r.freePools?.length)r.freePools=[PCRFreePooling.create('pool-1','')];return r.freePools;}
   function current(){const r=getRecord(),all=pools();return all.find(p=>p.id===r.freePoolId)||all[0];}
   function change(){const p=current();if(String(p.reference).startsWith('band:')&&!p.keys.includes(p.reference.slice(5)))p.reference='max';onChange();}
   const button=(text,fn)=>{const b=node('button','',text);b.type='button';b.onclick=fn;return b;};
-  const add=button('＋ セット',()=>{const p=PCRFreePooling.create(crypto.randomUUID(),'セット'+(pools().length+1));pools().push(p);getRecord().freePoolId=p.id;change();});
-  const clone=button('セットを複製',()=>{const p=JSON.parse(JSON.stringify(current()));p.id=crypto.randomUUID();p.name+=' コピー';pools().push(p);getRecord().freePoolId=p.id;change();});
-  const all=button('この画像を全選択',()=>{const s=getActive();if(!s)return;current().keys=[...new Set([...current().keys,...s.config.rois.map(r=>PCRFreePooling.key(s.image.sha256,r.id))])];change();});
-  const clear=button('選択を解除',()=>{current().keys=[];change();});
-  const recalc=button('面積を再測定',onRecalculate),exportButton=button('分注 CSV ↓',()=>onExport(current())),pngButton=button('プレート PNG ↓',()=>onExportPNG(current()));pngButton.classList.add('primary');
-  heading.append(title,summary);tools.append(choose,add,clone,all,clear,recalc,pngButton,exportButton);
-  fields.append(label('セット名',name),label('相対値の基準',reference),label('基準バンドの分注量 (µL)',volume),label('丸め刻み (µL・0で丸めなし)',step));
+  const add=button('＋ セット作成',()=>{
+    const dialog=node('dialog'),form=node('form'),input=node('input'),actions=node('div','dialog-actions'),cancel=button('キャンセル',()=>dialog.close()),submit=node('button','primary','作成');
+    input.required=true;input.maxLength=120;input.placeholder='例：PCR 1回目';input.setAttribute('aria-label','新しいセット名');submit.type='submit';
+    form.append(node('h2','','セットを作成'),label('セット名',input),actions);actions.append(cancel,submit);dialog.append(form);document.body.append(dialog);
+    input.oninput=()=>input.setCustomValidity('');form.onsubmit=event=>{event.preventDefault();const value=input.value.trim();if(!value){input.setCustomValidity('セット名を入力してください。');input.reportValidity();return;}const p=PCRFreePooling.create(crypto.randomUUID(),value);pools().push(p);getRecord().freePoolId=p.id;dialog.close();change();};
+    dialog.onclose=()=>dialog.remove();dialog.showModal();input.focus();
+  });
+  const all=button('画像ROI全選択',()=>{const s=getActive();if(!s)return;current().keys=[...new Set([...current().keys,...s.config.rois.map(r=>PCRFreePooling.key(s.image.sha256,r.id))])];change();});
+  const clear=button('全選択解除',()=>{current().keys=[];change();});
+  const recalc=button('面積測定',onRecalculate),exportButton=button('分注 CSV ↓',()=>onExport(current())),pngButton=button('プレート PNG ↓',()=>onExportPNG(current()));pngButton.classList.add('primary');
+  heading.append(title,summary);tools.append(choose,add,all,clear,recalc,pngButton,exportButton);
+  fields.append(label('セット名（自由に変更）',name),label('相対値の基準',reference),label('基準バンドの分注量 (µL)',volume),label('丸め刻み (µL・0で丸めなし)',step));
   const help=node('p','hint','ラベルは参考表示です。チェックしたバンドだけで計算します。1–20 µLを超えても自動では外しません。');
   const tableHead=node('thead'),headerRow=node('tr'),tableBody=node('tbody');for(const text of ['選択','画像 / ROI','輝度面積','参考ラベル','相対値','分注量 (µL)','備考'])headerRow.append(node('th','',text));tableHead.append(headerRow);table.append(tableHead,tableBody);
   tableWrap.append(table);host.append(heading,tools,fields,help,status,tableWrap);
@@ -24,7 +30,7 @@ window.PCRFreePoolingUI=({host,getRecord,getActive,onChange,onRecalculate,onExpo
   function render({busy=false,error=''}={}){
     const r=getRecord(),s=getActive(),p=current();let result;
     try{result=PCRFreePooling.calculate(p,r.sessions);}catch(e){error=error||e.message;result={rows:[],count:p.keys.length,computed:0,reference:null,total:0};}
-    choose.replaceChildren(...pools().map(pool=>new Option(pool.name||'名称未設定',pool.id)));choose.value=p.id;
+    choose.replaceChildren(...pools().map(pool=>new Option(pool.name||'セット名を入力',pool.id)));choose.value=p.id;
     for(const [control,value] of [[name,p.name],[volume,p.referenceVolume],[step,p.step]])if(document.activeElement!==control)control.value=value;
     reference.replaceChildren(new Option('最大面積のバンド','max'),new Option('選択バンドの中央値','median'),new Option('最小面積のバンド','min'),...result.rows.filter(row=>row.area>0).map(row=>new Option(row.image+' #'+row.id,'band:'+row.key)));reference.value=p.reference;
     summary.textContent=`選択 ${p.keys.length}本 · 計算 ${result.computed}本 · 合計 ${busy?'計算中':fmt(result.total)+' µL'}`;
