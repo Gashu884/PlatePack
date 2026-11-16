@@ -118,8 +118,12 @@ def setup(cfg, meta):
     if not cfg['markers']:
         for row in range(cfg['rows']):
             rs=[r for r in cfg['rois'] if r['row']==row]
+            if not rs:continue
             first=min(rs,key=lambda r:r['x'])
-            cfg['markers'].append(dict(id=1000+row,row=row,col=-1,x=max(2,first['x']-cfg.get('grid',{}).get('pitch',40)),y=first['y'],roiWidth=24,roiHeight=12,relativeLoad=1.,confirmed=False,baseline=None))
+            grid=cfg.get('grid',{});pitch=grid.get('pitch',40)
+            marker_x=grid.get('start',first['x']-first.get('col',0)*pitch)-pitch
+            marker_y=grid.get('targetRows',[first['y']]*cfg['rows'])[row]
+            cfg['markers'].append(dict(id=1000+row,row=row,col=-1,x=max(2,marker_x),y=marker_y,roiWidth=24,roiHeight=12,relativeLoad=1.,confirmed=False,baseline=None))
     return cfg
 
 
@@ -163,7 +167,9 @@ def analyze(action: str, data: dict):
         if action in ('detect','redetect'):
             rows=None if data.get('rows')=='auto' else int(data.get('rows',4));cols=int(data.get('cols',24))
             if (rows is not None and (not 1<=rows<=8 or rows*cols>384)) or not 2<=cols<=48:raise ValueError('段数または列数が範囲外です。')
-            cfg=setup(detect_grid(a,rows,cols,meta['maximum']),meta)
+            limit=data.get('maxRois')
+            if limit is not None and (type(limit) is not int or not 1<=limit<=384):raise ValueError('最大ROI数は1〜384の整数で指定してください。')
+            cfg=setup(detect_grid(a,rows,cols,meta['maximum'],max_rois=limit),meta)
             if cfg['rows']*cfg['cols']>384:raise ValueError('段数または列数が範囲外です。')
         elif action in ('measure','auto-width','restore'):
             cfg=checked_config(data['config'],a)

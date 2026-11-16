@@ -1,0 +1,23 @@
+const test=require('node:test'),assert=require('node:assert/strict');
+const extraction=require('../frontend/assets/roi-extraction.js');
+test('ROI caps accept only whole counts within the supported range',()=>{
+ for(const value of ['48',1,384])assert.equal(extraction.limit(value),Number(value));
+ for(const value of ['',0,-1,385,1.5,'bad',null,Infinity])assert.throws(()=>extraction.limit(value),/最大ROI数/);
+});
+test('sparse extraction keeps source identities by lane id and location, never by array position',()=>{
+ const before={grid:{pitch:40},rois:[1,2,3].map(id=>({id,row:0,col:id-1,x:id*40,y:100,sample:'S'+id,well:'A'+id,poolGroup:'Tube1',decision:'auto',platepack:{sourceWell:'A'+id}})),markers:[{row:0,x:0,y:100,confirmed:true}]};
+ const next={grid:{pitch:40},rois:[{id:2,row:0,col:1,x:81,y:100,sample:''},{id:3,row:0,col:2,x:120,y:160,sample:''}],markers:[{row:0,x:1,y:100,confirmed:false}]};
+ const snapshot=JSON.stringify(before),result=extraction.reconcile(before,next);
+ assert.deepEqual(result.kept,[2]);assert.equal(result.config.rois[0].sample,'S2');assert.equal(result.config.rois[0].platepack.sourceWell,'A2');assert.equal(result.config.rois[1].sample,'');assert.equal(result.config.markers[0].confirmed,true);assert.equal(JSON.stringify(before),snapshot);
+});
+test('the initial extraction dialog requires a valid limit and can be cancelled without extracting',async()=>{
+ const elements=Object.fromEntries(['extractionDialog','extractionLimit','extractionForm','cancelExtraction','extractionImage'].map(id=>[id,{focus(){},select(){},setCustomValidity(v){this.error=v;},reportValidity(){},showModal(){this.open=true;},close(){this.open=false;}}]));
+ global.document={getElementById:id=>elements[id]};
+ try{
+  const pending=extraction.ask('test.tif');assert.equal(elements.extractionDialog.open,true);assert.equal(elements.extractionImage.textContent,'test.tif');
+  assert.equal(await extraction.ask('other.tif'),null);
+  elements.extractionLimit.value='0';elements.extractionForm.onsubmit({preventDefault(){}});assert.match(elements.extractionLimit.error,/最大ROI数/);assert.equal(elements.extractionDialog.open,true);
+  elements.extractionLimit.value='48';elements.extractionForm.onsubmit({preventDefault(){}});assert.equal(await pending,48);assert.equal(elements.extractionDialog.open,false);
+  const cancelled=extraction.ask('cancel.tif');elements.cancelExtraction.onclick();assert.equal(await cancelled,null);
+ }finally{delete global.document;}
+});
