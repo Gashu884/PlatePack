@@ -3,10 +3,11 @@ window.Electro = (() => {
   const el=id=>document.getElementById(id), copy=x=>JSON.parse(JSON.stringify(x));
   const CHUNK=256*1024;
   const contextParams=new URLSearchParams(location.search),embedded=contextParams.get('embedded')==='1'&&parent!==window,workspaceToken=contextParams.get('workspace');
-  let activityCount=0;
+  let activityCount=0,freeUI,freeDraftTimer,freeGeneration=0,areaVersion=null;
+  const areaTasks=new Map();
   const notify=(type,data={})=>{if(embedded)parent.postMessage({channel:'pcr-plate-workspace',token:workspaceToken,type,...data},location.origin);};
   const notifyState=()=>notify('state',{dirty,busy:running||activityCount>0});
-  const draftKey=()=>contextParams.get('log')?'draft:'+record.projectId+':'+contextParams.get('log')+':'+(contextParams.get('attachment')||'analysis'):'draft:'+record.projectId;
+  const draftKey=()=>contextParams.get('handoff')?'draft:handoff:'+contextParams.get('handoff'):contextParams.get('log')?'draft:'+record.projectId+':'+contextParams.get('log')+':'+(contextParams.get('attachment')||'analysis'):'draft:'+record.projectId;
   function markDirty(){dirty=true;notifyState();}
   function activity(delta){activityCount=Math.max(0,activityCount+delta);notifyState();}
   let record={version:1,sessions:[],plate:null,links:null,groupSize:48,confirmed:null,name:'泳動解析'}, mapping, files=[], active=null, saving=Promise.resolve(), dirty=false, running=false, proposal=null;
@@ -51,18 +52,61 @@ window.Electro = (() => {
     try{await saving}catch{toast('下書きの自動保存ができません。実験一式JSONを保存してください。')}
   }
   async function guarded(fn){if(running)return;running=true;notifyState();el('busy').hidden=false;el('busy').textContent='処理中…';try{return await fn()}catch(e){toast(e.message);el('recordStatus').textContent=e.message;console.error(e)}finally{running=false;notifyState();el('busy').hidden=true}}
+  function activePool(){return freeUI?.current();}
+  function isBandSelected(id){return !!state&&!!activePool()?.keys.includes(PCRFreePooling.key(state.image.sha256,id));}
+  function selectionChanged(){
+    const position={inner:window.scrollY,outer:embedded?parent.scrollY:null};
+    sync();invalidate();drawGel();freeRender();clearTimeout(freeDraftTimer);freeDraftTimer=setTimeout(()=>autosave(),400);
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{window.scrollTo(0,position.inner);if(embedded)parent.scrollTo(0,position.outer);}));
+  }
+  function toggleBand(id){
+    if(!state)return;const pool=activePool(),key=PCRFreePooling.key(state.image.sha256,id);
+    pool.keys=pool.keys.includes(key)?pool.keys.filter(k=>k!==key):[...pool.keys,key];
+    if(pool.reference==='band:'+key&&!pool.keys.includes(key))pool.reference='max';selectionChanged();
+  }
+  function freshAreas(session){return session.quantification?.mode==='manual-selection'&&session.areaConfig===PCRFreePooling.areaKey(session.config)&&(!areaVersion||session.areaVersion===areaVersion);}
+  async function prepareAreas(session,force=false){
+    if(!force&&freshAreas(session))return session;
+    const hash=session.image.sha256;if(areaTasks.has(hash))return areaTasks.get(hash);
+    const work=(async()=>{for(let attempt=0;attempt<4;attempt++){
+      const config=copy(session.config),key=PCRFreePooling.areaKey(config),q=await request('/api/electrophoresis/areas',{sha256:hash,config});
+      if(key!==PCRFreePooling.areaKey(session.config))continue;
+      session.quantification=q;session.areaConfig=key;session.areaVersion=q.version;areaVersion=q.version;return session;
+    }throw Error('ROIの移動が終わってから面積を再測定してください。');})();
+    areaTasks.set(hash,work);try{return await work;}finally{areaTasks.delete(hash);}
+  }
+  function freeRender(){
+    if(!freeUI)return;const pool=activePool(),sessions=record.sessions.filter(s=>pool.keys.some(key=>key.startsWith(s.image.sha256+':'))),missing=sessions.filter(s=>!freshAreas(s));
+    freeUI.render({busy:missing.length>0});if(!missing.length)return;
+    const generation=++freeGeneration;activity(1);
+    (async()=>{for(const s of missing)await prepareAreas(s);})().then(()=>{if(generation===freeGeneration){freeUI.render();drawGel();}}).catch(error=>{if(generation===freeGeneration)freeUI.render({error:error.message});}).finally(()=>activity(-1));
+  }
+  async function exportSelection(pool){
+    const sessions=record.sessions.filter(s=>pool.keys.some(key=>key.startsWith(s.image.sha256+':')));await Promise.all(sessions.map(s=>prepareAreas(s)));
+    const result=PCRFreePooling.calculate(pool,record.sessions),rows=[['set','image','roi','sample','well','area','relative','volume_uL','unrounded_volume_uL','label','quality_notes','calculation_note','reference_area','reference_volume_uL','rounding_step_uL','sha256','method']];
+    for(const r of result.rows)rows.push([pool.name,r.image,r.id,r.sample,r.well,r.area,r.relative,r.volume,r.idealVolume,r.label,(r.flags||[]).join(' / '),r.note,result.reference,pool.referenceVolume,pool.step,r.hash,result.version]);
+    download((pool.name||'分注量')+'.csv','\ufeff'+rows.map(row=>row.map(csvCell).join(',')).join('\r\n'),'text/csv;charset=utf-8');
+  }
+  async function detach(){
+    if(running||activityCount)return toast('処理が終わってから別タブで開いてください。');
+    const popup=window.open('about:blank','_blank');if(!popup)return toast('ブラウザでポップアップを許可すると別タブで開けます。');popup.opener=null;
+    const token=crypto.randomUUID(),channel=new BroadcastChannel('pcr-gel-handoff:'+token),url=new URL(location.href);url.searchParams.delete('embedded');url.searchParams.delete('workspace');url.searchParams.set('handoff',token);
+    const timer=setTimeout(()=>channel.close(),30000);channel.onmessage=event=>{if(event.data?.type==='ready'){clearTimeout(timer);channel.close();if(embedded){dirty=false;notify('closed');}}};
+    try{clearTimeout(textSaveTimer);clearTimeout(freeDraftTimer);sync();await idb('put','handoff:'+token,copy(record));popup.location.href=url.href;}
+    catch(error){clearTimeout(timer);channel.close();popup.close();toast(error.message);}
+  }
   function render(){
     if(!state)return;sync();if(record.confirmed?.signature!==signature())record.confirmed=null;
     const measured=ElectrophoresisChecks.measured(state);
     el('measurementStatus').textContent=measured?'測定済み':'未測定（プレビュー）';
     el('exportAll').disabled=!measured;el('exportPCR').disabled=!measured;el('exportPool').disabled=!record.confirmed;el('exportConfirmed').disabled=!record.confirmed;
     el('runSelect').replaceChildren(...record.sessions.map(s=>new Option(s.image.name,s.image.sha256)));el('runSelect').value=active||'';
-    el('saveExperiment').disabled=!record.plate;el('gelLinkBtn').disabled=!record.plate;el('measureAll').disabled=!record.plate;
+    el('saveExperiment').disabled=!record.sessions.length;el('gelLinkBtn').disabled=!record.plate;el('measureAll').disabled=!state;
     if(mapping)mapping.refresh();
+    freeRender();
   }
   async function api(path,data,headers){
     if(path==='/api/upload'){
-      if(!record.plate)throw Error('先に対応するプレートデータを読み込んでください。');
       sync();if(record.sessions.length>=32)throw Error('1実験は32画像までです。別の実験として保存してください。');const key=await putBlob(data);
       if(record.sessions.some(s=>s.image.sha256===key))throw Error('この画像は登録済みです。泳動画像の選択から開いてください。');
       const out=await request('/api/electrophoresis/detect',{sha256:key,name:decodeURIComponent(headers['X-Filename']),rows:headers['X-Rows']==='auto'?'auto':+headers['X-Rows'],cols:+headers['X-Cols'],maxRois:PCRROIExtraction.limit(headers['X-Max-Rois'])});
@@ -72,6 +116,11 @@ window.Electro = (() => {
       data=ElectrophoresisChecks.withMarkerDefaults(data);
       if(data.raw){const key=await putBlob(unb64(data.raw));if(key!==data.image.sha256)throw Error('元画像が一致しません。');delete data.raw;}
       return request('/api/electrophoresis/restore',data);
+    }
+    if(path==='/api/measure'){
+      const q=await request('/api/electrophoresis/areas',data);
+      if(state?.image.sha256===data.sha256&&PCRFreePooling.areaKey(state.config)===PCRFreePooling.areaKey(data.config)){state.areaConfig=PCRFreePooling.areaKey(data.config);state.areaVersion=q.version;areaVersion=q.version;}
+      return q;
     }
     return request(path.replace('/api/','/api/electrophoresis/'),data);
   }
@@ -121,13 +170,13 @@ window.Electro = (() => {
   async function restoreRecord(value){
     if(value.version!==1||!Array.isArray(value.sessions)||value.sessions.length>32)throw Error('実験一式JSONの形式が不正です。');
     if(!Number.isInteger(value.groupSize)||value.groupSize<1||value.groupSize>384)throw Error('チューブのサンプル数が不正です。');
-    const candidate=copy(value);candidate.sessions=candidate.sessions.map(ElectrophoresisChecks.withMarkerDefaults);if(PCRProject.id&&candidate.projectId!==PCRProject.id)throw Error('別のプロジェクトの実験です。元のプロジェクトで開いてください。');candidate.plate=ensurePlate(candidate.plate);PlatePackGelLinks.validate(candidate.links);
+    const candidate=copy(value);candidate.sessions=candidate.sessions.map(ElectrophoresisChecks.withMarkerDefaults);if(PCRProject.id&&candidate.projectId!==PCRProject.id)throw Error('別のプロジェクトの実験です。元のプロジェクトで開いてください。');candidate.plate=candidate.plate?ensurePlate(candidate.plate):null;candidate.links ||= PlatePackGelLinks.empty(crypto.randomUUID());PlatePackGelLinks.validate(candidate.links);
     // Verify all referenced originals before replacing the open experiment.
     for(const session of candidate.sessions){const bytes=session.raw?unb64(session.raw):await getBlob(session.image.sha256);if(await putBlob(bytes)!==session.image.sha256)throw Error('元画像が一致しません。');delete session.raw;}
     const selected=candidate.sessions.find(s=>s.image.sha256===candidate.active)||candidate.sessions[0];
     let restored=selected?await api('/api/restore',selected):null;
     state=null;record=candidate;active=candidate.active;proposal=null;el('experimentName').value=record.name;el('groupSize').value=record.groupSize;await loadProjects(record.projectId);
-    if(record.plateRef){el('plateRecord').value=record.plateRef;el('viewPlate').href=(record.plate.plateEdit?'/output-plates?log=':'/plates?log=')+encodeURIComponent(record.plateRef);el('viewPlate').hidden=false;}
+    if(record.plateRef&&record.plate){el('plateRecord').value=record.plateRef;el('viewPlate').href=(record.plate.plateEdit?'/output-plates?log=':'/plates?log=')+encodeURIComponent(record.plateRef);el('viewPlate').hidden=false;}
     if(restored)await adopt(restored);else{el('gel').hidden=true;el('empty').hidden=false;}
     if(record.confirmed?.signature!==signature())record.confirmed=null;render();
   }
@@ -148,11 +197,9 @@ window.Electro = (() => {
     invalidate();return commit('チューブのサンプル数・割当を変更');
   }
   async function measure(){
-    if(!state)return;clearTimeout(textSaveTimer);checkMapping(state);
-    if(state.config.useMarker&&state.config.markers.some(m=>!m.confirmed))throw Error('各段の500 bpマーカーの位置・積分範囲を確認してください。');
-    const q=await api('/api/measure',{sha256:state.image.sha256,config:state.config});
-    if(state.config.useMarker&&q.markerResults.some(m=>!m.valid))throw Error('500 bpマーカーが未確認、微弱、または複数ピークなどの状態です。ROIと積分範囲を確認してください。');
-    state.quantification=q;state.measuredConfig=ElectrophoresisChecks.key(state.config);state.measuredVersion=q.version;state.measuredAt=new Date().toISOString();invalidate();render();await autosave();toast('測定完了');
+    if(!state)return;clearTimeout(textSaveTimer);await prepareAreas(state,true);
+    state.measuredConfig=ElectrophoresisChecks.key(state.config);state.measuredVersion=state.quantification.version;state.measuredAt=new Date().toISOString();
+    invalidate();render();await autosave();toast('面積と分注量を更新しました');
   }
   async function plan(){
     sync();if(!record.sessions.length)throw Error('泳動画像を登録してください。');
@@ -174,18 +221,21 @@ window.Electro = (() => {
     download(record.name+'_pool.csv','\ufeff'+rows.map(r=>r.map(csvCell).join(',')).join('\r\n'),'text/csv;charset=utf-8');
   }
   async function saveRecord(){
-    clearTimeout(textSaveTimer);sync();if(!record.plate||!record.sessions.length)throw Error('プレートと泳動画像を登録してください。');
+    clearTimeout(textSaveTimer);sync();if(!record.sessions.length)throw Error('泳動画像を登録してください。');
     if(record.confirmed?.signature!==signature())record.confirmed=null;
     const snapshot=copy(record),project=el('projectSelect').value,name=snapshot.name;
     const key=await putBlob(encoder.encode(JSON.stringify(snapshot)));
-    const payload={...copy(snapshot.plate),recordType:'electrophoresis',electrophoresis:{version:1,blob:key,images:snapshot.sessions.map(s=>({name:s.image.name,sha256:s.image.sha256})),confirmed:!!snapshot.confirmed,plateRef:snapshot.plateRef,plateIndex:snapshot.plateIndex,originKey:snapshot.plateIndex===undefined?undefined:(()=>{const o=snapshot.plate.packedPlates[snapshot.plateIndex].outputOrigin||{ref:snapshot.plateRef,index:snapshot.plateIndex};return o.ref+'#'+o.index;})(),attachmentIds:snapshot.attachmentIds||[]}};
+    const payload={...(snapshot.plate?copy(snapshot.plate):{plates:[],packedPlates:[]}),recordType:'electrophoresis',electrophoresis:{version:1,blob:key,images:snapshot.sessions.map(s=>({name:s.image.name,sha256:s.image.sha256})),confirmed:!!snapshot.confirmed,plateRef:snapshot.plateRef,plateIndex:snapshot.plateIndex,originKey:snapshot.plateIndex===undefined?undefined:(()=>{const o=snapshot.plate.packedPlates[snapshot.plateIndex].outputOrigin||{ref:snapshot.plateRef,index:snapshot.plateIndex};return o.ref+'#'+o.index;})(),attachmentIds:snapshot.attachmentIds||[]}};
     const saved=await request('/api/logs',{name,payload,project_id:project}),verified=await request('/api/logs/'+encodeURIComponent(saved.id));
     if(verified.project_id!==project||JSON.stringify(verified.payload.electrophoresis)!==JSON.stringify(payload.electrophoresis))throw Error('保存の照合に失敗しました。実験一式JSONを保存してください。');
     dirty=false;el('recordStatus').textContent='DB保存済み：'+name;
-    if(!embedded)history.replaceState(null,'','/electrophoresis?project='+encodeURIComponent(project)+'&log='+encodeURIComponent(saved.id));el('viewPlate').href=(record.plate.plateEdit?'/output-plates?log=':'/plates?log=')+encodeURIComponent(record.plateRef||saved.id);el('viewPlate').hidden=false;await loadFiles();await autosave();dirty=false;notifyState();notify('saved');
+    if(!embedded)history.replaceState(null,'','/electrophoresis?project='+encodeURIComponent(project)+'&log='+encodeURIComponent(saved.id));el('viewPlate').href=(record.plate?.plateEdit?'/output-plates?log=':'/plates?log=')+encodeURIComponent(record.plateRef||saved.id);el('viewPlate').hidden=!record.plate;await loadFiles();await autosave();dirty=false;notifyState();notify('saved');
   }
   async function backup(){sync();const full=copy(record);for(const s of full.sessions)s.raw=b64(await getBlob(s.image.sha256));download(record.name+'_experiment.json',JSON.stringify(full),'application/json')}
   async function start(){
+    freeUI=PCRFreePoolingUI({host:el('freePooling'),getRecord:()=>record,getActive:()=>state,onChange:selectionChanged,onRecalculate:()=>guarded(measure),onExport:pool=>guarded(()=>exportSelection(pool))});freeUI.render();
+    if(embedded){const button=document.createElement('button');button.type='button';button.textContent='別のブラウザタブで開く';button.onclick=detach;document.querySelector('.top-actions').append(button);}
+
     if(embedded){
       const close=document.createElement('button');close.textContent='タブを閉じる';close.type='button';close.onclick=()=>notify('close-request');document.querySelector('.top-actions').append(close);
       window.addEventListener('message',event=>{if(event.source!==parent||event.origin!==location.origin||event.data?.channel!=='pcr-plate-workspace'||event.data.token!==workspaceToken)return;if(event.data.type==='close'){if(running||activityCount){notify('close-blocked');return;}clearTimeout(textSaveTimer);dirty=false;notify('closed');}});
@@ -210,11 +260,13 @@ window.Electro = (() => {
     el('saveExperiment').onclick=()=>guarded(saveRecord);el('backupExperiment').onclick=()=>guarded(backup);
     el('restoreExperiment').onchange=e=>guarded(async()=>{const f=e.target.files[0];if(!f)return;if(f.size>160*1024*1024)throw Error('実験一式JSONは160 MB以下にしてください。');if(dirty&&!confirm('現在の作業を置き換えます。保存済みですか？'))return;await restoreRecord(JSON.parse(await f.text()));el('recordStatus').textContent='復元済み'});
     el('save').onclick=()=>guarded(async()=>{if(!state)return;const out=copy(state);out.raw=b64(await getBlob(state.image.sha256));download(prefix()+'_pcr_electrophoresis.json',JSON.stringify(out),'application/json')});
-    el('sessionFile').onchange=e=>guarded(async()=>{const f=e.target.files[0];if(!f)return;if(!record.plate)throw Error('先にプレートを選択してください。');const s=JSON.parse(await f.text());if(record.sessions.length>=32&&!record.sessions.some(x=>x.image.sha256===s.image?.sha256))throw Error('1実験は32画像までです。');await adopt(await api('/api/restore',s));invalidate()});
+    el('sessionFile').onchange=e=>guarded(async()=>{const f=e.target.files[0];if(!f)return;const s=JSON.parse(await f.text());if(record.sessions.length>=32&&!record.sessions.some(x=>x.image.sha256===s.image?.sha256))throw Error('1実験は32画像までです。');await adopt(await api('/api/restore',s));invalidate()});
     el('mapping').hidden=true; // identities are assigned through the plate dialog only
     window.addEventListener('beforeunload',e=>{if(dirty&&!embedded){e.preventDefault();e.returnValue=''}});
     for(const id of ['exportAll','exportPCR','exportPool','measureAll','gelLinkBtn','saveExperiment'])el(id).disabled=true;
-    await guarded(async()=>{await PCRProject.ready;await loadProjects(PCRProject.id);record.projectId=PCRProject.id;const ref=new URLSearchParams(location.search).get('log');if(ref){await openEntry(ref,{initial:true});dirty=false;const params=new URLSearchParams(location.search),attachment=params.get('attachment');
+    await guarded(async()=>{await PCRProject.ready;await loadProjects(PCRProject.id);record.projectId=PCRProject.id;
+      if(contextParams.get('handoff')){const token=contextParams.get('handoff'),snapshot=(await idb('get',draftKey()))||await idb('get','handoff:'+token);if(!snapshot)throw Error('引き継ぐ作業が見つかりません。元の画面から開き直してください。');await restoreRecord(snapshot);markDirty();el('recordStatus').textContent='別タブに作業を引き継ぎました。';const channel=new BroadcastChannel('pcr-gel-handoff:'+token);channel.postMessage({type:'ready'});channel.close();return;}
+      const ref=new URLSearchParams(location.search).get('log');if(ref){await openEntry(ref,{initial:true});dirty=false;const params=new URLSearchParams(location.search),attachment=params.get('attachment');
       if(attachment){
         const image=await request('/api/workflow/attachments/'+encodeURIComponent(attachment));
         const index=Number(params.get('plate')),plate=record.plate.packedPlates?.[index];
@@ -228,9 +280,9 @@ window.Electro = (() => {
         }
         const maxRois=await PCRROIExtraction.ask(image.name);if(maxRois===null){el('recordStatus').textContent='ROI抽出をキャンセルしました。画像を開き直すと再度設定できます。';return;}
         await adopt(await request('/api/electrophoresis/detect',{sha256:image.hash,name:image.name,rows:'auto',cols:24,maxRois}));
-        el('recordStatus').textContent='添付画像を開きました。ROIとウェル対応を確認してください。';
+        el('recordStatus').textContent='バンドを選ぶと、その場で相対値と分注量を計算します。';
       }return;}const draft=(await idb('get','draft:'+PCRProject.id))||await idb('get','draft');if(draft?.projectId===PCRProject.id&&draft?.sessions?.length){el('recordStatus').textContent='下書きあり';const restore=document.createElement('button');restore.textContent='復元';restore.onclick=()=>guarded(()=>restoreRecord(draft));el('recordStatus').append(' ',restore)} });
   }
   function pruneMappings(kept){if(!state||!record.links)return;const gel=record.links.gels.find(g=>g.sha256===state.image.sha256);if(gel)gel.rois=gel.rois.filter(r=>kept.includes(r.id));invalidate();}
-  return {api,autosave,render,download,start,markDirty,activity,pruneMappings,snapshotMappings:()=>copy(record.links),restoreMappings:links=>{record.links=copy(links);invalidate();},isBusy:()=>running||activityCount>0};
+  return {api,autosave,render,download,start,markDirty,activity,pruneMappings,prepareAreas,isBandSelected,toggleBand,snapshotMappings:()=>copy(record.links),restoreMappings:links=>{record.links=copy(links);invalidate();},isBusy:()=>running||activityCount>0};
 })();

@@ -1,0 +1,25 @@
+const test=require('node:test'),assert=require('node:assert/strict'),core=require('../frontend/assets/free-pooling-core.js');
+const hash='a'.repeat(64),other='b'.repeat(64);
+function session(h=hash){return {image:{sha256:h,name:h.slice(0,1)+'.tif'},config:{roiWidth:20,roiHeight:30,rois:[{id:1,x:20,y:30,decision:'repcr',sample:'same'},{id:2,x:60,y:30,decision:'exclude',sample:'same'},{id:3,x:100,y:30}]},quantification:{results:[{area:100,status:'review',flags:['バンド端がROI外']},{area:1,status:'undetected',flags:['未検出・微弱']},{area:0,status:'undetected'}]}};}
+function pool(ids=[1,2,3]){return {...core.create('p','テスト'),keys:ids.map(id=>core.key(hash,id))};}
+test('only operator selection determines membership; labels and 1–20 µL limits do not exclude bands',()=>{
+ const p=pool(),r=core.calculate(p,[session()]);assert.equal(r.count,3);assert.equal(r.computed,2);assert.equal(r.rows[0].volume,1);assert.equal(r.rows[1].volume,100);assert.equal(r.rows[2].volume,null);assert.match(r.rows[1].note,/範囲外/);assert.match(r.rows[2].note,/面積が0/);
+ assert.equal(r.rows[0].label,'repcr');assert.equal(r.rows[1].label,'exclude');assert.equal(r.total,101);
+});
+test('changing selection, reference band and reference volume updates relative values immediately',()=>{
+ const p=pool([1,2]);p.reference='min';p.referenceVolume=2;p.step=0;const r=core.calculate(p,[session()]);assert.equal(r.rows[0].relative,100);assert.equal(r.rows[0].volume,.02);assert.equal(r.rows[1].volume,2);
+ p.reference='band:'+core.key(hash,1);assert.equal(core.calculate(p,[session()]).rows[1].volume,200);
+ p.keys=[core.key(hash,2)];p.reference='max';assert.equal(core.calculate(p,[session()]).rows[0].volume,2);
+});
+test('bands from different images and repeat wells stay separate when explicitly selected',()=>{
+ const p=pool([1]);p.keys.push(core.key(other,1));const second=session(other);second.quantification.results[0].area=50;const r=core.calculate(p,[session(),second]);assert.equal(r.count,2);assert.deepEqual(r.rows.map(row=>row.volume),[1,2]);
+});
+test('median reference, rounding and missing or zero bands stay explicit without blocking other rows',()=>{
+ const p=pool([1,2]);p.reference='median';p.referenceVolume=1;p.step=.1;let r=core.calculate(p,[session()]);assert.equal(r.reference,50.5);assert.equal(r.rows[0].volume,.5);assert.equal(r.rows[1].volume,50.5);
+ p.keys.push('missing:1');r=core.calculate(p,[session()]);assert.equal(r.rows[2].volume,null);assert.match(r.rows[2].note,/なくなりました/);
+ const before=JSON.stringify(p);core.calculate(p,[session()]);assert.equal(JSON.stringify(p),before);
+});
+test('geometry cache ignores labels and metadata but invalidates changed ROI geometry and baselines',()=>{
+ const s=session(),key=core.areaKey(s.config);s.config.rois[0].decision='auto';s.config.rois[0].sample='other';assert.equal(core.areaKey(s.config),key);s.config.rois[0].x++;assert.notEqual(core.areaKey(s.config),key);
+ s.config.rois[0].x--;s.config.rois[0].baseline=[0,1,29,1];assert.notEqual(core.areaKey(s.config),key);
+});

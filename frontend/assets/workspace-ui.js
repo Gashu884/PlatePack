@@ -59,7 +59,7 @@
     return {activate, get active() { return active; }};
   }
   const tips = {
-    addImage:'TIFF / PNGを登録します。先に「実験」でプレートを選択してください。',
+    addImage:'TIFF / PNGを登録して面積を取得します。ウェルとの対応は任意です。',
     emptyDemo:'TIFF / PNGからROIを自動検出します。',
     gelLinkBtn:'ROIを選び、対応するプレートのウェルを指定します。',
     measureAll:'現在の泳動画像の全ROIを測定します。ウェル対応を確認してください。',
@@ -127,10 +127,12 @@
     const close = button('閉じる', () => { inspector.hidden = true; editButton.focus(); }); inspector.prepend(close);
     function openInspector() { if ($('gel').hidden) return; inspector.hidden = false; }
     const barHost = node('nav','ui-work-nav'); exp.replaceWith(barHost, toolbar);
-    const view = tabs(barHost, [['image','画像',panes[0]],['roi','ROI',panes[1]],['measure','測定',panes[2]],['pool','プール',panes[3]]], key => {
+    panes[2].hidden=true;panes[3].hidden=true;
+    const view = tabs(barHost, [['image','バンド・分注量',panes[0]],['roi','ROI編集',panes[1]]], key => {
       inspector.hidden = true;
       toolbar.hidden = key === 'pool'; roiActions.hidden = key !== 'roi';
-      if (key === 'image' || key === 'roi') panes[key === 'image' ? 0 : 1].append(gel);
+      if (key === 'image' || key === 'roi') panes[key === 'image' ? 0 : 1].append(gel, $('freePooling'));
+      $('selectBands').checked=key==='image';
       document.querySelector('.marker-toolbar').hidden = key !== 'roi' || !$('useMarker').checked;
       $('widthBadge').hidden = key !== 'roi';
     });

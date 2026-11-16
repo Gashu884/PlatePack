@@ -108,6 +108,17 @@ class ElectrophoresisTests(unittest.TestCase):
         mixed=self.client.post('/api/electrophoresis/plan',json={'sessions':[first,second]})
         self.assertEqual(mixed.status_code,422)
 
+    def test_direct_area_measurement_ignores_labels_mappings_width_review_and_markers(self):
+        session=self.fixture();cfg=session['config'];cfg['rois'][0]['decision']='repcr';cfg['rois'][1]['decision']='exclude'
+        for r in cfg['rois']:r['sample']='';r['well']=''
+        cfg['widthMode']='widest';cfg['widthReport']={'status':'needs_review','candidates':[]}
+        cfg['markers']=[{'row':0,'x':-999,'y':-999,'confirmed':False}]
+        measured=self.client.post('/api/electrophoresis/areas',json={'sha256':session['image']['sha256'],'config':cfg})
+        self.assertEqual(measured.status_code,200,measured.text);q=measured.json()
+        self.assertEqual(q['mode'],'manual-selection');self.assertEqual(q['markerResults'],[])
+        self.assertEqual(len(q['results']),2);self.assertTrue(all(m['area']>0 for m in q['results']))
+        self.assertAlmostEqual(q['results'][1]['area']/q['results'][0]['area'],2,delta=.04)
+
     def test_analysis_blob_reference_survives_save_copy_move_and_reconnect(self):
         raw=b'{"version":1,"sessions":[]}';key=self.upload(raw)
         payload={'recordType':'electrophoresis','plates':[{'uid':'plate1','wells':['A1']}],'electrophoresis':{'version':1,'blob':key}}

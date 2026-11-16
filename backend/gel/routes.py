@@ -12,7 +12,7 @@ from statistics import mean, median
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from backend.api.logs_db import _database, _execute, _initialize
-from .engine import decode, detect_grid, quantify, apply_auto_width, VERSION
+from .engine import decode, detect_grid, quantify, measure_areas, apply_auto_width, VERSION
 from .validation import validate
 from .pooling import plan_project
 
@@ -169,6 +169,10 @@ def analyze(action: str, data: dict):
                 for r in records:r['relativeToMedian']=r['signal']/p['median'] if p['median'] else None
             return plan
         a,meta=image_for(data)
+        if action=='areas':
+            cfg={**data['config'],'useMarker':False}
+            cfg=checked_config(cfg,a)
+            return measure_areas(a,cfg,meta['maximum'])
         if action in ('detect','redetect'):
             rows=None if data.get('rows')=='auto' else int(data.get('rows',4));cols=int(data.get('cols',24))
             if (rows is not None and (not 1<=rows<=8 or rows*cols>384)) or not 2<=cols<=48:raise ValueError('段数または列数が範囲外です。')

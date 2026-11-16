@@ -2,7 +2,7 @@
 import base64, hashlib, io
 import numpy as np
 from PIL import Image
-VERSION = 'platepack-gel-1.2.0'
+VERSION = 'platepack-gel-2.0.0'
 
 def smooth(a, k):
     k = max(1, int(k) | 1)
@@ -243,6 +243,17 @@ def marker_measurements(a,cfg,maximum):
         valid=bool(marker.get('confirmed')) and bool(cfg.get('markerComparable')) and m['status']=='detected' and m['area']>0
         out.append(dict(m,row=marker['row'],relativeLoad=float(marker.get('relativeLoad',1)),confirmed=bool(marker.get('confirmed')),valid=valid))
     return out
+
+def measure_areas(a, cfg, maximum):
+    """Measure every ROI; quality labels never determine user selection."""
+    results=[]
+    for roi in cfg['rois']:
+        m=measure(a,roi,cfg,maximum)
+        m.update(repcr=roi.get('decision')=='repcr' or m['status']=='undetected',
+                 include=False,eligible=m['area']>0,volume=None,idealVolume=None,poolFlag='選択して計算')
+        results.append(m)
+    return {'results':results,'included':0,'markerResults':[],'widthAnalysis':cfg.get('widthReport'),
+            'ready':False,'actualTotal':0,'version':VERSION,'mode':'manual-selection'}
 
 def quantify(a, cfg, maximum):
     report=estimate_common_width(a,cfg,maximum) if cfg.get('widthMode')=='widest' else None
