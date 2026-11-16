@@ -2,7 +2,7 @@
 import base64, hashlib, io
 import numpy as np
 from PIL import Image
-VERSION = 'platepack-gel-1.1.0'
+VERSION = 'platepack-gel-1.2.0'
 
 def smooth(a, k):
     k = max(1, int(k) | 1)
@@ -235,6 +235,7 @@ def apply_auto_width(a,cfg,maximum):
 
 
 def marker_measurements(a,cfg,maximum):
+    if not cfg.get('useMarker',False):return []
     out=[]
     for marker in cfg.get('markers',[]):
         mc=dict(cfg,roiWidth=marker['roiWidth'],roiHeight=marker['roiHeight'])

@@ -48,8 +48,7 @@ def fixed_target_pool(items,target,step=.1):
 def plan_project(runs, options, choices=None):
     """Runs contain server-recomputed quantification, never trust saved areas."""
     choices=choices or {}; all_records=[];by_sample=defaultdict(list);blockers=[]
-    multiple=len(runs)>1
-    use_marker=bool(options.get('useMarker',multiple)) or multiple
+    use_marker=bool(options.get('useMarker',all(run['config'].get('useMarker',False) for run in runs)))
     for run in runs:
         cfg=run['config'];q=run['quantification'];ref_by_row={r['row']:r for r in q.get('markerResults',[])}
         width=q.get('widthAnalysis')

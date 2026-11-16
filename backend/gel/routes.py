@@ -110,7 +110,8 @@ def get_chunk(key: str,index: int):
 
 
 def setup(cfg, meta):
-    cfg.update(poolMode='max-count',poolMin=1.,poolMax=20.,poolStep=.1,imageHash=meta['sha256'],useMarker=True)
+    cfg.update(poolMode='max-count',poolMin=1.,poolMax=20.,poolStep=.1,imageHash=meta['sha256'])
+    cfg.setdefault('useMarker',False);cfg.setdefault('markerModeVersion',1)
     cfg.setdefault('poolScope','groups');cfg.setdefault('markerComparable',True);cfg.setdefault('groupSize',48)
     cfg.setdefault('ladderName','SMOBIO ExcelBand 100 bp DNA Ladder')
     for r in cfg['rois']: r.setdefault('poolGroup','Pool'+str(1+(r['id']-1)//cfg['groupSize']))
@@ -149,11 +150,15 @@ def analyze(action: str, data: dict):
             sessions=data.get('sessions',[])
             if not 1<=len(sessions)<=32:raise ValueError('1〜32画像を選んでください。')
             runs=[]
+            modes={bool(s.get('config',{}).get('useMarker',False)) for s in sessions}
+            if len(modes)!=1:raise ValueError('マーカー補正の設定を全画像で揃えてください。')
+            use_marker=modes.pop()
+            if 'useMarker' in data and (type(data['useMarker']) is not bool or data['useMarker']!=use_marker):raise ValueError('マーカー補正の設定が画像と一致しません。')
             for i,s in enumerate(sessions):
                 if s.get('measuredVersion') and s['measuredVersion']!=VERSION:raise ValueError('解析方式が更新されています。各画像を開いて再測定してください。')
                 a,meta=image_for(s);cfg=checked_config(s['config'],a)
                 runs.append(dict(id=meta['sha256'],label=meta['name'],imageName=meta['name'],sha256=meta['sha256'],config=cfg,quantification=quantify(a,cfg,meta['maximum'])))
-            opts={'groupSize':data.get('groupSize',48),'useMarker':True,'scope':'groups','step':.1}
+            opts={'groupSize':data.get('groupSize',48),'useMarker':use_marker,'scope':'groups','step':.1}
             plan=plan_project(runs,opts)
             for p in plan['plans']:
                 records=[r for r in plan['samples'] if r['group']==p['group'] and not r['error'] and r['signal'] is not None]

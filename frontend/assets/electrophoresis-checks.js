@@ -11,5 +11,9 @@
   function signature(record){
     return key({plate:record.plate,links:record.links,groupSize:record.groupSize,sessions:record.sessions.map(s=>({hash:s.image.sha256,config:s.config,algorithm:s.quantification?.version,measuredConfig:s.measuredConfig,measuredVersion:s.measuredVersion}))});
   }
-  return {key,measured,signature};
+  function withMarkerDefaults(session){
+    if(session.config.markerModeVersion===1)return session;
+    return {...session,config:{...session.config,useMarker:false,markerModeVersion:1}};
+  }
+  return {key,measured,signature,withMarkerDefaults};
 });

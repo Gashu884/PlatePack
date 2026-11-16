@@ -69,6 +69,7 @@ window.Electro = (() => {
       out.config.groupSize=record.groupSize;out.config.rois.forEach(r=>r.poolGroup='Pool'+(1+Math.floor((r.id-1)/record.groupSize)));invalidate();return out;
     }
     if(path==='/api/restore'){
+      data=ElectrophoresisChecks.withMarkerDefaults(data);
       if(data.raw){const key=await putBlob(unb64(data.raw));if(key!==data.image.sha256)throw Error('元画像が一致しません。');delete data.raw;}
       return request('/api/electrophoresis/restore',data);
     }
@@ -120,7 +121,7 @@ window.Electro = (() => {
   async function restoreRecord(value){
     if(value.version!==1||!Array.isArray(value.sessions)||value.sessions.length>32)throw Error('実験一式JSONの形式が不正です。');
     if(!Number.isInteger(value.groupSize)||value.groupSize<1||value.groupSize>384)throw Error('チューブのサンプル数が不正です。');
-    const candidate=copy(value);if(PCRProject.id&&candidate.projectId!==PCRProject.id)throw Error('別のプロジェクトの実験です。元のプロジェクトで開いてください。');candidate.plate=ensurePlate(candidate.plate);PlatePackGelLinks.validate(candidate.links);
+    const candidate=copy(value);candidate.sessions=candidate.sessions.map(ElectrophoresisChecks.withMarkerDefaults);if(PCRProject.id&&candidate.projectId!==PCRProject.id)throw Error('別のプロジェクトの実験です。元のプロジェクトで開いてください。');candidate.plate=ensurePlate(candidate.plate);PlatePackGelLinks.validate(candidate.links);
     // Verify all referenced originals before replacing the open experiment.
     for(const session of candidate.sessions){const bytes=session.raw?unb64(session.raw):await getBlob(session.image.sha256);if(await putBlob(bytes)!==session.image.sha256)throw Error('元画像が一致しません。');delete session.raw;}
     const selected=candidate.sessions.find(s=>s.image.sha256===candidate.active)||candidate.sessions[0];
@@ -148,9 +149,9 @@ window.Electro = (() => {
   }
   async function measure(){
     if(!state)return;clearTimeout(textSaveTimer);checkMapping(state);
-    if(state.config.markers.some(m=>!m.confirmed))throw Error('各段の500 bpマーカーの位置・積分範囲を確認してください。');
+    if(state.config.useMarker&&state.config.markers.some(m=>!m.confirmed))throw Error('各段の500 bpマーカーの位置・積分範囲を確認してください。');
     const q=await api('/api/measure',{sha256:state.image.sha256,config:state.config});
-    if(q.markerResults.some(m=>!m.valid))throw Error('500 bpマーカーが未確認、微弱、または複数ピークなどの状態です。ROIと積分範囲を確認してください。');
+    if(state.config.useMarker&&q.markerResults.some(m=>!m.valid))throw Error('500 bpマーカーが未確認、微弱、または複数ピークなどの状態です。ROIと積分範囲を確認してください。');
     state.quantification=q;state.measuredConfig=ElectrophoresisChecks.key(state.config);state.measuredVersion=q.version;state.measuredAt=new Date().toISOString();invalidate();render();await autosave();toast('測定完了');
   }
   async function plan(){
@@ -161,7 +162,8 @@ window.Electro = (() => {
     proposal={signature:snapshot,plan:data};showPlan(data);el('planDialog').showModal();
   }
   function showPlan(p){
-    el('planSummary').innerHTML=p.plans.map(t=>`<div class="plan-card"><h3>${esc(t.group)}</h3><p>${t.count}検体 / ${fmt(t.total,1)} µL<br>有効測定 ${t.measuredCount}検体<br>面積 平均 ${fmt(t.areaMean,1)} / 中央値 ${fmt(t.areaMedian,1)}<br>500 bp補正 平均 ${fmt(t.mean,4)} / 中央値 ${fmt(t.median,4)}</p></div>`).join('')+p.blockers.map(t=>`<p>${esc(t)}</p>`).join('');
+    el('planMode').textContent='1–20 µL · 0.1 µL刻み · '+(p.useMarker?'500 bp補正':'バンド積分値で計算');
+    el('planSummary').innerHTML=p.plans.map(t=>`<div class="plan-card"><h3>${esc(t.group)}</h3><p>${t.count}検体 / ${fmt(t.total,1)} µL<br>有効測定 ${t.measuredCount}検体<br>面積 平均 ${fmt(t.areaMean,1)} / 中央値 ${fmt(t.areaMedian,1)}<br>${p.useMarker?'500 bp補正':'バンド信号'} 平均 ${fmt(t.mean,4)} / 中央値 ${fmt(t.median,4)}</p></div>`).join('')+p.blockers.map(t=>`<p>${esc(t)}</p>`).join('');
     el('planRows').innerHTML=p.samples.map(r=>`<tr data-used="${r.used}"><td>${esc(r.group)}</td><td>${esc(r.well||'未指定')} / #${r.lane}</td><td>${esc(r.imageName)}<small>${p.records.filter(x=>x.sampleId===r.sampleId).length}回測定</small></td><td>${fmt(r.relativeToMedian,3)}</td><td>${fmt(r.volume,1)}</td><td>${fmt(r.roundingErrorPct,2)}</td><td>${esc(r.error||r.choice)}</td></tr>`).join('');
     el('confirmPlan').disabled=!p.ready;el('exportConfirmed').disabled=!record.confirmed;
   }

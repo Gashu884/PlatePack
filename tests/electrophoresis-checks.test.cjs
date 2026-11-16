@@ -10,3 +10,11 @@ test('algorithm changes invalidate measurement even with unchanged pixels and RO
 test('well mapping and group size changes invalidate approval',()=>{for(const change of [r=>r.plate.plates[0].uid='replacement',r=>r.links.gels.push({roi:1,well:'A2'}),r=>r.groupSize=24]){const r=fixture(),before=checks.signature(r);change(r);assert.notEqual(checks.signature(r),before)}});
 test('serialization and key-order changes preserve measurement; display brightness is not quantitative',()=>{const r=fixture(),before=checks.signature(r),s=r.sessions[0];r.sessions[0]=JSON.parse(JSON.stringify(s));assert.equal(checks.signature(r),before);s.config={rois:s.config.rois,roiWidth:s.config.roiWidth};assert.equal(checks.measured(s),true);r.brightness=3;assert.equal(checks.signature(r),before)});
 test('missing measurement version or evidence never counts as measured',()=>{const s=fixture().sessions[0];delete s.measuredVersion;assert.equal(checks.measured(s),false);delete s.measuredConfig;assert.equal(checks.measured(s),false)});
+test('legacy forced marker correction defaults off without changing pixels or ROI identities',()=>{
+ const old=fixture().sessions[0];old.config.useMarker=true;old.config.markers=[{row:0,x:10,y:20,confirmed:false}];old.measuredConfig=checks.key(old.config);
+ const next=checks.withMarkerDefaults(old);assert.equal(next.config.useMarker,false);assert.equal(next.config.markerModeVersion,1);assert.equal(old.config.useMarker,true);
+ assert.deepEqual(next.config.rois,old.config.rois);assert.deepEqual(next.config.markers,old.config.markers);assert.deepEqual(next.image,old.image);assert.equal(checks.measured(next),false);
+});
+test('an explicitly chosen marker mode survives reopening after the new default is applied',()=>{
+ for(const useMarker of [true,false]){const s=fixture().sessions[0];s.config.markerModeVersion=1;s.config.useMarker=useMarker;const restored=checks.withMarkerDefaults(s);assert.equal(restored.config.useMarker,useMarker);}
+});

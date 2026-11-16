@@ -29,7 +29,7 @@ class ElectrophoresisTests(unittest.TestCase):
         for x,height in [(20,100),(60,40),(100,80)]:a[:,x-5:x+5]+=height*np.exp(-.5*((y-50)/3)**2)[:,None]
         a=np.round(a*scale).astype('uint16');b=io.BytesIO();Image.fromarray(a).save(b,format='TIFF');key=self.upload(b.getvalue())
         cfg=dict(rows=1,cols=2,roiWidth=10,roiHeight=30,snrThreshold=.1,minSignal=.0001,poolTotal=100,poolMin=1,poolMax=20,poolStep=.1,widthMode='manual',rois=[dict(id=i+1,row=0,col=i,x=x,y=50,sample='S'+str(i),well='1-A'+str(i+1),decision='auto',poolGroup='Pool1') for i,x in enumerate((60,100))])
-        setup(cfg,{'sha256':key});cfg['markers']=[dict(id=1000,row=0,col=-1,x=20,y=50,roiWidth=10,roiHeight=30,confirmed=True,relativeLoad=1,baseline=None)]
+        cfg['useMarker']=True;setup(cfg,{'sha256':key});cfg['markers']=[dict(id=1000,row=0,col=-1,x=20,y=50,roiWidth=10,roiHeight=30,confirmed=True,relativeLoad=1,baseline=None)]
         return {'image':{'name':name,'sha256':key},'config':cfg}
 
     def test_chunked_roundtrip_is_immutable_and_rejects_incomplete_or_corrupt_upload(self):
@@ -89,6 +89,25 @@ class ElectrophoresisTests(unittest.TestCase):
         s['config']['markers'][0]['confirmed']=False
         p=self.client.post('/api/electrophoresis/plan',json={'sessions':[s],'groupSize':48}).json();self.assertEqual(p['count'],0);self.assertTrue(all('500bp' in r['error'] for r in p['samples']))
 
+    def test_marker_free_measurement_and_multi_image_pool_ignore_marker_geometry(self):
+        first=self.fixture();second=self.fixture(scale=2,name='second.tif')
+        for session in (first,second):
+            session['config']['useMarker']=False
+            session['config']['markers']=[{'row':0,'x':-999,'y':-999,'baseline':['unused'],'confirmed':False}]
+            measured=self.client.post('/api/electrophoresis/measure',json={'sha256':session['image']['sha256'],'config':session['config']})
+            self.assertEqual(measured.status_code,200,measured.text);self.assertEqual(measured.json()['markerResults'],[])
+            session['measuredVersion']=measured.json()['version']
+        planned=self.client.post('/api/electrophoresis/plan',json={'sessions':[first,second],'useMarker':False})
+        self.assertEqual(planned.status_code,200,planned.text);p=planned.json()
+        self.assertFalse(p['useMarker']);self.assertEqual(p['count'],2)
+        self.assertTrue(all(r['markerArea'] is None and r['error'] is None for r in p['samples']))
+        self.assertTrue(all(r['signal']==r['area'] for r in p['samples']))
+        mismatch=self.client.post('/api/electrophoresis/plan',json={'sessions':[first],'useMarker':True})
+        self.assertEqual(mismatch.status_code,422)
+        second['config']['useMarker']=True
+        mixed=self.client.post('/api/electrophoresis/plan',json={'sessions':[first,second]})
+        self.assertEqual(mixed.status_code,422)
+
     def test_analysis_blob_reference_survives_save_copy_move_and_reconnect(self):
         raw=b'{"version":1,"sessions":[]}';key=self.upload(raw)
         payload={'recordType':'electrophoresis','plates':[{'uid':'plate1','wells':['A1']}],'electrophoresis':{'version':1,'blob':key}}
@@ -131,6 +150,7 @@ class ElectrophoresisTests(unittest.TestCase):
                 pixels=np.round(a).astype('uint8');stream=io.BytesIO();Image.fromarray(pixels).save(stream,format='TIFF');raw=stream.getvalue();key=self.upload(raw)
                 out=self.client.post('/api/electrophoresis/detect',json={'sha256':key,'rows':'auto','cols':24})
                 self.assertEqual(out.status_code,200,out.text);cfg=out.json()['config']
+                self.assertFalse(cfg['useMarker']);self.assertEqual(out.json()['quantification']['markerResults'],[])
                 self.assertEqual(cfg['rows'],rows);self.assertEqual(len(cfg['rois']),rows*24)
                 self.assertEqual([r['id'] for r in cfg['rois']],list(range(1,rows*24+1)))
                 self.assertEqual(cfg['grid']['targetRows'],[160+220*r for r in range(rows)])

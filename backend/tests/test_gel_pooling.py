@@ -26,7 +26,7 @@ class PoolTests(unittest.TestCase):
     def run_fixture(self,id,signals,names=None,marker=10,valid=True,group='Tube1'):
         names=names or [f'S{i}' for i in range(len(signals))]
         rois=[{'id':i+1,'row':0,'sample':n,'poolGroup':group} for i,n in enumerate(names)]
-        return {'id':id,'label':id,'sha256':id*64,'imageName':id+'.tif','config':{'rois':rois,'roiWidth':20},'quantification':{'results':[{'area':c,'relativeSignal':c,'include':True,'eligible':True,'repcr':False} for c in signals],'markerResults':[{'row':0,'area':marker,'relativeLoad':1,'valid':valid}]}}
+        return {'id':id,'label':id,'sha256':id*64,'imageName':id+'.tif','config':{'rois':rois,'roiWidth':20,'useMarker':True},'quantification':{'results':[{'area':c,'relativeSignal':c,'include':True,'eligible':True,'repcr':False} for c in signals],'markerResults':[{'row':0,'area':marker,'relativeLoad':1,'valid':valid}]}}
     def test_exposure_cancels_and_repcr_not_double_counted(self):
         original=self.run_fixture('A',[20,40]);repeat=self.run_fixture('B',[80],['S0'],marker=40,group='RepeatTube')
         p=plan_project([original,repeat],{'scope':'groups','step':.1})
@@ -37,7 +37,7 @@ class PoolTests(unittest.TestCase):
         self.assertEqual(p['samples'][0]['runId'],'A')
     def test_failed_repeat_keeps_previous_valid_and_missing_reference_blocks(self):
         a=self.run_fixture('A',[20]);b=self.run_fixture('B',[60],valid=False)
-        p=plan_project([a,b],{'scope':'groups','step':.1,'useMarker':False})
+        p=plan_project([a,b],{'scope':'groups','step':.1,'useMarker':True})
         self.assertTrue(p['useMarker']);self.assertEqual(p['samples'][0]['runId'],'A')
         self.assertIn('500bp',p['records'][1]['error'])
         a['quantification']['markerResults'][0]['valid']=False

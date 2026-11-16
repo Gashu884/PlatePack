@@ -6,11 +6,12 @@ def validate(c,a):
     if c['poolMin']>c['poolMax']: raise ValueError('分注量の下限は上限以下にしてください。')
     if len(c['rois'])>384 or len(set(r['id'] for r in c['rois']))!=len(c['rois']):raise ValueError('ROI番号が不正です。')
     if c.get('poolMode')=='max-count' and (c['poolMin']!=1 or c['poolMax']!=20 or c['poolStep']!=.1):raise ValueError('最大数モードは1〜20 µL、0.1 µL刻みです。')
-    if len(c.get('markers',[]))>8 or len({r['row'] for r in c.get('markers',[])})!=len(c.get('markers',[])):raise ValueError('マーカーの段が重複しています。')
-    for r in c.get('markers',[]):
+    markers=c.get('markers',[]) if c.get('useMarker',False) else []
+    if len(markers)>8 or len({r['row'] for r in markers})!=len(markers):raise ValueError('マーカーの段が重複しています。')
+    for r in markers:
         number(r['roiWidth'],4,500);number(r['roiHeight'],8,500);number(r.get('relativeLoad',1),.000001,100000)
         number(r['row'],0,c['rows']-1)
-    for r in c['rois']+c.get('markers',[]):
+    for r in c['rois']+markers:
         number(r['x'],0,a.shape[1]-1);number(r['y'],0,a.shape[0]-1)
         number(r.get('loading',1),.000001,100000);number(r.get('dilution',1),.000001,100000)
         if r.get('baseline'):

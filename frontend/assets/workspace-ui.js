@@ -62,7 +62,7 @@
     addImage:'TIFF / PNGを登録します。先に「実験」でプレートを選択してください。',
     emptyDemo:'TIFF / PNGからROIを自動検出します。',
     gelLinkBtn:'ROIを選び、対応するプレートのウェルを指定します。',
-    measureAll:'現在の泳動画像の全ROIを測定します。マーカーとウェル対応の確認が必要です。',
+    measureAll:'現在の泳動画像の全ROIを測定します。ウェル対応を確認してください。',
     autoWidth:'明瞭なバンドの最大幅に左右2 pxを加え、全ROIに適用します。',
     redetect:'段数・列数に合わせてROIを再配置します。位置とベースラインは再設定されます。',
     calibrate:'選択中の段の最初と最後のバンドを順に指定します。番号は保持されます。',
@@ -131,7 +131,7 @@
       inspector.hidden = true;
       toolbar.hidden = key === 'pool'; roiActions.hidden = key !== 'roi';
       if (key === 'image' || key === 'roi') panes[key === 'image' ? 0 : 1].append(gel);
-      document.querySelector('.marker-toolbar').hidden = key !== 'roi';
+      document.querySelector('.marker-toolbar').hidden = key !== 'roi' || !$('useMarker').checked;
       $('widthBadge').hidden = key !== 'roi';
     });
     const edit = () => { if (view.active === 'image') view.activate('roi'); openInspector(); };
