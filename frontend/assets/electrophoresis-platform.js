@@ -87,6 +87,12 @@ window.Electro = (() => {
     for(const r of result.rows)rows.push([pool.name,r.image,r.id,r.sample,r.well,r.area,r.relative,r.volume,r.idealVolume,r.label,(r.flags||[]).join(' / '),r.note,result.reference,pool.referenceVolume,pool.step,r.hash,result.version]);
     download((pool.name||'分注量')+'.csv','\ufeff'+rows.map(row=>row.map(csvCell).join(',')).join('\r\n'),'text/csv;charset=utf-8');
   }
+  async function exportPlatePNG(pool){
+    const selected=copy(pool),sessions=record.sessions.filter(s=>selected.keys.some(key=>key.startsWith(s.image.sha256+':')));
+    for(const session of sessions)await prepareAreas(session);
+    const snapshot=copy(record),result=PCRFreePooling.calculate(selected,snapshot.sessions);
+    PCRPlateVolumePNG.open({record:snapshot,pool:selected,result});
+  }
   async function detach(){
     if(running||activityCount)return toast('処理が終わってから別タブで開いてください。');
     const popup=window.open('about:blank','_blank');if(!popup)return toast('ブラウザでポップアップを許可すると別タブで開けます。');popup.opener=null;
@@ -233,7 +239,7 @@ window.Electro = (() => {
   }
   async function backup(){sync();const full=copy(record);for(const s of full.sessions)s.raw=b64(await getBlob(s.image.sha256));download(record.name+'_experiment.json',JSON.stringify(full),'application/json')}
   async function start(){
-    freeUI=PCRFreePoolingUI({host:el('freePooling'),getRecord:()=>record,getActive:()=>state,onChange:selectionChanged,onRecalculate:()=>guarded(measure),onExport:pool=>guarded(()=>exportSelection(pool))});freeUI.render();
+    freeUI=PCRFreePoolingUI({host:el('freePooling'),getRecord:()=>record,getActive:()=>state,onChange:selectionChanged,onRecalculate:()=>guarded(measure),onExport:pool=>guarded(()=>exportSelection(pool)),onExportPNG:pool=>guarded(()=>exportPlatePNG(pool))});freeUI.render();
     if(embedded){const button=document.createElement('button');button.type='button';button.textContent='別のブラウザタブで開く';button.onclick=detach;document.querySelector('.top-actions').append(button);}
 
     if(embedded){
