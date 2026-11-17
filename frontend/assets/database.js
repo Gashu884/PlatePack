@@ -388,18 +388,13 @@
       await refresh(); message('名前を変更しました: ' + name);
     });
   }
-  function downloadJson(name,data) {
-    const url = URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
-    const link = document.createElement('a'); link.href = url; link.download = name.replace(/[\\/:*?"<>|]/g,'_') + '.json';
-    document.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url),1000);
-  }
-  async function downloadSelected() {
-    await action(async () => {
-      for (const item of selectedLogs()) {
-        const entry = await getEntry(item);
-        downloadJson(item.name,{...entry,project:folder(entry.project_id),person:folder(folder(entry.project_id)?.parent_id)});
-      }
-    });
+  function downloadSelected() {
+    const files=selectedLogs().map(item=>({name:item.name+'.json',type:'application/json',content:async()=>{
+      const entry=await getEntry(item);
+      return JSON.stringify({...entry,project:folder(entry.project_id),person:folder(folder(entry.project_id)?.parent_id)},null,2);
+    }}));
+    if(files.length===1)return action(()=>PCRSaveFile.save(files[0].name,files[0].content,files[0].type));
+    if(files.length)PCRSaveFile.many(files);
   }
   async function deleteSelected() {
     const entries = selectedLogs();

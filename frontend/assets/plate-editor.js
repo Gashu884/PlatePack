@@ -86,16 +86,13 @@
       if(view==='completed'&&group.completed){
         const links=el('div',undefined,'toolbar'),roi=el('button','ROI対応へ'),download=el('button','JSON ↓');
         roi.onclick=()=>guarded(async()=>{const saved=await ensureCompletedGroup(group);location.href='/electrophoresis?project='+encodeURIComponent(PCRProject.id)+'&log='+encodeURIComponent(saved.ref)});
-        download.onclick=()=>guarded(async()=>downloadEntry(await ensureCompletedGroup(group)));
+        download.onclick=()=>guarded(()=>PCRSaveFile.save((group.finalized?.name||group.root.name.replace(/_(?:ed|done)$/,'')+'_ed')+'.json',async()=>JSON.stringify((await ensureCompletedGroup(group)).payload,null,2),'application/json'));
         links.append(roi,download);box.append(links);
       }
       $('records').append(box);
     }
     if(!$('records').children.length)$('records').append(el('p','プレートなし'));
     $('recordCount').textContent=total+'枚';updatePicked();
-  }
-  function downloadEntry(entry){
-    const url=URL.createObjectURL(new Blob([JSON.stringify(entry.payload,null,2)],{type:'application/json'})),a=el('a');a.href=url;a.download=entry.name+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
   }
   function start(list){
     repairEntry=null;$('reconcileOutput').hidden=true;

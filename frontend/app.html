@@ -1438,8 +1438,8 @@
     </section>
 
     <link rel="stylesheet" href="/assets/gel-links.css">
-    <script src="/assets/gel-links-core.js"></script>
-    <script src="/assets/gel-links-ui.js"></script>
+    <script src="/assets/save-file.js?v=save-as1"></script><script src="/assets/gel-links-core.js"></script>
+    <script src="/assets/gel-links-ui.js?v=save-as1"></script>
     <script src="/assets/storage.js?v=3"></script>
     <script src="/assets/projects.js"></script>
     <script>
@@ -2410,14 +2410,7 @@
         });
 
         const blob = new Blob([lines.join("\n")], { type: "text/tab-separated-values" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `packed_plates_${order}.tsv`;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        URL.revokeObjectURL(url);
+        return PCRSaveFile.save(`packed_plates_${order}.tsv`, blob);
       }
 
       async function exportPackedPng() {
@@ -2426,159 +2419,150 @@
           return;
         }
         setStatus("");
-        await document.fonts.ready;
-        const STORAGE_KEY = "platepack_saved_pngs_v1";
         const plate = packedPlates[currentPackedIndex];
-        const destColumns = plate.columns && plate.columns.length ? plate.columns : COLS;
-        const rows = ROWS.length;
-        const cols = destColumns.length;
-
-        const table = packedGrid.querySelector(".packed-table");
-        const sampleTd = table?.querySelector("tbody td");
-        const headerCorner = table?.querySelector("thead th:first-child");
-        const headerTh = table?.querySelector("thead th");
-        const cellSize = sampleTd ? Math.round(sampleTd.getBoundingClientRect().width) : 50;
-        const headerH = headerTh ? Math.round(headerTh.getBoundingClientRect().height) : 22;
-        const headerW = headerCorner ? Math.round(headerCorner.getBoundingClientRect().width) : headerH;
-
-        const width = headerW + cols * cellSize;
-        const height = headerH + rows * cellSize;
-        const dpr = window.devicePixelRatio || 1;
-        const canvas = document.createElement("canvas");
-        canvas.width = Math.round(width * dpr);
-        canvas.height = Math.round(height * dpr);
-        canvas.style.width = `${width}px`;
-        canvas.style.height = `${height}px`;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) {
-          setStatus("PNGの生成に失敗しました。", true);
-          return;
-        }
-        ctx.scale(dpr, dpr);
-
-        const border = "#d5deff";
-        const headerBg = "#e5ecf6";
-        const rowHeaderBg = "#e9f0fa";
-        const textColor = "#475569";
-
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0, 0, width, height);
-
-        ctx.fillStyle = headerBg;
-        ctx.fillRect(0, 0, headerW, headerH);
-
-        ctx.font = `700 ${Math.max(10, Math.round(headerH * 0.55))}px system-ui, "Hiragino Sans", "Yu Gothic", sans-serif`;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillStyle = textColor;
-        destColumns.forEach((col, idx) => {
-          const x = headerW + idx * cellSize;
-          ctx.fillStyle = headerBg;
-          ctx.fillRect(x, 0, cellSize, headerH);
-          ctx.fillStyle = textColor;
-          ctx.fillText(String(col), x + cellSize / 2, headerH / 2);
-        });
-
-        ROWS.forEach((rowLabel, r) => {
-          const y = headerH + r * cellSize;
-          ctx.fillStyle = rowHeaderBg;
-          ctx.fillRect(0, y, headerW, cellSize);
-          ctx.fillStyle = textColor;
-          ctx.fillText(String(rowLabel), headerW / 2, y + cellSize / 2);
-
-          destColumns.forEach((col, c) => {
-            const x = headerW + c * cellSize;
-            const cellData = plate.grid[r]?.[c] || null;
-            ctx.fillStyle = "#ffffff";
-            ctx.fillRect(x, y, cellSize, cellSize);
-            if (cellData) {
-              const fill = cellData.color || sourceColorMap.get(cellData.sourcePlate) || "#dbeafe";
-              ctx.fillStyle = fill;
-              ctx.fillRect(x, y, cellSize, cellSize);
-
-              const label = `${cellData.sourcePlate}-${formatWellDisplay(cellData.sourceWell)}`;
-              ctx.save();
-              ctx.beginPath();
-              ctx.rect(x, y, cellSize, cellSize);
-              ctx.clip();
-              ctx.fillStyle = "#1f2937";
-              ctx.font = `700 ${Math.max(9, Math.round(cellSize * 0.22))}px system-ui, "Hiragino Sans", "Yu Gothic", sans-serif`;
-              ctx.fillText(label, x + cellSize / 2, y + cellSize / 2);
-              if (validGrowthWeek(cellData.growthWeek)) {
-                ctx.font = `700 ${Math.max(8, Math.round(cellSize * 0.18))}px system-ui, "Hiragino Sans", "Yu Gothic", sans-serif`;
-                ctx.textAlign = "right";
-                ctx.textBaseline = "bottom";
-                ctx.fillText(String(cellData.growthWeek), x + cellSize - 4, y + cellSize - 3);
-              }
-              ctx.restore();
-            }
-          });
-        });
-
-        ctx.strokeStyle = border;
-        ctx.lineWidth = 1;
-        for (let c = 0; c <= cols; c += 1) {
-          const x = headerW + c * cellSize;
-          ctx.beginPath();
-          ctx.moveTo(x, 0);
-          ctx.lineTo(x, height);
-          ctx.stroke();
-        }
-        for (let r = 0; r <= rows; r += 1) {
-          const y = headerH + r * cellSize;
-          ctx.beginPath();
-          ctx.moveTo(0, y);
-          ctx.lineTo(width, y);
-          ctx.stroke();
-        }
-        ctx.beginPath();
-        ctx.moveTo(0, headerH);
-        ctx.lineTo(width, headerH);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(headerW, 0);
-        ctx.lineTo(headerW, height);
-        ctx.stroke();
-        ctx.strokeRect(0, 0, width, height);
-
         const filenameBase = (plate.displayName || plate.id || `packed_${currentPackedIndex + 1}`).replace(/[\\/:*?"<>|\x00-\x1f]+/g, "_");
-        canvas.toBlob((blob) => {
-          if (!blob) {
+        return PCRSaveFile.save(`${filenameBase}.png`, async () => {
+          await document.fonts.ready;
+          const STORAGE_KEY = "platepack_saved_pngs_v1";
+          const destColumns = plate.columns && plate.columns.length ? plate.columns : COLS;
+          const rows = ROWS.length;
+          const cols = destColumns.length;
+
+          const table = packedGrid.querySelector(".packed-table");
+          const sampleTd = table?.querySelector("tbody td");
+          const headerCorner = table?.querySelector("thead th:first-child");
+          const headerTh = table?.querySelector("thead th");
+          const cellSize = sampleTd ? Math.round(sampleTd.getBoundingClientRect().width) : 50;
+          const headerH = headerTh ? Math.round(headerTh.getBoundingClientRect().height) : 22;
+          const headerW = headerCorner ? Math.round(headerCorner.getBoundingClientRect().width) : headerH;
+
+          const width = headerW + cols * cellSize;
+          const height = headerH + rows * cellSize;
+          const dpr = window.devicePixelRatio || 1;
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.round(width * dpr);
+          canvas.height = Math.round(height * dpr);
+          canvas.style.width = `${width}px`;
+          canvas.style.height = `${height}px`;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
             setStatus("PNGの生成に失敗しました。", true);
             return;
           }
-          try {
-            const reader = new FileReader();
-            reader.onload = () => {
-              try {
-                const dataUrl = String(reader.result || "");
-                const raw = localStorage.getItem(STORAGE_KEY);
-                const existing = raw ? JSON.parse(raw) : [];
-                const items = Array.isArray(existing) ? existing : [];
-                items.unshift({
-                  id: `${Date.now()}_${Math.random().toString(16).slice(2)}`,
-                  title: plate.displayName || plate.id || `Packed Plate ${currentPackedIndex + 1}`,
-                  filename: `${filenameBase}.png`,
-                  createdAt: new Date().toISOString(),
-                  dataUrl,
-                });
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(items.slice(0, 30)));
-              } catch {
-                // ignore persistence errors (quota, JSON, etc.)
+          ctx.scale(dpr, dpr);
+
+          const border = "#d5deff";
+          const headerBg = "#e5ecf6";
+          const rowHeaderBg = "#e9f0fa";
+          const textColor = "#475569";
+
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, width, height);
+
+          ctx.fillStyle = headerBg;
+          ctx.fillRect(0, 0, headerW, headerH);
+
+          ctx.font = `700 ${Math.max(10, Math.round(headerH * 0.55))}px system-ui, "Hiragino Sans", "Yu Gothic", sans-serif`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillStyle = textColor;
+          destColumns.forEach((col, idx) => {
+            const x = headerW + idx * cellSize;
+            ctx.fillStyle = headerBg;
+            ctx.fillRect(x, 0, cellSize, headerH);
+            ctx.fillStyle = textColor;
+            ctx.fillText(String(col), x + cellSize / 2, headerH / 2);
+          });
+
+          ROWS.forEach((rowLabel, r) => {
+            const y = headerH + r * cellSize;
+            ctx.fillStyle = rowHeaderBg;
+            ctx.fillRect(0, y, headerW, cellSize);
+            ctx.fillStyle = textColor;
+            ctx.fillText(String(rowLabel), headerW / 2, y + cellSize / 2);
+
+            destColumns.forEach((col, c) => {
+              const x = headerW + c * cellSize;
+              const cellData = plate.grid[r]?.[c] || null;
+              ctx.fillStyle = "#ffffff";
+              ctx.fillRect(x, y, cellSize, cellSize);
+              if (cellData) {
+                const fill = cellData.color || sourceColorMap.get(cellData.sourcePlate) || "#dbeafe";
+                ctx.fillStyle = fill;
+                ctx.fillRect(x, y, cellSize, cellSize);
+
+                const label = `${cellData.sourcePlate}-${formatWellDisplay(cellData.sourceWell)}`;
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(x, y, cellSize, cellSize);
+                ctx.clip();
+                ctx.fillStyle = "#1f2937";
+                ctx.font = `700 ${Math.max(9, Math.round(cellSize * 0.22))}px system-ui, "Hiragino Sans", "Yu Gothic", sans-serif`;
+                ctx.fillText(label, x + cellSize / 2, y + cellSize / 2);
+                if (validGrowthWeek(cellData.growthWeek)) {
+                  ctx.font = `700 ${Math.max(8, Math.round(cellSize * 0.18))}px system-ui, "Hiragino Sans", "Yu Gothic", sans-serif`;
+                  ctx.textAlign = "right";
+                  ctx.textBaseline = "bottom";
+                  ctx.fillText(String(cellData.growthWeek), x + cellSize - 4, y + cellSize - 3);
+                }
+                ctx.restore();
               }
-            };
-            reader.readAsDataURL(blob);
-          } catch {
-            // ignore
+            });
+          });
+
+          ctx.strokeStyle = border;
+          ctx.lineWidth = 1;
+          for (let c = 0; c <= cols; c += 1) {
+            const x = headerW + c * cellSize;
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, height);
+            ctx.stroke();
           }
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement("a");
-          link.href = url;
-          link.download = `${filenameBase}.png`;
-          document.body.appendChild(link);
-          link.click();
-          link.remove();
-          URL.revokeObjectURL(url);
+          for (let r = 0; r <= rows; r += 1) {
+            const y = headerH + r * cellSize;
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(width, y);
+            ctx.stroke();
+          }
+          ctx.beginPath();
+          ctx.moveTo(0, headerH);
+          ctx.lineTo(width, headerH);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(headerW, 0);
+          ctx.lineTo(headerW, height);
+          ctx.stroke();
+          ctx.strokeRect(0, 0, width, height);
+
+          const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/png"));
+          if (!blob) throw Error("PNGの生成に失敗しました。");
+            try {
+              const reader = new FileReader();
+              reader.onload = () => {
+                try {
+                  const dataUrl = String(reader.result || "");
+                  const raw = localStorage.getItem(STORAGE_KEY);
+                  const existing = raw ? JSON.parse(raw) : [];
+                  const items = Array.isArray(existing) ? existing : [];
+                  items.unshift({
+                    id: `${Date.now()}_${Math.random().toString(16).slice(2)}`,
+                    title: plate.displayName || plate.id || `Packed Plate ${currentPackedIndex + 1}`,
+                    filename: `${filenameBase}.png`,
+                    createdAt: new Date().toISOString(),
+                    dataUrl,
+                  });
+                  localStorage.setItem(STORAGE_KEY, JSON.stringify(items.slice(0, 30)));
+                } catch {
+                  // ignore persistence errors (quota, JSON, etc.)
+                }
+              };
+              reader.readAsDataURL(blob);
+            } catch {
+              // ignore
+            }
+          return blob;
         }, "image/png");
       }
 
@@ -2721,12 +2705,7 @@
       function downloadBackup(name = "Polymerase Chain Republic backup", payload = buildLogSnapshot()) {
         const backup = { name, created_at: new Date().toISOString(), payload };
         const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `pcr_backup_${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
-        document.body.appendChild(link); link.click(); link.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        return PCRSaveFile.save(`pcr_backup_${new Date().toISOString().replace(/[:.]/g, "-")}.json`, blob);
       }
 
       function canonicalJson(value) {
@@ -3117,24 +3096,12 @@
           }
         }
 
-        async function downloadLog(source, id, name) {
-          let payload = null;
-          if (source === "local") {
-            payload = (await getLocalLog(id))?.payload || null;
-          } else {
-            const data = await storage.fetchJson(API_ITEM(id));
-            payload = data?.payload || null;
-          }
-          if (!payload) throw new Error("ダウンロードするログが見つかりません。");
-          const blob = new Blob([JSON.stringify({ name: name || "Log", payload }, null, 2)], { type: "application/json" });
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement("a");
-          link.href = url;
-          link.download = `${String(name || "log").replaceAll(/[\\\\/:*?\"<>|]/g, "_")}.json`;
-          document.body.appendChild(link);
-          link.click();
-          link.remove();
-          URL.revokeObjectURL(url);
+        function downloadLog(source, id, name) {
+          return PCRSaveFile.save((name || "log") + ".json", async () => {
+            const entry = source === "local" ? await getLocalLog(id) : await storage.fetchJson(API_ITEM(id));
+            if (!entry?.payload) throw new Error("ダウンロードするログが見つかりません。");
+            return JSON.stringify({name: name || "Log", payload: entry.payload}, null, 2);
+          }, "application/json");
         }
 
         async function importJsonFile(file) {

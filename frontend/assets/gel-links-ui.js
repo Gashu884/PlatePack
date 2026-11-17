@@ -15,7 +15,7 @@ window.PlatePackGelLinkUI = function ({getSnapshot,getState,setState,onApply}) {
   const selectedRoi=()=>selectedGel()?.rois.find(r=>r.id===roiId);
   function message(text,error=false){$('message').textContent=text;$('message').classList.toggle('error',error);}
   function apply(next){undo.push(JSON.parse(JSON.stringify(getState())));if(undo.length>30)undo.shift();setState(next);render();}
-  function run(fn){try{fn()}catch(e){message(e.message,true)}}
+  async function run(fn){try{await fn()}catch(e){message(e.message,true)}}
   function status(r){return r.status==='detected'?'検出':r.status==='undetected'?'未検出・微弱':r.status==='review'?'要確認':'未判定'}
   function plateOptions(){
     const snapshot=getSnapshot(),kind=$('kind').value,prior=$('plate').value;
@@ -61,7 +61,7 @@ window.PlatePackGelLinkUI = function ({getSnapshot,getState,setState,onApply}) {
     drawGrid();updateSummary();
   }
   function updateSummary(){const state=getState();const all=state?.gels.flatMap(g=>g.rois)||[];document.getElementById('gelLinkSummary').textContent=all.length?`ROI対応：${all.filter(r=>r.binding).length} / ${all.length}（${state.gels.length}画像）`:'';}
-  function download(name,content,type){const url=URL.createObjectURL(new Blob([content],{type})),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);}
+  function download(name,content,type){return PCRSaveFile.save(name,content,type);}
   $('close').onclick=()=>dialog.close();$('import').onclick=()=>$('file').click();
   $('file').onchange=async()=>{const f=$('file').files[0];if(!f)return;try{
     if(f.size>90000000)throw Error('解析JSONは90 MB以下にしてください。');
@@ -75,8 +75,8 @@ window.PlatePackGelLinkUI = function ({getSnapshot,getState,setState,onApply}) {
   $('unlink').onclick=()=>run(()=>{const s=JSON.parse(JSON.stringify(getState())),r=s.gels.find(g=>g.sha256===hash).rois.find(r=>r.id===roiId);r.binding=null;r.skipped=false;apply(s);message('対応解除済み')});
   $('skip').onchange=()=>run(()=>{const s=JSON.parse(JSON.stringify(getState())),r=s.gels.find(g=>g.sha256===hash).rois.find(r=>r.id===roiId);r.skipped=$('skip').checked;if(r.skipped)r.binding=null;apply(s);message(r.skipped?'空レーンとして除外':'空レーン指定を解除しました。')});
   $('undo').onclick=()=>{if(undo.length){setState(undo.pop());render();message('直前の対応変更を戻しました。')}};
-  $('export').onclick=()=>run(()=>{const result=core.exportSession(getState(),getSnapshot(),sessions.get(hash),hash);if(onApply){onApply(result);dialog.close();return}download(selectedGel().name.replace(/\.[^.]+$/,'')+'_pcr_electrophoresis.json',JSON.stringify(result,null,2),'application/json');message('対応JSON出力済み')});
-  $('csv').onclick=()=>run(()=>{const state=getState(),snapshot=getSnapshot();const rows=[['image','sha256','roi_number','detection','area','plate_kind','plate','well','source_plate','source_well','sample_id','mapping_status']];for(const g of state.gels)for(const r of g.rois){const b=r.binding;rows.push([g.name,g.sha256,r.id,status(r),r.area,b?.kind,core.plateLabel(snapshot,b),b?.well,b?.sourcePlate,b?.sourceWell,b?core.sampleId(state,b):'',r.skipped?'空レーン（除外）':core.bindingError(snapshot,b)||'対応済み'])}const cell=v=>{let t=String(v??'');if(typeof v!=='number'&&/^[=+@-]/.test(t))t="'"+t;return '"'+t.replace(/"/g,'""')+'"'};download('PCR_ROI_mapping.csv','\ufeff'+rows.map(r=>r.map(cell).join(',')).join('\r\n'),'text/csv;charset=utf-8');message('対応CSV出力済み')});
+  $('export').onclick=()=>run(async()=>{const result=core.exportSession(getState(),getSnapshot(),sessions.get(hash),hash);if(onApply){onApply(result);dialog.close();return}if(await download(selectedGel().name.replace(/\.[^.]+$/,'')+'_pcr_electrophoresis.json',JSON.stringify(result,null,2),'application/json'))message('対応JSON保存済み')});
+  $('csv').onclick=()=>run(async()=>{const state=getState(),snapshot=getSnapshot();const rows=[['image','sha256','roi_number','detection','area','plate_kind','plate','well','source_plate','source_well','sample_id','mapping_status']];for(const g of state.gels)for(const r of g.rois){const b=r.binding;rows.push([g.name,g.sha256,r.id,status(r),r.area,b?.kind,core.plateLabel(snapshot,b),b?.well,b?.sourcePlate,b?.sourceWell,b?core.sampleId(state,b):'',r.skipped?'空レーン（除外）':core.bindingError(snapshot,b)||'対応済み'])}const cell=v=>{let t=String(v??'');if(typeof v!=='number'&&/^[=+@-]/.test(t))t="'"+t;return '"'+t.replace(/"/g,'""')+'"'};if(await download('PCR_ROI_mapping.csv','\ufeff'+rows.map(r=>r.map(cell).join(',')).join('\r\n'),'text/csv;charset=utf-8'))message('対応CSV保存済み')});
   function openDialog(){undo=[];if(!getState())setState(core.empty(crypto.randomUUID()));plateOptions();if(!$('plate').options.length){$('kind').value='source';plateOptions()}render();message('');dialog.showModal()};
   document.getElementById('gelLinkBtn').onclick=openDialog;
   if(onApply){$('gel').parentElement.hidden=true;$('import').hidden=true;$('export').textContent='適用';}

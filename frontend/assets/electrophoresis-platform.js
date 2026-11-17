@@ -38,7 +38,7 @@ window.Electro = (() => {
     if(offset!==info.size||await hash(bytes)!==key)throw Error('保存ファイルの検証に失敗しました。');
     await idb('put','blob:'+key,bytes).catch(()=>{});return bytes;
   }
-  function download(name,content,type){const url=URL.createObjectURL(new Blob([content],{type})),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),30000)}
+  function download(name,content,type){return PCRSaveFile.save(name,content,type)}
   function sync(){
     if(state){const index=record.sessions.findIndex(s=>s.image.sha256===state.image.sha256);if(index<0)record.sessions.push(state);else record.sessions[index]=state;active=state.image.sha256;}
     record.name=el('experimentName').value.trim()||'泳動解析';record.projectId=el('projectSelect').value;record.active=active;
@@ -82,10 +82,12 @@ window.Electro = (() => {
     (async()=>{for(const s of missing)await prepareAreas(s);})().then(()=>{if(generation===freeGeneration){freeUI.render();drawGel();}}).catch(error=>{if(generation===freeGeneration)freeUI.render({error:error.message});}).finally(()=>activity(-1));
   }
   async function exportSelection(pool){
+    pool=copy(pool);return download((pool.name||'分注量')+'.csv',async()=>{
     const sessions=record.sessions.filter(s=>pool.keys.some(key=>key.startsWith(s.image.sha256+':')));await Promise.all(sessions.map(s=>prepareAreas(s)));
     const result=PCRFreePooling.calculate(pool,record.sessions),rows=[['set','image','roi','sample','well','area','relative','volume_uL','unrounded_volume_uL','label','quality_notes','calculation_note','reference_area','reference_volume_uL','rounding_step_uL','sha256','method']];
     for(const r of result.rows)rows.push([pool.name,r.image,r.id,r.sample,r.well,r.area,r.relative,r.volume,r.idealVolume,r.label,(r.flags||[]).join(' / '),r.note,result.reference,pool.referenceVolume,pool.step,r.hash,result.version]);
-    download((pool.name||'分注量')+'.csv','\ufeff'+rows.map(row=>row.map(csvCell).join(',')).join('\r\n'),'text/csv;charset=utf-8');
+    return '\ufeff'+rows.map(row=>row.map(csvCell).join(',')).join('\r\n');
+    },'text/csv;charset=utf-8');
   }
   async function exportPlatePNG(pool){
     const selected=copy(pool),sessions=record.sessions.filter(s=>selected.keys.some(key=>key.startsWith(s.image.sha256+':')));
@@ -224,7 +226,7 @@ window.Electro = (() => {
     sync();if(!record.confirmed||record.confirmed.signature!==signature())throw Error('現在のプール案を確認・確定してください。');
     const p=record.confirmed.plan,rows=[['tube','source_well','sample_id','image','roi','area','marker_area','corrected_signal','relative_to_median','volume_uL','rounding_error_pct','included','reason','confirmed_at','source_sha256','algorithm_version']];
     for(const r of p.samples)rows.push([r.group,r.well,r.sampleId,r.imageName,r.lane,r.area,r.markerArea,r.signal,r.relativeToMedian,r.volume,r.roundingErrorPct,r.used,r.error||r.choice,record.confirmed.at,r.sha256,p.version]);
-    download(record.name+'_pool.csv','\ufeff'+rows.map(r=>r.map(csvCell).join(',')).join('\r\n'),'text/csv;charset=utf-8');
+    return download(record.name+'_pool.csv','\ufeff'+rows.map(r=>r.map(csvCell).join(',')).join('\r\n'),'text/csv;charset=utf-8');
   }
   async function saveRecord(){
     clearTimeout(textSaveTimer);sync();if(!record.sessions.length)throw Error('泳動画像を登録してください。');
@@ -237,7 +239,7 @@ window.Electro = (() => {
     dirty=false;el('recordStatus').textContent='DB保存済み：'+name;
     if(!embedded)history.replaceState(null,'','/electrophoresis?project='+encodeURIComponent(project)+'&log='+encodeURIComponent(saved.id));el('viewPlate').href=(record.plate?.plateEdit?'/output-plates?log=':'/plates?log=')+encodeURIComponent(record.plateRef||saved.id);el('viewPlate').hidden=!record.plate;await loadFiles();await autosave();dirty=false;notifyState();notify('saved');
   }
-  async function backup(){sync();const full=copy(record);for(const s of full.sessions)s.raw=b64(await getBlob(s.image.sha256));download(record.name+'_experiment.json',JSON.stringify(full),'application/json')}
+  function backup(){sync();const full=copy(record);return download(full.name+'_experiment.json',async()=>{for(const s of full.sessions)s.raw=b64(await getBlob(s.image.sha256));return JSON.stringify(full)},'application/json')}
   async function start(){
     freeUI=PCRFreePoolingUI({host:el('freePooling'),getRecord:()=>record,getActive:()=>state,onChange:selectionChanged,onRecalculate:()=>guarded(measure),onExport:pool=>guarded(()=>exportSelection(pool)),onExportPNG:pool=>guarded(()=>exportPlatePNG(pool))});freeUI.render();
     if(embedded){const button=document.createElement('button');button.type='button';button.textContent='別のブラウザタブで開く';button.onclick=detach;document.querySelector('.top-actions').append(button);}
@@ -262,10 +264,10 @@ window.Electro = (() => {
     el('closePlan').onclick=()=>el('planDialog').close();
     el('confirmPlan').onclick=()=>guarded(async()=>{if(!proposal||proposal.signature!==signature())throw Error('設定が変わりました。プール案を再計算してください。');record.confirmed={...copy(proposal),at:new Date().toISOString()};render();await autosave();el('recordStatus').textContent='プール確定 · DB未保存';el('planDialog').close()});
     el('exportPool').onclick=()=>guarded(exportPlan);el('exportConfirmed').onclick=()=>guarded(exportPlan);
-    el('downloadOriginal').onclick=()=>guarded(async()=>{if(state)download(state.image.name,await getBlob(state.image.sha256),'application/octet-stream')});
+    el('downloadOriginal').onclick=()=>guarded(()=>{if(!state)return;const image=copy(state.image);return download(image.name,()=>getBlob(image.sha256),'application/octet-stream')});
     el('saveExperiment').onclick=()=>guarded(saveRecord);el('backupExperiment').onclick=()=>guarded(backup);
     el('restoreExperiment').onchange=e=>guarded(async()=>{const f=e.target.files[0];if(!f)return;if(f.size>160*1024*1024)throw Error('実験一式JSONは160 MB以下にしてください。');if(dirty&&!confirm('現在の作業を置き換えます。保存済みですか？'))return;await restoreRecord(JSON.parse(await f.text()));el('recordStatus').textContent='復元済み'});
-    el('save').onclick=()=>guarded(async()=>{if(!state)return;const out=copy(state);out.raw=b64(await getBlob(state.image.sha256));download(prefix()+'_pcr_electrophoresis.json',JSON.stringify(out),'application/json')});
+    el('save').onclick=()=>guarded(()=>{if(!state)return;const out=copy(state);return download(prefix()+'_pcr_electrophoresis.json',async()=>{out.raw=b64(await getBlob(out.image.sha256));return JSON.stringify(out)},'application/json')});
     el('sessionFile').onchange=e=>guarded(async()=>{const f=e.target.files[0];if(!f)return;const s=JSON.parse(await f.text());if(record.sessions.length>=32&&!record.sessions.some(x=>x.image.sha256===s.image?.sha256))throw Error('1実験は32画像までです。');await adopt(await api('/api/restore',s));invalidate()});
     el('mapping').hidden=true; // identities are assigned through the plate dialog only
     window.addEventListener('beforeunload',e=>{if(dirty&&!embedded){e.preventDefault();e.returnValue=''}});

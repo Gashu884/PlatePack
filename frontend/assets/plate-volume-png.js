@@ -58,7 +58,7 @@ window.PCRPlateVolumePNG=(()=>{
       }catch(error){status.textContent=error.message;save.disabled=true;preview.replaceChildren();}
     }
     mode.onchange=order.onchange=target.onchange=update;plateSelect.onchange=draw;close.onclick=()=>dialog.close();dialog.onclose=()=>dialog.remove();
-    save.onclick=()=>{if(!canvas)return;const selectedCanvas=canvas,selectedName=model.plates.find(p=>p.key===plateSelect.value).name;save.disabled=true;selectedCanvas.toBlob(blob=>{save.disabled=!canvas;if(!blob){status.textContent='PNGを作成できませんでした。';return;}const url=URL.createObjectURL(blob),a=node('a');a.href=url;a.download=((pool.name||'分注量')+'_'+selectedName).replace(/[\\/:*?"<>|]/g,'_')+'.png';a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);status.textContent='PNGを保存しました。ほかのプレートも切り替えて保存できます。';},'image/png');};
+    save.onclick=async()=>{if(!canvas)return;const selectedCanvas=canvas,selectedName=model.plates.find(p=>p.key===plateSelect.value).name;save.disabled=true;try{const saved=await PCRSaveFile.canvas((pool.name||'分注量')+'_'+selectedName+'.png',selectedCanvas);status.textContent=saved?'PNGを保存しました。ほかのプレートも切り替えて保存できます。':'保存していません。';}finally{save.disabled=!canvas;}};
     update();dialog.showModal();return dialog;
   }
   return {open,render};

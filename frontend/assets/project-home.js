@@ -39,7 +39,7 @@
     const images=attachments.filter(a=>a.origin_key===item.origin),analyses=entries.filter(e=>PCRWorkflow.analysisMatches(e,item));
     if(!images.length&&!analyses.length)return;
     const details=node('details','plate-attachments');details.append(node('summary','',images.length+'画像'+(analyses.length?'・解析 '+analyses.length:' ')));
-    for(const image of images){const line=node('div','attachment-line');const download=node('a','',image.name);download.href='/api/workflow/attachments/'+encodeURIComponent(image.id)+'/file';download.download=image.name;
+    for(const image of images){const line=node('div','attachment-line');const download=node('a','',image.name);download.href='/api/workflow/attachments/'+encodeURIComponent(image.id)+'/file';download.onclick=event=>{event.preventDefault();event.stopPropagation();PCRSaveFile.url(image.name,download.href);};
       const analyze=node('a','','定量を開く');analyze.href='/electrophoresis?project='+encodeURIComponent(current)+'&log='+encodeURIComponent(item.entry.ref)+'&plate='+item.index+'&attachment='+encodeURIComponent(image.id);analyze.onclick=event=>{event.preventDefault();event.stopPropagation();workspace.openAnalysis(item,current,image);};line.append(download,analyze);details.append(line);}
     for(const e of analyses){const a=node('a','attachment-line','解析：'+e.name);a.href='/electrophoresis?project='+encodeURIComponent(current)+'&log='+encodeURIComponent(e.ref);a.onclick=event=>{event.preventDefault();event.stopPropagation();workspace.openAnalysis({entry:e,name:e.name},current);};details.append(a);}
     details.onclick=e=>e.stopPropagation();details.ondblclick=e=>e.stopPropagation();name.append(details);
@@ -74,7 +74,7 @@
       if(item.kind==='plate')plateDetails(item,cell);
       row.append(cell,node('td','',(item.entry?.updated_at||item.updated_at)?new Date(item.entry?.updated_at||item.updated_at).toLocaleString('ja-JP'):'—'));
       const actions=node('td','workflow-actions');actions.append(action(item.kind==='input'?'入力を続ける':item.kind==='plate'?'編集':'開く',()=>open(item)));
-      if(item.entry){actions.append(action('JSON ↓',()=>{const u=URL.createObjectURL(new Blob([JSON.stringify({name:item.entry.name,payload:item.entry.payload},null,2)],{type:'application/json'}));const a=node('a');a.href=u;a.download=item.entry.name.replace(/[\\/:*?"<>|]/g,'_')+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);}));}
+      if(item.entry){actions.append(action('JSON ↓',()=>PCRSaveFile.save(item.entry.name+'.json',JSON.stringify({name:item.entry.name,payload:item.entry.payload},null,2),'application/json')));}
       if(item.kind==='plate'){
         photos(item,actions);
         if(view==='active')actions.append(action('編集完了',()=>complete(item)));

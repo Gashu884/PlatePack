@@ -12,7 +12,7 @@ window.PCRGelRegistration = ({host,item,projectId,onState,onSaved,onAnalyze}) =>
   async function load(){
     const images=(await api('/api/workflow/attachments?project_id='+encodeURIComponent(projectId))).filter(image=>image.origin_key===item.origin);
     list.replaceChildren();
-    for(const image of images){const row=node('div','gel-registration-image'),name=node('span','',image.name),download=node('a','','元画像を保存'),analyze=node('button','btn','バンド定量を開く');download.href='/api/workflow/attachments/'+encodeURIComponent(image.id)+'/file';download.download=image.name;analyze.type='button';analyze.onclick=()=>onAnalyze(image);row.append(name,download,analyze);list.append(row);}
+    for(const image of images){const row=node('div','gel-registration-image'),name=node('span','',image.name),download=node('a','','元画像を保存'),analyze=node('button','btn','バンド定量を開く');download.href='/api/workflow/attachments/'+encodeURIComponent(image.id)+'/file';download.onclick=event=>{event.preventDefault();PCRSaveFile.url(image.name,download.href);};analyze.type='button';analyze.onclick=()=>onAnalyze(image);row.append(name,download,analyze);list.append(row);}
     if(!images.length)list.append(node('p','gel-registration-help','登録済みの画像はありません。'));
   }
   function select(files){
