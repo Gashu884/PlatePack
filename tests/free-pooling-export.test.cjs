@@ -28,3 +28,8 @@ test('exported settings describe unsaved edits without changing the saved snapsh
 test('CSV quotes commas, line breaks, and formula-like names while retaining the UTF-8 BOM',()=>{
  const record=fixture();core.working(record).name='=x,"a"\nnext';const csv=exporter.csv(record,core.working(record),'now');assert.equal(csv.charCodeAt(0),0xfeff);assert.ok(csv.includes('"\'=x,""a""\nnext"'));assert.ok(csv.includes('"H12"'));assert.ok(csv.includes('"丸め刻み_µL"'));
 });
+test('CSV records configured bounds and leaves unset bounds blank without excluding any row',()=>{
+ const record=fixture();Object.assign(core.working(record),{minVolume:.5,maxVolume:1.5});core.save(record,'new','now');const rows=objects(exporter.rows(record,core.working(record),'export'));
+ assert.equal(rows.length,2);assert.equal(rows[0]['分注量_µL'],2);assert.match(rows[0]['計算上の注記'],/目安範囲外/);for(const row of rows){assert.equal(row['分注量下限_µL'],.5);assert.equal(row['分注量上限_µL'],1.5);assert.equal(row['設定保存状態'],'保存済み');}
+ core.working(record).minVolume='';core.working(record).maxVolume=null;const unbounded=objects(exporter.rows(record,core.working(record),'export'))[0];assert.equal(unbounded['分注量下限_µL'],null);assert.equal(unbounded['分注量上限_µL'],null);assert.equal(unbounded['計算上の注記'],'');
+});

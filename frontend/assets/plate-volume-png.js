@@ -29,7 +29,7 @@ window.PCRPlateVolumePNG=(()=>{
     }
     const rows=Object.values(plate.cells).flat(),total=rows.reduce((sum,r)=>sum+(r.volume||0),0);
     text('表示 '+rows.length+'本 / '+Object.keys(plate.cells).length+'ウェル · 合計 '+fmt(total)+' µL',86,1364,26,'#143c32',600);
-    text('基準面積 '+fmt(result.reference)+' · 基準液量 '+pool.referenceVolume+' µL · 丸め刻み '+pool.step+' µL',86,1403,22,'#587168');
+    text('基準面積 '+fmt(result.reference)+' · 基準液量 '+pool.referenceVolume+' µL · 丸め刻み '+pool.step+' µL · 目安範囲 '+PCRFreePooling.rangeLabel(pool),86,1403,22,'#587168');
     text('空欄（—）はこの計算セットの対象外。計算不可の値はそのまま表示します。',86,1437,21,'#587168');
     lines.forEach((line,i)=>text(line,86,1472+i*30,22,'#99601a'));
     return canvas;

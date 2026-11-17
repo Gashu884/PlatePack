@@ -3,7 +3,7 @@ const hash='a'.repeat(64),other='b'.repeat(64);
 function session(h=hash){return {image:{sha256:h,name:h.slice(0,1)+'.tif'},config:{roiWidth:20,roiHeight:30,rois:[{id:1,x:20,y:30,decision:'repcr',sample:'same'},{id:2,x:60,y:30,decision:'exclude',sample:'same'},{id:3,x:100,y:30}]},quantification:{results:[{area:100,status:'review',flags:['バンド端がROI外']},{area:1,status:'undetected',flags:['未検出・微弱']},{area:0,status:'undetected'}]}};}
 function pool(ids=[1,2,3]){return {...core.create('p','テスト'),keys:ids.map(id=>core.key(hash,id))};}
 test('only operator selection determines membership; labels and 1–20 µL limits do not exclude bands',()=>{
- const p=pool(),r=core.calculate(p,[session()]);assert.equal(r.count,3);assert.equal(r.computed,2);assert.equal(r.rows[0].volume,1);assert.equal(r.rows[1].volume,100);assert.equal(r.rows[2].volume,null);assert.match(r.rows[1].note,/範囲外/);assert.match(r.rows[2].note,/面積が0/);
+ const p={...pool(),minVolume:1,maxVolume:20},r=core.calculate(p,[session()]);assert.equal(r.count,3);assert.equal(r.computed,2);assert.equal(r.rows[0].volume,1);assert.equal(r.rows[1].volume,100);assert.equal(r.rows[2].volume,null);assert.match(r.rows[1].note,/範囲外/);assert.match(r.rows[2].note,/面積が0/);
  assert.equal(r.rows[0].label,'repcr');assert.equal(r.rows[1].label,'exclude');assert.equal(r.total,101);
 });
 test('changing selection, reference band and reference volume updates relative values immediately',()=>{
@@ -43,4 +43,20 @@ test('legacy sets reopen as independent drafts and invalid saves preserve previo
  const original=pool([1,2]),record={sessions:[session()],freePools:[original],freePoolId:original.id},draft=core.working(record);
  draft.name='';const before=JSON.stringify(record.freePools);assert.throws(()=>core.save(record,'bad','now'),/セット名/);assert.equal(JSON.stringify(record.freePools),before);
  draft.name='valid';draft.referenceVolume=0;assert.throws(()=>core.save(record,'bad','now'),/基準液量/);assert.equal(JSON.stringify(record.freePools),before);
+});
+test('user-defined volume limits only annotate results and never clamp or drop selected bands',()=>{
+ const p=pool([1,2]);p.minVolume=2;p.maxVolume=50;const result=core.calculate(p,[session()]);
+ assert.deepEqual(result.rows.map(row=>row.volume),[1,100]);assert.equal(result.computed,2);assert.equal(result.total,101);assert.ok(result.rows.every(row=>/設定した目安範囲外/.test(row.note)));assert.equal(core.rangeLabel(p),'2–50 µL');
+ p.minVolume=.5;p.maxVolume=200;assert.ok(core.calculate(p,[session()]).rows.every(row=>row.note===''));
+});
+test('new and legacy sets have no imposed range, and either limit can be left unset',()=>{
+ const p=pool([1,2]);for(const value of [undefined,null,'']){p.minVolume=value;p.maxVolume=value;assert.deepEqual(core.volumeRange(p),{min:null,max:null});assert.ok(core.calculate(p,[session()]).rows.every(row=>row.note===''));}
+ assert.equal(core.rangeLabel(p),'未設定');p.minVolume=2;assert.match(core.calculate(p,[session()]).rows[0].note,/2 µL以上/);assert.equal(core.calculate(p,[session()]).rows[1].note,'');
+ p.minVolume='';p.maxVolume=50;assert.equal(core.calculate(p,[session()]).rows[0].note,'');assert.match(core.calculate(p,[session()]).rows[1].note,/50 µL以下/);
+ p.minVolume=0;p.maxVolume=0;assert.deepEqual(core.volumeRange(p),{min:0,max:0});
+});
+test('range settings persist and restore with each saved set; invalid ranges cannot overwrite a saved set',()=>{
+ const record={sessions:[session()]};Object.assign(core.working(record),{name:'custom',keys:[core.key(hash,1)],minVolume:'0.5',maxVolume:'15'});const saved=core.save(record,'set','now');assert.equal(saved.minVolume,.5);assert.equal(saved.maxVolume,15);
+ core.working(record).maxVolume=10;assert.equal(core.isSaved(record),false);core.select(record,'set');assert.equal(core.working(record).maxVolume,15);assert.equal(core.isSaved(record),true);
+ const before=JSON.stringify(record.freePools);for(const [min,max] of [[-1,20],[1,-2],[21,20],['bad',20],[1,Infinity]]){Object.assign(core.working(record),{minVolume:min,maxVolume:max});assert.throws(()=>core.save(record,'bad','later'),/分注量の/);assert.equal(core.isSaved(record),false);assert.equal(JSON.stringify(record.freePools),before);}
 });
