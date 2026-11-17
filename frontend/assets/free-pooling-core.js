@@ -3,6 +3,24 @@
   const key=(hash,id)=>hash+':'+id;
   function areaKey(config){return JSON.stringify({width:config.roiWidth,height:config.roiHeight,rois:config.rois.map(r=>({id:r.id,x:r.x,y:r.y,baseline:r.baseline||null,loading:r.loading||1,dilution:r.dilution||1}))});}
   function create(id,name){return {id,name,keys:[],reference:'max',referenceVolume:1,step:.1};}
+  const copy=value=>JSON.parse(JSON.stringify(value));
+  function working(record){
+    if(!record.freePoolDraft){const saved=record.freePools?.find(p=>p.id===record.freePoolId)||record.freePools?.[0];record.freePoolDraft=saved?copy(saved):create('draft','');}
+    return record.freePoolDraft;
+  }
+  function select(record,id){
+    const saved=record.freePools?.find(p=>p.id===id);if(!saved)throw Error('保存したセットが見つかりません。');
+    record.freePoolId=id;record.freePoolDraft=copy(saved);return record.freePoolDraft;
+  }
+  const settings=pool=>JSON.stringify({name:String(pool.name||'').trim(),keys:[...new Set(pool.keys)],reference:pool.reference,referenceVolume:Number(pool.referenceVolume),step:Number(pool.step)});
+  function isSaved(record,pool=working(record)){const saved=record.freePools?.find(p=>p.id===pool.id);return !!saved&&settings(saved)===settings(pool);}
+  function save(record,id,at){
+    const draft=working(record),name=String(draft.name||'').trim();if(!name)throw Error('セット名を入力してください。');
+    calculate(draft,record.sessions);const previous=record.freePools?.find(p=>p.id===draft.id),update=previous&&previous.name===name;
+    const saved={...copy(draft),id:update?previous.id:id,name,keys:[...new Set(draft.keys)],referenceVolume:Number(draft.referenceVolume),step:Number(draft.step),createdAt:update?(previous.createdAt||at):at,savedAt:at};
+    record.freePools||=[];if(update)record.freePools[record.freePools.indexOf(previous)]=saved;else record.freePools.push(saved);
+    record.freePoolId=saved.id;record.freePoolDraft=copy(saved);return saved;
+  }
   function calculate(pool,sessions){
     const volume=Number(pool.referenceVolume),step=Number(pool.step);
     if(!Number.isFinite(volume)||volume<=0||!Number.isFinite(step)||step<0)throw Error('基準液量は0より大きく、丸め刻みは0以上で入力してください。');
@@ -28,5 +46,5 @@
     }
     return {rows,count:rows.length,computed:rows.filter(r=>r.volume!==null).length,reference,median,total:rows.reduce((sum,r)=>sum+(r.volume||0),0),version:'selected-area-1'};
   }
-  return {key,areaKey,create,calculate};
+  return {key,areaKey,create,calculate,working,select,save,isSaved};
 });

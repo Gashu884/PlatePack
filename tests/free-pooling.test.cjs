@@ -23,3 +23,24 @@ test('geometry cache ignores labels and metadata but invalidates changed ROI geo
  const s=session(),key=core.areaKey(s.config);s.config.rois[0].decision='auto';s.config.rois[0].sample='other';assert.equal(core.areaKey(s.config),key);s.config.rois[0].x++;assert.notEqual(core.areaKey(s.config),key);
  s.config.rois[0].x--;s.config.rois[0].baseline=[0,1,29,1];assert.notEqual(core.areaKey(s.config),key);
 });
+test('saving a configured set keeps all visible settings and ROI selections without clearing the working set',()=>{
+ const record={sessions:[session()]},draft=core.working(record);Object.assign(draft,{name:'PCR 1回目',keys:[core.key(hash,1),core.key(hash,2)],reference:'band:'+core.key(hash,2),referenceVolume:'2.5',step:'0.05'});
+ const before=core.calculate(draft,record.sessions),saved=core.save(record,'saved-1','2026-11-17T00:00:00Z');
+ assert.equal(saved.name,'PCR 1回目');assert.deepEqual(saved.keys,draft.keys);assert.equal(saved.reference,draft.reference);assert.equal(saved.referenceVolume,2.5);assert.equal(saved.step,.05);assert.equal(saved.savedAt,'2026-11-17T00:00:00Z');
+ assert.deepEqual(core.calculate(core.working(record),record.sessions),before);assert.equal(core.isSaved(record),true);assert.notEqual(core.working(record),saved);
+ const snapshot=JSON.stringify(saved);core.working(record).keys.pop();core.working(record).reference='max';assert.equal(JSON.stringify(saved),snapshot);assert.equal(core.isSaved(record),false);
+ core.select(record,'saved-1');assert.deepEqual(core.calculate(core.working(record),record.sessions),before);assert.equal(core.isSaved(record),true);
+});
+test('a new name creates an independent saved combination; saving the same named set updates it',()=>{
+ const record={sessions:[session()]};Object.assign(core.working(record),{name:'first',keys:[core.key(hash,1)],referenceVolume:2});core.save(record,'first','one');
+ Object.assign(core.working(record),{name:'second',keys:[core.key(hash,2)],reference:'min',referenceVolume:3,step:0});core.save(record,'second','two');
+ assert.equal(record.freePools.length,2);assert.deepEqual(record.freePools[0].keys,[core.key(hash,1)]);assert.equal(record.freePools[0].referenceVolume,2);
+ core.working(record).referenceVolume=4;core.save(record,'unused','three');assert.equal(record.freePools.length,2);assert.equal(record.freePools[1].id,'second');assert.equal(record.freePools[1].createdAt,'two');assert.equal(record.freePools[1].savedAt,'three');
+ core.select(record,'first');assert.equal(core.working(record).referenceVolume,2);assert.deepEqual(core.working(record).keys,[core.key(hash,1)]);
+ const reopened=JSON.parse(JSON.stringify(record));assert.deepEqual(core.working(reopened),core.working(record));
+});
+test('legacy sets reopen as independent drafts and invalid saves preserve previously saved combinations',()=>{
+ const original=pool([1,2]),record={sessions:[session()],freePools:[original],freePoolId:original.id},draft=core.working(record);
+ draft.name='';const before=JSON.stringify(record.freePools);assert.throws(()=>core.save(record,'bad','now'),/セット名/);assert.equal(JSON.stringify(record.freePools),before);
+ draft.name='valid';draft.referenceVolume=0;assert.throws(()=>core.save(record,'bad','now'),/基準液量/);assert.equal(JSON.stringify(record.freePools),before);
+});

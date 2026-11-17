@@ -60,7 +60,7 @@ window.Electro = (() => {
     requestAnimationFrame(()=>requestAnimationFrame(()=>{window.scrollTo(0,position.inner);if(embedded)parent.scrollTo(0,position.outer);}));
   }
   function toggleBand(id){
-    if(!state)return;const pool=activePool(),key=PCRFreePooling.key(state.image.sha256,id);
+    if(!state||running)return;const pool=activePool(),key=PCRFreePooling.key(state.image.sha256,id);
     pool.keys=pool.keys.includes(key)?pool.keys.filter(k=>k!==key):[...pool.keys,key];
     if(pool.reference==='band:'+key&&!pool.keys.includes(key))pool.reference='max';selectionChanged();
   }
@@ -84,9 +84,7 @@ window.Electro = (() => {
   async function exportSelection(pool){
     pool=copy(pool);return download((pool.name||'分注量')+'.csv',async()=>{
     const sessions=record.sessions.filter(s=>pool.keys.some(key=>key.startsWith(s.image.sha256+':')));await Promise.all(sessions.map(s=>prepareAreas(s)));
-    const result=PCRFreePooling.calculate(pool,record.sessions),rows=[['set','image','roi','sample','well','area','relative','volume_uL','unrounded_volume_uL','label','quality_notes','calculation_note','reference_area','reference_volume_uL','rounding_step_uL','sha256','method']];
-    for(const r of result.rows)rows.push([pool.name,r.image,r.id,r.sample,r.well,r.area,r.relative,r.volume,r.idealVolume,r.label,(r.flags||[]).join(' / '),r.note,result.reference,pool.referenceVolume,pool.step,r.hash,result.version]);
-    return '\ufeff'+rows.map(row=>row.map(csvCell).join(',')).join('\r\n');
+    return PCRFreePoolingExport.csv(record,pool,new Date().toISOString());
     },'text/csv;charset=utf-8');
   }
   async function exportPlatePNG(pool){
@@ -241,7 +239,7 @@ window.Electro = (() => {
   }
   function backup(){sync();const full=copy(record);return download(full.name+'_experiment.json',async()=>{for(const s of full.sessions)s.raw=b64(await getBlob(s.image.sha256));return JSON.stringify(full)},'application/json')}
   async function start(){
-    freeUI=PCRFreePoolingUI({host:el('freePooling'),getRecord:()=>record,getActive:()=>state,onChange:selectionChanged,onRecalculate:()=>guarded(measure),onExport:pool=>guarded(()=>exportSelection(pool)),onExportPNG:pool=>guarded(()=>exportPlatePNG(pool))});freeUI.render();
+    freeUI=PCRFreePoolingUI({host:el('freePooling'),getRecord:()=>record,getActive:()=>state,onChange:selectionChanged,onSaveSet:()=>guarded(async()=>{clearTimeout(freeDraftTimer);await autosave();await saveRecord();return true;}),onRecalculate:()=>guarded(measure),onExport:pool=>guarded(()=>exportSelection(pool)),onExportPNG:pool=>guarded(()=>exportPlatePNG(pool))});freeUI.render();
     if(embedded){const button=document.createElement('button');button.type='button';button.textContent='別のブラウザタブで開く';button.onclick=detach;document.querySelector('.top-actions').append(button);}
 
     if(embedded){
