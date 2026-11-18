@@ -102,41 +102,16 @@ def detect_grid(a, rows=4, cols=24, maximum=255, max_rois=None):
             if q[yy]<max(2,a.max()*.012): yy=y
             rois.append({'id':row*cols+col+1,'row':row,'col':col,'x':round(float(x),2),'y':float(yy),'sample':'','well':'','decision':'auto','reviewed':False,'note':'','baseline':None,'loading':1.,'dilution':1.})
     cfg = {'rows':rows,'cols':cols,'roiWidth':width,'roiHeight':height,'snrThreshold':4.,'minSignal':.012,'layout':'custom','poolTotal':100.,'poolMin':.5,'poolMax':10.,'poolStep':.1,'rois':rois,'grid':{'left':left,'right':right,'start':round(float(start),2),'pitch':round(pitch,2),'targetRows':targets,'candidates':chosen}}
-    if max_rois is not None:
-        if type(max_rois) is not int or not 1<=max_rois<=384:raise ValueError('最大ROI数は1〜384の整数で指定してください。')
-        found=[]
-        for roi in rois:
-            score=band_score(a,roi,cfg,maximum)
-            if score is not None:found.append((score,roi))
-        selected=sorted(found,key=lambda item:(-item[0],item[1]['id']))[:max_rois]
-        cfg['rois']=sorted([roi for score,roi in selected],key=lambda roi:roi['id'])
-        cfg['maxRois']=max_rois;cfg['detectionMode']='bands';cfg['detectionVersion']='band-peaks-v1';cfg['detectedCandidates']=len(found)
-        cfg['rows']=max((r['row']+1 for r in cfg['rois']),default=1)
+    if max_rois is not None and (type(max_rois) is not int or not 1<=max_rois<=384):
+        raise ValueError('最大ROI数は1〜384の整数で指定してください。')
+    # Keep every physical sample slot in lane order. Signal quality is measured
+    # later and never decides whether an operator can inspect or select a lane.
+    cfg['rois']=rois[:max_rois]
+    cfg['maxRois']=max_rois if max_rois is not None else len(rois)
+    cfg['detectionMode']='lanes';cfg['detectionVersion']='grid-lanes-v2';cfg['laneCandidates']=len(rois)
+    cfg['rows']=max(r['row']+1 for r in cfg['rois'])
     apply_auto_width(a,cfg,maximum)
     return cfg
-
-def band_score(a, roi, cfg, maximum):
-    """Require a local peak in both axes; a gel edge is not a sample band."""
-    m=measure(a,roi,cfg,maximum)
-    if m['status']=='undetected':return None
-    h,w=a.shape;pitch=float(cfg['grid']['pitch']);x=roi['x'];y=int(roi['y'])
-    left=max(0,int(x-pitch*.48));right=min(w,int(x+pitch*.48)+1)
-    half=max(2,int(cfg['roiHeight']//2));edge=max(2,half//3)
-    top=max(0,y-half);bottom=min(h,y+half+1)
-    background=(np.median(a[top:top+edge,left:right],axis=0)+np.median(a[bottom-edge:bottom,left:right],axis=0))/2
-    signal=smooth(a[max(top,y-2):min(bottom,y+3),left:right].mean(axis=0)-background,3)
-    flank=max(2,len(signal)//6);base=float(np.median(np.r_[signal[:flank],signal[-flank:]]))
-    central=np.flatnonzero(abs(np.arange(left,right)-x)<=pitch*.25)
-    if not len(central):return None
-    k=int(central[np.argmax(signal[central])]);prominence=float(signal[k]-base)
-    differences=a[top:top+edge,left:right].mean(axis=0)-a[bottom-edge:bottom,left:right].mean(axis=0)
-    noise=float(np.median(abs(differences-np.median(differences)))*1.4826)
-    if prominence<max(maximum*cfg['minSignal'],noise*4):return None
-    lo=hi=k;threshold=base+prominence*.2
-    while lo>0 and signal[lo-1]>=threshold:lo-=1
-    while hi<len(signal)-1 and signal[hi+1]>=threshold:hi+=1
-    if hi-lo+1<3 or hi-lo+1>pitch*.85:return None
-    return m['area']*min(1.,prominence/max(m['peak'],1e-9))
 
 def measure(a, r, cfg, maximum):
     H,W=a.shape; w=int(cfg['roiWidth']); h=int(cfg['roiHeight'])

@@ -1,7 +1,7 @@
 import copy
 import unittest
 import numpy as np
-from backend.gel.engine import detect_grid, quantify
+from backend.gel.engine import detect_grid, quantify, measure_areas
 from backend.gel.routes import setup
 
 
@@ -19,29 +19,37 @@ def gel():
 
 
 class BandExtractionTests(unittest.TestCase):
-    def test_limit_is_a_cap_and_empty_lanes_and_gel_edge_are_removed(self):
+    def test_lane_rois_include_blank_samples_without_adding_a_spurious_gel_edge_row(self):
         a=gel();original=a.copy()
         cfg=setup(detect_grid(a,None,24,255,max_rois=96),{'sha256':'a'*64})
-        self.assertEqual(len(cfg['rois']),46)
+        self.assertEqual(len(cfg['rois']),48)
         self.assertEqual(cfg['rows'],2);self.assertEqual(cfg['maxRois'],96)
         ids=[r['id'] for r in cfg['rois']]
-        self.assertNotIn(9,ids);self.assertNotIn(33,ids)
-        self.assertEqual(ids,[i for i in range(1,49) if i not in (9,33)])
+        self.assertEqual(ids,list(range(1,49)))
+        self.assertEqual(cfg['detectionMode'],'lanes')
+        measured=measure_areas(a,cfg,255)
+        self.assertEqual(len(measured['results']),48)
+        for index in (8,32):
+            roi=cfg['rois'][index];result=measured['results'][index]
+            self.assertEqual(roi['col'],8);self.assertEqual(result['status'],'undetected')
+            self.assertTrue(np.isfinite(result['area']));self.assertEqual(len(result['profile']),cfg['roiHeight'])
         self.assertTrue(all(r['y']<450 for r in cfg['rois']))
         self.assertEqual(len(cfg['markers']),2)
         np.testing.assert_array_equal(a,original)
         forced=detect_grid(a,3,24,255,max_rois=48)
         self.assertEqual(forced['grid']['targetRows'],[160,380,540])
-        self.assertEqual(len(forced['rois']),46);self.assertEqual(forced['rows'],2)
+        self.assertEqual(len(forced['rois']),48);self.assertEqual(forced['rows'],2)
 
-    def test_smaller_limit_selects_stronger_bands_and_retains_original_lane_numbers(self):
-        a=gel();full=detect_grid(a,None,24,255,max_rois=96);limited=detect_grid(a,None,24,255,max_rois=5)
-        self.assertEqual(len(limited['rois']),5)
+    def test_smaller_limit_keeps_first_lanes_in_order_including_blanks(self):
+        a=gel();full=detect_grid(a,None,24,255,max_rois=96);limited=detect_grid(a,None,24,255,max_rois=10)
+        self.assertEqual(len(limited['rois']),10)
+        self.assertEqual([r['id'] for r in limited['rois']],list(range(1,11)))
+        self.assertEqual(limited['rois'][8]['col'],8)
         identities={r['id']:(r['row'],r['col'],r['x'],r['y']) for r in full['rois']}
         for roi in limited['rois']:self.assertEqual(identities[roi['id']],(roi['row'],roi['col'],roi['x'],roi['y']))
-        self.assertEqual(limited['detectedCandidates'],46)
+        self.assertEqual(limited['laneCandidates'],48)
 
-    def test_absent_first_lane_does_not_move_marker_to_the_next_sample(self):
+    def test_lane_cap_does_not_move_marker_to_a_sample(self):
         cfg=detect_grid(gel(),None,24,255,max_rois=1)
         cfg=setup(cfg,{'sha256':'a'*64})
         for marker in cfg['markers']:
@@ -54,7 +62,11 @@ class BandExtractionTests(unittest.TestCase):
         self.assertEqual(len(legacy['rois']),48);quantify(gel(),legacy,255)
         self.assertEqual(legacy,before)
 
-    def test_no_bands_produces_no_sample_or_marker_rois(self):
+    def test_weak_image_keeps_all_lanes_measurable_even_when_no_band_passes_detection(self):
         a=gel()*.01;cfg=setup(detect_grid(a,None,24,255,max_rois=48),{'sha256':'a'*64})
-        self.assertEqual(cfg['rois'],[]);self.assertEqual(cfg['markers'],[])
-        q=quantify(a,cfg,255);self.assertEqual(q['results'],[]);self.assertFalse(q['ready'])
+        self.assertEqual([r['id'] for r in cfg['rois']],list(range(1,49)))
+        q=measure_areas(a,cfg,255);self.assertEqual(len(q['results']),48)
+        self.assertTrue(all(m['status']=='undetected' for m in q['results']))
+        self.assertTrue(all(np.isfinite(m['area']) for m in q['results']))
+        self.assertTrue(any(m['area']>0 for m in q['results']))
+        self.assertEqual(len(cfg['markers']),2)

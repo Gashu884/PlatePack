@@ -1,4 +1,4 @@
-/* Extraction limits are caps; spatial lane identities survive sparse detection. */
+/* Extraction limits cap lane slots, including undetected samples. */
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.PCRROIExtraction=api;})(typeof globalThis==='object'?globalThis:this,()=>{
   function limit(value){const n=Number(value);if(!Number.isInteger(n)||n<1||n>384)throw Error('最大ROI数は1〜384の整数で入力してください。');return n;}
   function reconcile(before,next){

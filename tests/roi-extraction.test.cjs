@@ -21,3 +21,8 @@ test('the initial extraction dialog requires a valid limit and can be cancelled 
   const cancelled=extraction.ask('cancel.tif');elements.cancelExtraction.onclick();assert.equal(await cancelled,null);
  }finally{delete global.document;}
 });
+test('adding missing lane ROIs preserves existing sample and well identities by lane number',()=>{
+ const before={grid:{pitch:34},rois:[1,3].map(id=>({id,row:0,col:id-1,x:130+(id-1)*34,y:160,sample:'S'+id,well:'A'+id,decision:'repcr',platepack:{sourceWell:'A'+id}}))};
+ const next={grid:{pitch:34},rois:[1,2,3].map(id=>({id,row:0,col:id-1,x:130+(id-1)*34,y:160,sample:'',well:'',decision:'auto'}))};
+ const out=extraction.reconcile(before,next);assert.deepEqual(out.config.rois.map(r=>r.id),[1,2,3]);assert.deepEqual(out.kept,[1,3]);assert.equal(out.config.rois[1].sample,'');assert.equal(out.config.rois[1].well,'');assert.equal(out.config.rois[2].sample,'S3');assert.equal(out.config.rois[2].platepack.sourceWell,'A3');assert.equal(out.config.rois[2].decision,'repcr');
+});

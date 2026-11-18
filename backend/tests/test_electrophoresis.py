@@ -168,6 +168,13 @@ class ElectrophoresisTests(unittest.TestCase):
                 self.assertAlmostEqual(cfg['grid']['pitch'],34,delta=.5)
                 for r in range(rows):
                     blank=cfg['rois'][r*24+8];self.assertEqual(blank['col'],8);self.assertAlmostEqual(blank['x'],130+8*34,delta=3)
+                capped=self.client.post('/api/electrophoresis/detect',json={'sha256':key,'rows':'auto','cols':24,'maxRois':rows*24})
+                self.assertEqual(capped.status_code,200,capped.text)
+                capped_cfg=capped.json()['config'];self.assertEqual([r['id'] for r in capped_cfg['rois']],list(range(1,rows*24+1)))
+                measured=self.client.post('/api/electrophoresis/areas',json={'sha256':key,'config':capped_cfg})
+                self.assertEqual(measured.status_code,200,measured.text);results=measured.json()['results']
+                self.assertEqual(len(results),rows*24)
+                for row in range(rows):self.assertEqual(results[row*24+8]['status'],'undetected')
                 self.assertEqual(len(cfg['markers']),rows);self.assertEqual(read_blob(key),raw)
                 decoded,_=decode(raw,'original.tif');np.testing.assert_array_equal(decoded,pixels)
                 explicit=self.client.post('/api/electrophoresis/redetect',json={'sha256':key,'rows':rows,'cols':24})
