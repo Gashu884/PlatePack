@@ -3,7 +3,7 @@ window.Electro = (() => {
   const el=id=>document.getElementById(id), copy=x=>JSON.parse(JSON.stringify(x));
   const CHUNK=256*1024;
   const contextParams=new URLSearchParams(location.search),embedded=contextParams.get('embedded')==='1'&&parent!==window,workspaceToken=contextParams.get('workspace');
-  let activityCount=0,freeUI,freeDraftTimer,freeGeneration=0,areaVersion=null;
+  let activityCount=0,freeUI,freeDraftTimer,freeGeneration=0,areaVersion=null,restoringRecord=false;
   const areaTasks=new Map();
   const notify=(type,data={})=>{if(embedded)parent.postMessage({channel:'pcr-plate-workspace',token:workspaceToken,type,...data},location.origin);};
   const notifyState=()=>notify('state',{dirty,busy:running||activityCount>0});
@@ -45,10 +45,12 @@ window.Electro = (() => {
   }
   function signature(){return ElectrophoresisChecks.signature(record)}
   function invalidate(){record.confirmed=null;proposal=null;markDirty();}
-  async function autosave(){
+  async function autosave({clean=false}={}){
+    if(restoringRecord)return;
     sync();if(record.confirmed?.signature!==signature())record.confirmed=null;
-    const snapshot=copy(record);markDirty();
-    saving=saving.catch(()=>{}).then(()=>idb('put',draftKey(),snapshot));
+    const snapshot={...copy(record),localSavedAt:new Date().toISOString(),localDraftClean:clean},keys=new Set([draftKey()]);markDirty();
+    const liveLog=new URLSearchParams(location.search).get('log');if(liveLog&&!embedded&&!contextParams.get('handoff'))keys.add('draft:'+snapshot.projectId+':'+liveLog+':'+(contextParams.get('attachment')||'analysis'));
+    saving=saving.catch(()=>{}).then(async()=>{for(const key of keys)await idb('put',key,snapshot);});
     try{await saving}catch{toast('下書きの自動保存ができません。実験一式JSONを保存してください。')}
   }
   async function guarded(fn){if(running)return;running=true;notifyState();el('busy').hidden=false;el('busy').textContent='処理中…';try{return await fn()}catch(e){toast(e.message);el('recordStatus').textContent=e.message;console.error(e)}finally{running=false;notifyState();el('busy').hidden=true}}
@@ -153,6 +155,8 @@ window.Electro = (() => {
   async function openEntry(ref,{initial=false}={}){
     const e=await entry(ref);if(!e)throw Error('データが見つかりません。');if(PCRProject.id&&e.project_id!==PCRProject.id)throw Error('別のプロジェクトの記録です。');el('viewPlate').href=(e.payload.plateEdit&&!e.payload.electrophoresis?'/output-plates?log=':'/plates?log=')+encodeURIComponent(ref);el('viewPlate').hidden=false;
     if(e.payload.electrophoresis?.blob){
+      const local=initial&&!contextParams.get('attachment')?await idb('get',draftKey()).catch(()=>null):null;
+      if(PCRROIBackup.preferLocal(local,e)){await restoreRecord(PCRROIBackup.read(local));markDirty();el('recordStatus').textContent='このブラウザに保存したROI・well対応と作業内容を復元しました。';return;}
       const stored=JSON.parse(new TextDecoder().decode(await getBlob(e.payload.electrophoresis.blob)));stored.projectId=e.project_id;await restoreRecord(stored);dirty=false;
       el('recordStatus').textContent='DB読込済み';return;
     }
@@ -183,7 +187,7 @@ window.Electro = (() => {
     let restored=selected?await api('/api/restore',selected):null;
     state=null;record=candidate;active=candidate.active;proposal=null;el('experimentName').value=record.name;el('groupSize').value=record.groupSize;await loadProjects(record.projectId);
     if(record.plateRef&&record.plate){el('plateRecord').value=record.plateRef;el('viewPlate').href=(record.plate.plateEdit?'/output-plates?log=':'/plates?log=')+encodeURIComponent(record.plateRef);el('viewPlate').hidden=false;}
-    if(restored)await adopt(restored);else{el('gel').hidden=true;el('empty').hidden=false;}
+    if(restored){restoringRecord=true;try{await adopt(restored);}finally{restoringRecord=false;}}else{el('gel').hidden=true;el('empty').hidden=false;}
     if(record.confirmed?.signature!==signature())record.confirmed=null;render();
   }
   async function applyMapping(result){
@@ -235,11 +239,20 @@ window.Electro = (() => {
     const saved=await request('/api/logs',{name,payload,project_id:project}),verified=await request('/api/logs/'+encodeURIComponent(saved.id));
     if(verified.project_id!==project||JSON.stringify(verified.payload.electrophoresis)!==JSON.stringify(payload.electrophoresis))throw Error('保存の照合に失敗しました。実験一式JSONを保存してください。');
     dirty=false;el('recordStatus').textContent='DB保存済み：'+name;
-    if(!embedded)history.replaceState(null,'','/electrophoresis?project='+encodeURIComponent(project)+'&log='+encodeURIComponent(saved.id));el('viewPlate').href=(record.plate?.plateEdit?'/output-plates?log=':'/plates?log=')+encodeURIComponent(record.plateRef||saved.id);el('viewPlate').hidden=!record.plate;await loadFiles();await autosave();dirty=false;notifyState();notify('saved');
+    if(!embedded)history.replaceState(null,'','/electrophoresis?project='+encodeURIComponent(project)+'&log='+encodeURIComponent(saved.id));el('viewPlate').href=(record.plate?.plateEdit?'/output-plates?log=':'/plates?log=')+encodeURIComponent(record.plateRef||saved.id);el('viewPlate').hidden=!record.plate;await loadFiles();await autosave({clean:true});dirty=false;notifyState();notify('saved');
   }
-  function backup(){sync();const full=copy(record);return download(full.name+'_experiment.json',async()=>{for(const s of full.sessions)s.raw=b64(await getBlob(s.image.sha256));return JSON.stringify(full)},'application/json')}
+  function backup(){
+    sync();const full=copy(record);if(!full.sessions.length)throw Error('泳動画像を登録してください。');
+    return download(full.name+'_roi_well.json',async()=>{
+      for(const session of full.sessions){
+        if(!freshAreas(session)){session.quantification=await request('/api/electrophoresis/areas',{sha256:session.image.sha256,config:session.config});session.areaConfig=PCRFreePooling.areaKey(session.config);session.areaVersion=session.quantification.version;}
+        session.raw=b64(await getBlob(session.image.sha256));
+      }
+      return JSON.stringify(PCRROIBackup.create(full,new Date().toISOString()),null,2);
+    },'application/json');
+  }
   async function start(){
-    freeUI=PCRFreePoolingUI({host:el('freePooling'),getRecord:()=>record,getActive:()=>state,onChange:selectionChanged,onSaveSet:()=>guarded(async()=>{clearTimeout(freeDraftTimer);await autosave();await saveRecord();return true;}),onRecalculate:()=>guarded(measure),onExport:pool=>guarded(()=>exportSelection(pool)),onExportPNG:pool=>guarded(()=>exportPlatePNG(pool))});freeUI.render();
+    freeUI=PCRFreePoolingUI({host:el('freePooling'),getRecord:()=>record,getActive:()=>state,onChange:selectionChanged,onSaveSet:()=>guarded(async()=>{clearTimeout(freeDraftTimer);await autosave();await saveRecord();return true;}),onRecalculate:()=>guarded(measure),onExport:pool=>guarded(()=>exportSelection(pool)),onExportPNG:pool=>guarded(()=>exportPlatePNG(pool)),onExportJSON:()=>guarded(backup),onImportJSON:()=>el('restoreExperiment').click()});freeUI.render();
     if(embedded){const button=document.createElement('button');button.type='button';button.textContent='別のブラウザタブで開く';button.onclick=detach;document.querySelector('.top-actions').append(button);}
 
     if(embedded){
@@ -264,7 +277,7 @@ window.Electro = (() => {
     el('exportPool').onclick=()=>guarded(exportPlan);el('exportConfirmed').onclick=()=>guarded(exportPlan);
     el('downloadOriginal').onclick=()=>guarded(()=>{if(!state)return;const image=copy(state.image);return download(image.name,()=>getBlob(image.sha256),'application/octet-stream')});
     el('saveExperiment').onclick=()=>guarded(saveRecord);el('backupExperiment').onclick=()=>guarded(backup);
-    el('restoreExperiment').onchange=e=>guarded(async()=>{const f=e.target.files[0];if(!f)return;if(f.size>160*1024*1024)throw Error('実験一式JSONは160 MB以下にしてください。');if(dirty&&!confirm('現在の作業を置き換えます。保存済みですか？'))return;await restoreRecord(JSON.parse(await f.text()));el('recordStatus').textContent='復元済み'});
+    el('restoreExperiment').onchange=e=>{const f=e.target.files[0];e.target.value='';if(!f)return;return guarded(async()=>{if(f.size>160*1024*1024)throw Error('ROI・well JSONは160 MB以下にしてください。');const restored=PCRROIBackup.read(JSON.parse(await f.text()));if(dirty&&!confirm('現在の作業をJSONの内容で置き換えます。続けますか？'))return;await restoreRecord(restored);await autosave();el('recordStatus').textContent='JSONからROI・well対応・計算セットを復元しました。';});};
     el('save').onclick=()=>guarded(()=>{if(!state)return;const out=copy(state);return download(prefix()+'_pcr_electrophoresis.json',async()=>{out.raw=b64(await getBlob(out.image.sha256));return JSON.stringify(out)},'application/json')});
     el('sessionFile').onchange=e=>guarded(async()=>{const f=e.target.files[0];if(!f)return;const s=JSON.parse(await f.text());if(record.sessions.length>=32&&!record.sessions.some(x=>x.image.sha256===s.image?.sha256))throw Error('1実験は32画像までです。');await adopt(await api('/api/restore',s));invalidate()});
     el('mapping').hidden=true; // identities are assigned through the plate dialog only
@@ -272,7 +285,7 @@ window.Electro = (() => {
     for(const id of ['exportAll','exportPCR','exportPool','measureAll','gelLinkBtn','saveExperiment'])el(id).disabled=true;
     await guarded(async()=>{await PCRProject.ready;await loadProjects(PCRProject.id);record.projectId=PCRProject.id;
       if(contextParams.get('handoff')){const token=contextParams.get('handoff'),snapshot=(await idb('get',draftKey()))||await idb('get','handoff:'+token);if(!snapshot)throw Error('引き継ぐ作業が見つかりません。元の画面から開き直してください。');await restoreRecord(snapshot);markDirty();el('recordStatus').textContent='別タブに作業を引き継ぎました。';const channel=new BroadcastChannel('pcr-gel-handoff:'+token);channel.postMessage({type:'ready'});channel.close();return;}
-      const ref=new URLSearchParams(location.search).get('log');if(ref){await openEntry(ref,{initial:true});dirty=false;const params=new URLSearchParams(location.search),attachment=params.get('attachment');
+      const ref=new URLSearchParams(location.search).get('log');if(ref){await openEntry(ref,{initial:true});const params=new URLSearchParams(location.search),attachment=params.get('attachment');
       if(attachment){
         const image=await request('/api/workflow/attachments/'+encodeURIComponent(attachment));
         const index=Number(params.get('plate')),plate=record.plate.packedPlates?.[index];

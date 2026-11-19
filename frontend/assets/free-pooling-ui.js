@@ -1,4 +1,4 @@
-window.PCRFreePoolingUI=({host,getRecord,getActive,onChange,onSaveSet,onRecalculate,onExport,onExportPNG})=>{
+window.PCRFreePoolingUI=({host,getRecord,getActive,onChange,onSaveSet,onRecalculate,onExport,onExportPNG,onExportJSON,onImportJSON})=>{
   const node=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;},fmt=(x,d=3)=>x==null?'—':Number(x).toLocaleString('ja-JP',{maximumFractionDigits:d});
   const rowNodes=new Map();let rowOrder='',savingSet=false;
   const heading=node('div','free-heading'),title=node('h2','','バンドを選んで分注量を計算'),summary=node('p','free-summary'),tools=node('div','free-tools'),fields=node('div','free-fields'),status=node('p','free-status'),tableWrap=node('div','table-scroll'),table=node('table','free-table');
@@ -27,7 +27,8 @@ window.PCRFreePoolingUI=({host,getRecord,getActive,onChange,onSaveSet,onRecalcul
   const all=button('画像ROI全選択',()=>{const s=getActive();if(!s)return;current().keys=[...new Set([...current().keys,...s.config.rois.map(r=>PCRFreePooling.key(s.image.sha256,r.id))])];change();});
   const clear=button('全選択解除',()=>{current().keys=[];change();});
   const recalc=button('面積測定',onRecalculate),exportButton=button('分注 CSV ↓',()=>onExport(current())),pngButton=button('プレート PNG ↓',()=>onExportPNG(current()));pngButton.classList.add('primary');
-  heading.append(title,summary);tools.append(choose,add,all,clear,recalc,pngButton,exportButton);
+  const jsonButton=button('ROI・well JSON保存',onExportJSON),readButton=button('JSON読込',onImportJSON);jsonButton.title='元画像・全ROIとwellの対応・計算セットを手元のJSONファイルに保存';
+  heading.append(title,summary);tools.append(choose,add,all,clear,recalc,pngButton,exportButton,jsonButton,readButton);
   fields.append(label('セット名（自由に変更）',name),label('相対値の基準',reference),label('基準バンドの分注量 (µL)',volume),label('丸め刻み (µL・0で丸めなし)',step),label('分注量の下限 (µL・空欄で未設定)',minVolume),label('分注量の上限 (µL・空欄で未設定)',maxVolume));
   const saveHelp=node('p','hint','「セット作成」で現在の名前・選択ROI・計算設定・分注量の範囲を保存します。名前を変えて保存すると、別のセットとして残せます。');
   const help=node('p','hint','ラベルと分注量の範囲は目安です。範囲外でも自動除外や液量の切り詰めは行いません。下限・上限はそれぞれ空欄で未設定にできます。');
@@ -44,6 +45,7 @@ window.PCRFreePoolingUI=({host,getRecord,getActive,onChange,onSaveSet,onRecalcul
     status.textContent=error||(busy?'面積を取得中…':p.keys.length?`基準面積 ${fmt(result.reference,1)} = 相対値1。面積に反比例する液量です。`:'画像のバンドをクリック、または下のチェックで選択してください。');
     for(const control of [choose,name,reference,volume,step,minVolume,maxVolume,clear])control.disabled=savingSet;
     add.disabled=savingSet||busy||!!error||!s||!p.keys.length;recalc.disabled=savingSet||busy||!s;all.disabled=savingSet||!s;exportButton.disabled=pngButton.disabled=savingSet||busy||!!error||!result.rows.length;
+    jsonButton.disabled=savingSet||!r.sessions?.length;readButton.disabled=savingSet;
     const selected=new Map(result.rows.map(row=>[row.key,row]));
     const rows=s?s.config.rois.map((roi,i)=>({key:PCRFreePooling.key(s.image.sha256,roi.id),hash:s.image.sha256,image:s.image.name,id:roi.id,well:roi.well||'',area:s.quantification?.results[i]?.area,flags:s.quantification?.results[i]?.flags||[],status:s.quantification?.results[i]?.status,label:roi.decision||'auto'})):[];
     rows.push(...result.rows.filter(row=>row.hash!==s?.image.sha256));
