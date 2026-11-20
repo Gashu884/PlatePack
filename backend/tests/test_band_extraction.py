@@ -5,16 +5,17 @@ from backend.gel.engine import detect_grid, quantify, measure_areas
 from backend.gel.routes import setup
 
 
-def gel():
-    y,x=np.mgrid[:580,:1050];a=np.zeros((580,1050));a[30:550,50:1000]=12
-    for row in range(2):
+def gel(rows=2):
+    height=rows*220+140
+    y,x=np.mgrid[:height,:1050];a=np.zeros((height,1050));a[30:height-30,50:1000]=12
+    for row in range(rows):
         for col in range(24):
             for center,signal,width in ((100+row*220,65,3),(160+row*220,130 if col!=8 else 0,4),(200+row*220,12,4)):
                 a+=signal*np.exp(-.5*((y-center)/width)**2)*np.exp(-.5*((x-(130+col*34))/7)**2)
         for center in range(110+row*220,201+row*220,12):
             a+=100*np.exp(-.5*((y-center)/2)**2)*np.exp(-.5*((x-96)/5)**2)
     # Bright continuous gel edge, distinct from a localized DNA band.
-    a+=40*np.exp(-.5*((y-540)/3)**2)*(x>50)*(x<1000)
+    a+=40*np.exp(-.5*((y-(height-40))/3)**2)*(x>50)*(x<1000)
     return a
 
 
@@ -36,9 +37,8 @@ class BandExtractionTests(unittest.TestCase):
         self.assertTrue(all(r['y']<450 for r in cfg['rois']))
         self.assertEqual(len(cfg['markers']),2)
         np.testing.assert_array_equal(a,original)
-        forced=detect_grid(a,3,24,255,max_rois=48)
-        self.assertEqual(forced['grid']['targetRows'],[160,380,540])
-        self.assertEqual(len(forced['rois']),48);self.assertEqual(forced['rows'],2)
+        with self.assertRaisesRegex(ValueError,'段数'):
+            detect_grid(a,3,24,255,max_rois=48)
 
     def test_smaller_limit_keeps_first_lanes_in_order_including_blanks(self):
         a=gel();full=detect_grid(a,None,24,255,max_rois=96);limited=detect_grid(a,None,24,255,max_rois=10)
@@ -70,3 +70,32 @@ class BandExtractionTests(unittest.TestCase):
         self.assertTrue(all(np.isfinite(m['area']) for m in q['results']))
         self.assertTrue(any(m['area']>0 for m in q['results']))
         self.assertEqual(len(cfg['markers']),2)
+
+class RowPlacementRegressionTests(unittest.TestCase):
+    def test_bright_periodic_gel_edge_cannot_displace_real_band_rows(self):
+        a=gel();y,x=np.mgrid[:a.shape[0],:a.shape[1]]
+        # A narrow, bright top edge with faint lane-pitched texture: the old
+        # global row-brightness score treated this as a third sample row.
+        a+=85*np.exp(-.5*((y-45)/3)**2)*(1+.045*np.cos(2*np.pi*(x-130)/34))*(x>50)*(x<1000)
+        for scale in (1,.01):
+            with self.subTest(scale=scale):
+                cfg=detect_grid(a*scale,None,24,255,max_rois=48)
+                self.assertEqual(cfg['grid']['targetRows'],[160,380])
+                self.assertEqual([r['id'] for r in cfg['rois']],list(range(1,49)))
+                self.assertEqual(cfg['rois'][8]['col'],8)
+                self.assertAlmostEqual(cfg['rois'][8]['y'],160,delta=3)
+                self.assertEqual(cfg['detectionVersion'],'grid-lanes-v3')
+
+    def test_a_single_actual_row_is_not_padded_with_an_edge_to_reach_the_cap(self):
+        a=gel()[:300].copy();y,x=np.mgrid[:a.shape[0],:a.shape[1]]
+        a+=85*np.exp(-.5*((y-45)/3)**2)*(1+.045*np.cos(2*np.pi*(x-130)/34))*(x>50)*(x<1000)
+        cfg=detect_grid(a,None,24,255,max_rois=48)
+        self.assertEqual(cfg['grid']['targetRows'],[160]);self.assertEqual(len(cfg['rois']),24)
+
+    def test_a_count_cap_keeps_top_to_bottom_lane_identity_when_lower_rows_are_brighter(self):
+        a=gel(3);a[500:]*=1.5
+        full=detect_grid(a,None,24,255,max_rois=96)
+        limited=detect_grid(a,None,24,255,max_rois=48)
+        self.assertEqual(full['grid']['targetRows'],[160,380,600])
+        self.assertEqual(limited['grid']['targetRows'],[160,380])
+        self.assertEqual(limited['rois'],full['rois'][:48])

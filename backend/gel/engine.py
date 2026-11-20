@@ -40,6 +40,8 @@ def decode(raw, name):
     return a.astype(float), {'name': name, 'sha256': hashlib.sha256(raw).hexdigest(), 'width': im.width, 'height': im.height, 'bitDepth': 16 if maximum==65535 else 8, 'maximum': maximum, 'preview': 'data:image/'+preview_type+';base64,'+base64.b64encode(stream.getvalue()).decode()}
 
 def detect_grid(a, rows=4, cols=24, maximum=255, max_rois=None):
+    if max_rois is not None and (type(max_rois) is not int or not 1<=max_rois<=384):
+        raise ValueError('最大ROI数は1〜384の整数で指定してください。')
     H,W=a.shape
     xp=smooth(a.mean(axis=0), max(5,W//100))
     mask=xp > np.percentile(xp,10)+.26*(np.percentile(xp,90)-np.percentile(xp,10))
@@ -60,7 +62,11 @@ def detect_grid(a, rows=4, cols=24, maximum=255, max_rois=None):
         for p in range(max(8,int(p0*.8)),int(p0*1.2)+1):
             v=np.dot(x[:-p],x[p:])/(np.linalg.norm(x[:-p])*np.linalg.norm(x[p:])+1e-9)
             best=max(best,v)
-        ranked.append((float(max(hp[y],0)*max(best,0)),y))
+        # A bright gel edge has a large vertical peak but almost no localized
+        # lateral band contrast. Normalized periodicity alone can amplify its
+        # faint texture; require contrast as well as a vertical peak.
+        contrast=float(np.maximum(x,0).mean())
+        ranked.append((float(min(max(hp[y],0),contrast)*max(best,0)),y))
     # Wells and the dye front can also be periodic. Select the strongest band
     # rows directly rather than assuming that every second peak is a band.
     chosen=[]
@@ -102,14 +108,13 @@ def detect_grid(a, rows=4, cols=24, maximum=255, max_rois=None):
             if q[yy]<max(2,a.max()*.012): yy=y
             rois.append({'id':row*cols+col+1,'row':row,'col':col,'x':round(float(x),2),'y':float(yy),'sample':'','well':'','decision':'auto','reviewed':False,'note':'','baseline':None,'loading':1.,'dilution':1.})
     cfg = {'rows':rows,'cols':cols,'roiWidth':width,'roiHeight':height,'snrThreshold':4.,'minSignal':.012,'layout':'custom','poolTotal':100.,'poolMin':.5,'poolMax':10.,'poolStep':.1,'rois':rois,'grid':{'left':left,'right':right,'start':round(float(start),2),'pitch':round(pitch,2),'targetRows':targets,'candidates':chosen}}
-    if max_rois is not None and (type(max_rois) is not int or not 1<=max_rois<=384):
-        raise ValueError('最大ROI数は1〜384の整数で指定してください。')
     # Keep every physical sample slot in lane order. Signal quality is measured
     # later and never decides whether an operator can inspect or select a lane.
     cfg['rois']=rois[:max_rois]
     cfg['maxRois']=max_rois if max_rois is not None else len(rois)
-    cfg['detectionMode']='lanes';cfg['detectionVersion']='grid-lanes-v2';cfg['laneCandidates']=len(rois)
+    cfg['detectionMode']='lanes';cfg['detectionVersion']='grid-lanes-v3';cfg['laneCandidates']=len(rois)
     cfg['rows']=max(r['row']+1 for r in cfg['rois'])
+    cfg['grid']['targetRows']=targets[:cfg['rows']]
     apply_auto_width(a,cfg,maximum)
     return cfg
 
