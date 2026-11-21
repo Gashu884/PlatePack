@@ -99,3 +99,30 @@ class RowPlacementRegressionTests(unittest.TestCase):
         self.assertEqual(full['grid']['targetRows'],[160,380,600])
         self.assertEqual(limited['grid']['targetRows'],[160,380])
         self.assertEqual(limited['rois'],full['rois'][:48])
+
+class TemporaryMaskTests(unittest.TestCase):
+    def test_masked_interference_cannot_displace_real_rows_and_pixels_are_unchanged(self):
+        a=gel();y,x=np.mgrid[:a.shape[0],:a.shape[1]]
+        for col in range(24):a+=220*np.exp(-.5*((y-75)/4)**2)*np.exp(-.5*((x-(130+col*34))/7)**2)
+        original=a.copy();before=detect_grid(a,None,24,255,max_rois=48)
+        self.assertIn(75,before['grid']['targetRows'])
+        cfg=detect_grid(a,None,24,255,max_rois=48,exclude_regions=[{'x':0,'y':0,'width':1050,'height':120}])
+        self.assertEqual(cfg['grid']['targetRows'],[160,380]);self.assertEqual([r['id'] for r in cfg['rois']],list(range(1,49)))
+        self.assertNotIn('excludeRegions',cfg);np.testing.assert_array_equal(a,original)
+        measured=measure_areas(a,cfg,255);self.assertEqual(len(measured['results']),48)
+        self.assertTrue(any(m['area']>0 for m in measured['results']))
+
+    def test_full_height_lane_masks_do_not_break_detection_or_fill_the_gap_with_other_lanes(self):
+        a=gel();region={'x':384,'y':0,'width':36,'height':580}
+        cfg=detect_grid(a,None,24,255,max_rois=48,exclude_regions=[region])
+        self.assertEqual([r['id'] for r in cfg['rois']],[i for i in range(1,49) if i not in (9,33)])
+        for roi in cfg['rois']:
+            self.assertTrue(roi['x']+cfg['roiWidth']/2<=384 or roi['x']-cfg['roiWidth']/2>=420)
+        unmasked=detect_grid(a,None,24,255,max_rois=48,exclude_regions=[])
+        self.assertEqual(len(unmasked['rois']),48)
+
+    def test_invalid_or_complete_masks_fail_readably_without_modifying_pixels(self):
+        a=gel();before=a.copy()
+        for regions in ({},'bad',[{'x':True,'y':0,'width':10,'height':10}],[{'x':-1,'y':0,'width':10,'height':10}],[{'x':0,'y':0,'width':0,'height':10}],[{'x':0,'y':0,'width':1051,'height':580}],[{'x':0,'y':0,'width':10,'height':10}]*33,[{'x':0,'y':0,'width':1050,'height':580}]):
+            with self.subTest(regions=str(regions)[:60]),self.assertRaisesRegex(ValueError,'マスク'):detect_grid(a,None,24,255,max_rois=48,exclude_regions=regions)
+        np.testing.assert_array_equal(a,before)

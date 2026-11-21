@@ -148,6 +148,18 @@ class ElectrophoresisTests(unittest.TestCase):
         b=io.BytesIO();Image.new('RGB',(100,100)).save(b,format='PNG');key=self.upload(b.getvalue())
         self.assertEqual(self.client.post('/api/electrophoresis/detect',json={'sha256':key}).status_code,422)
 
+    def test_temporary_extraction_masks_are_validated_and_never_stored_in_the_session(self):
+        from backend.tests.test_band_extraction import gel
+        pixels=np.round(gel()).astype('uint8');stream=io.BytesIO();Image.fromarray(pixels).save(stream,format='TIFF');raw=stream.getvalue();key=self.upload(raw)
+        mask={'x':384,'y':0,'width':36,'height':580}
+        out=self.client.post('/api/electrophoresis/detect',json={'sha256':key,'rows':'auto','cols':24,'maxRois':48,'excludeRegions':[mask]})
+        self.assertEqual(out.status_code,200,out.text);session=out.json()
+        self.assertNotIn('excludeRegions',session);self.assertNotIn('excludeRegions',session['config'])
+        self.assertEqual([r['id'] for r in session['config']['rois']],[i for i in range(1,49) if i not in (9,33)])
+        self.assertEqual(read_blob(key),raw)
+        bad=self.client.post('/api/electrophoresis/redetect',json={'sha256':key,'rows':'auto','cols':24,'maxRois':48,'excludeRegions':[{'x':-1,'y':0,'width':100,'height':100}]})
+        self.assertEqual(bad.status_code,422);self.assertIn('マスク',bad.json()['detail'])
+
     def test_auto_layout_distinguishes_48_and_96_and_keeps_blank_sample_slots(self):
         for rows in (2,4):
             with self.subTest(rows=rows):

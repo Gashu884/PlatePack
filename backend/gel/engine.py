@@ -39,11 +39,38 @@ def decode(raw, name):
         stream=io.BytesIO();preview.save(stream,format='JPEG',quality=80);preview_type='jpeg'
     return a.astype(float), {'name': name, 'sha256': hashlib.sha256(raw).hexdigest(), 'width': im.width, 'height': im.height, 'bitDepth': 16 if maximum==65535 else 8, 'maximum': maximum, 'preview': 'data:image/'+preview_type+';base64,'+base64.b64encode(stream.getvalue()).decode()}
 
-def detect_grid(a, rows=4, cols=24, maximum=255, max_rois=None):
+def detection_exclusions(a, regions):
+    """One temporary boolean plane; never copy or edit measurement pixels."""
+    if regions is None or regions == []:return None,[]
+    if not isinstance(regions,list) or len(regions)>32:raise ValueError('除外マスクは32か所以内で指定してください。')
+    height,width=a.shape;boxes=[]
+    for rect in regions:
+        if not isinstance(rect,dict):raise ValueError('除外マスクの座標が不正です。')
+        values=[rect.get(key) for key in ('x','y','width','height')]
+        if any(isinstance(v,bool) or not isinstance(v,(int,float)) or not np.isfinite(v) for v in values):raise ValueError('除外マスクの座標が不正です。')
+        x,y,w,h=values
+        if x<0 or y<0 or w<=0 or h<=0 or x+w>width+.001 or y+h>height+.001:raise ValueError('除外マスクは画像の内側で指定してください。')
+        boxes.append((int(np.floor(x)),int(np.floor(y)),min(width,int(np.ceil(x+w))),min(height,int(np.ceil(y+h)))))
+    valid=np.ones(a.shape,dtype=bool)
+    for x0,y0,x1,y1 in boxes:valid[y0:y1,x0:x1]=False
+    return valid,boxes
+
+def detection_mean(a, valid, axis):
+    if valid is None:return a.mean(axis=axis),None
+    count=valid.sum(axis=axis);present=count>0
+    if not present.any():raise ValueError('マスクで抽出範囲がなくなっています。マスクを戻すか解除してください。')
+    profile=np.divide(a.sum(axis=axis,where=valid),count,out=np.zeros(count.shape,dtype=float),where=present)
+    # Interpolate fully masked lines rather than creating artificial black edges.
+    if not present.all():profile=np.interp(np.arange(len(profile)),np.flatnonzero(present),profile[present])
+    return profile,present
+
+def detect_grid(a, rows=4, cols=24, maximum=255, max_rois=None, exclude_regions=None):
     if max_rois is not None and (type(max_rois) is not int or not 1<=max_rois<=384):
         raise ValueError('最大ROI数は1〜384の整数で指定してください。')
     H,W=a.shape
-    xp=smooth(a.mean(axis=0), max(5,W//100))
+    valid,excluded=detection_exclusions(a,exclude_regions)
+    def mean_patch(y0,y1,x0,x1,axis):return detection_mean(a[y0:y1,x0:x1],None if valid is None else valid[y0:y1,x0:x1],axis)
+    xp=smooth(detection_mean(a,valid,0)[0], max(5,W//100))
     mask=xp > np.percentile(xp,10)+.26*(np.percentile(xp,90)-np.percentile(xp,10))
     runs=np.split(np.flatnonzero(mask), np.flatnonzero(np.diff(np.flatnonzero(mask))>1)+1)
     inds=max(runs,key=len)
@@ -51,13 +78,16 @@ def detect_grid(a, rows=4, cols=24, maximum=255, max_rois=None):
     left,right=int(inds[0]),int(inds[-1])
     # Search near the requested lane pitch; periodicity rejects gel edges.
     p0=(right-left)/(cols+2)
-    yp=a[:,left:right].mean(axis=1)
+    yp=mean_patch(0,H,left,right,1)[0]
     hp=smooth(yp,3)-smooth(yp,max(15,int(p0*1.2)))
     candidates=peaks(hp,max(12,int(p0*.65)),(rows or 8)*8)
     ranked=[]
     for y in candidates:
-        x=smooth(a[max(0,y-5):min(H,y+6),left:right].mean(axis=0),7)
+        if valid is not None and np.count_nonzero(valid[y,left:right])<max(12,cols*3):continue
+        profile,present=mean_patch(max(0,y-5),min(H,y+6),left,right,0)
+        x=smooth(profile,7)
         x=x-smooth(x,max(9,int(p0)))
+        if present is not None:x[~present]=0
         best=-1
         for p in range(max(8,int(p0*.8)),int(p0*1.2)+1):
             v=np.dot(x[:-p],x[p:])/(np.linalg.norm(x[:-p])*np.linalg.norm(x[p:])+1e-9)
@@ -80,9 +110,11 @@ def detect_grid(a, rows=4, cols=24, maximum=255, max_rois=None):
         raise ValueError('段数を推定できません。段数設定を確認してください。')
     rows=len(targets)
     # Pool horizontal band profiles; fit a periodic grid with a left ladder slot.
-    bandx=np.mean([a[max(0,y-8):min(H,y+9)].mean(axis=0) for y in targets],axis=0)
+    bandx=np.mean([mean_patch(max(0,y-8),min(H,y+9),0,W,0)[0] for y in targets],axis=0)
     bx=smooth(bandx,9)-smooth(bandx,max(11,int(p0)))
-    vertical=smooth(np.maximum(a[3:]-a[:-3],0).sum(axis=0),9)
+    gradient=np.maximum(a[3:]-a[:-3],0)
+    vertical=smooth(gradient.sum(axis=0) if valid is None else gradient.sum(axis=0,where=valid[3:]&valid[:-3]),9)
+    del gradient
     marker=left+int(np.argmax(vertical[left:min(W,left+int(p0*4))]))
     best=(-1e99,None,None)
     # First slot is the left ladder; retain every sample slot, including blanks.
@@ -101,21 +133,31 @@ def detect_grid(a, rows=4, cols=24, maximum=255, max_rois=None):
         for col in range(cols):
             x=start+col*pitch
             x0,x1=max(0,int(x-width/2)),min(W,int(x+width/2))
-            p=a[:,x0:x1].mean(axis=1)
+            if valid is not None and not valid[:,x0:x1].any():continue
+            p,present=mean_patch(0,H,x0,x1,1)
             q=smooth(p,3)-smooth(p,max(15,int(pitch)))
             lo,hi=max(0,y-round(pitch*.3)),min(H,y+round(pitch*.3)+1)
+            if present is not None:q[~present]=-np.inf
             yy=int(lo+np.argmax(q[lo:hi]))
             if q[yy]<max(2,a.max()*.012): yy=y
             rois.append({'id':row*cols+col+1,'row':row,'col':col,'x':round(float(x),2),'y':float(yy),'sample':'','well':'','decision':'auto','reviewed':False,'note':'','baseline':None,'loading':1.,'dilution':1.})
     cfg = {'rows':rows,'cols':cols,'roiWidth':width,'roiHeight':height,'snrThreshold':4.,'minSignal':.012,'layout':'custom','poolTotal':100.,'poolMin':.5,'poolMax':10.,'poolStep':.1,'rois':rois,'grid':{'left':left,'right':right,'start':round(float(start),2),'pitch':round(pitch,2),'targetRows':targets,'candidates':chosen}}
     # Keep every physical sample slot in lane order. Signal quality is measured
     # later and never decides whether an operator can inspect or select a lane.
-    cfg['rois']=rois[:max_rois]
+    def outside(roi):
+        x0=roi['x']-cfg['roiWidth']/2;y0=roi['y']-cfg['roiHeight']/2
+        return not any(x0<x1 and x0+cfg['roiWidth']>x and y0<y1 and y0+cfg['roiHeight']>y for x,y,x1,y1 in excluded)
+    cfg['rois']=[roi for roi in rois[:max_rois] if outside(roi)]
+    if not cfg['rois']:raise ValueError('マスクの外にROIを配置できません。マスクを戻すか解除してください。')
     cfg['maxRois']=max_rois if max_rois is not None else len(rois)
     cfg['detectionMode']='lanes';cfg['detectionVersion']='grid-lanes-v3';cfg['laneCandidates']=len(rois)
     cfg['rows']=max(r['row']+1 for r in cfg['rois'])
     cfg['grid']['targetRows']=targets[:cfg['rows']]
     apply_auto_width(a,cfg,maximum)
+    if excluded:
+        cfg['rois']=[roi for roi in cfg['rois'] if outside(roi)]
+        if not cfg['rois']:raise ValueError('マスクの外にROIを配置できません。マスクを戻すか解除してください。')
+        cfg['rows']=max(roi['row']+1 for roi in cfg['rois']);cfg['grid']['targetRows']=targets[:cfg['rows']]
     return cfg
 
 def measure(a, r, cfg, maximum):

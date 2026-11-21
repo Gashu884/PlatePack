@@ -178,7 +178,7 @@ def analyze(action: str, data: dict):
             if (rows is not None and (not 1<=rows<=8 or rows*cols>384)) or not 2<=cols<=48:raise ValueError('段数または列数が範囲外です。')
             limit=data.get('maxRois')
             if limit is not None and (type(limit) is not int or not 1<=limit<=384):raise ValueError('最大ROI数は1〜384の整数で指定してください。')
-            cfg=setup(detect_grid(a,rows,cols,meta['maximum'],max_rois=limit),meta)
+            cfg=setup(detect_grid(a,rows,cols,meta['maximum'],max_rois=limit,exclude_regions=data.get('excludeRegions')),meta)
             if cfg['rows']*cfg['cols']>384:raise ValueError('段数または列数が範囲外です。')
         elif action in ('measure','auto-width','restore'):
             cfg=checked_config(data['config'],a)
@@ -187,7 +187,7 @@ def analyze(action: str, data: dict):
         q=quantify(a,cfg,meta['maximum'])
         if action=='measure':return q
         if action in ('redetect','auto-width'):return {'config':cfg,'quantification':q}
-        return {**data,'image':meta,'config':cfg,'quantification':q,'version':VERSION}
+        return {**{key:value for key,value in data.items() if key!='excludeRegions'},'image':meta,'config':cfg,'quantification':q,'version':VERSION}
     except OSError as e:
         raise HTTPException(422, "画像を読み込めません。破損していないTIFF / PNGを選んでください。") from e
     except (ValueError,KeyError,TypeError,OverflowError,RuntimeError) as e:

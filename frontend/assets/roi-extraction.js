@@ -1,6 +1,15 @@
 /* Extraction limits cap lane slots, including undetected samples. */
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.PCRROIExtraction=api;})(typeof globalThis==='object'?globalThis:this,()=>{
   function limit(value){const n=Number(value);if(!Number.isInteger(n)||n<1||n>384)throw Error('最大ROI数は1〜384の整数で入力してください。');return n;}
+  function rectangle(start,end,width,height){
+    const clamp=(n,max)=>Math.max(0,Math.min(max,n)),x0=clamp(Math.min(start.x,end.x),width),y0=clamp(Math.min(start.y,end.y),height),x1=clamp(Math.max(start.x,end.x),width),y1=clamp(Math.max(start.y,end.y),height);
+    return {x:x0,y:y0,width:x1-x0,height:y1-y0};
+  }
+  function createMasks(){
+    const images=new Map();
+    const get=hash=>(images.get(hash)||[]).map(rect=>({...rect}));
+    return {get,add(hash,rect){if(rect.width<4||rect.height<4)return false;const list=get(hash);if(list.length>=32)throw Error('除外マスクは32か所までです。');images.set(hash,[...list,{...rect}]);return true;},undo(hash){const list=get(hash);list.pop();images.set(hash,list);},clear:hash=>images.delete(hash)};
+  }
   function reconcile(before,next){
     const out=JSON.parse(JSON.stringify(next)),kept=[];
     const tolerance=Math.max(8,Number(next.grid?.pitch||before.grid?.pitch||40)*.45);
@@ -25,5 +34,5 @@
       dialog.showModal();input.focus();input.select();
     });
   }
-  return {limit,reconcile,ask};
+  return {limit,reconcile,ask,rectangle,createMasks};
 });

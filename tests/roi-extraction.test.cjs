@@ -26,3 +26,9 @@ test('adding missing lane ROIs preserves existing sample and well identities by 
  const next={grid:{pitch:34},rois:[1,2,3].map(id=>({id,row:0,col:id-1,x:130+(id-1)*34,y:160,sample:'',well:'',decision:'auto'}))};
  const out=extraction.reconcile(before,next);assert.deepEqual(out.config.rois.map(r=>r.id),[1,2,3]);assert.deepEqual(out.kept,[1,3]);assert.equal(out.config.rois[1].sample,'');assert.equal(out.config.rois[1].well,'');assert.equal(out.config.rois[2].sample,'S3');assert.equal(out.config.rois[2].platepack.sourceWell,'A3');assert.equal(out.config.rois[2].decision,'repcr');
 });
+test('temporary masks normalize drag direction, clip to the image, and stay isolated by image',()=>{
+ const rect=extraction.rectangle({x:300,y:180},{x:-20,y:40},250,150);assert.deepEqual(rect,{x:0,y:40,width:250,height:110});
+ const masks=extraction.createMasks();assert.equal(masks.add('one',rect),true);assert.deepEqual(masks.get('two'),[]);const copy=masks.get('one');copy[0].x=99;assert.equal(masks.get('one')[0].x,0);
+ assert.equal(masks.add('one',{x:1,y:1,width:1,height:50}),false);masks.add('one',{x:10,y:10,width:20,height:20});masks.undo('one');assert.equal(masks.get('one').length,1);masks.clear('one');assert.deepEqual(masks.get('one'),[]);assert.deepEqual(extraction.createMasks().get('one'),[]);
+ for(let i=0;i<32;i++)masks.add('one',{x:i,y:0,width:4,height:4});assert.throws(()=>masks.add('one',{x:0,y:0,width:5,height:5}),/32/);
+});
