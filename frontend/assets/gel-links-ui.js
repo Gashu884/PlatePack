@@ -20,7 +20,7 @@ window.PlatePackGelLinkUI = function ({getSnapshot,getState,setState,onApply}) {
   function plateOptions(){
     const snapshot=getSnapshot(),kind=$('kind').value,prior=$('plate').value;
     $('kind').querySelector('option[value="packed"]').textContent=snapshot.plateEdit?'編集後':'パッキング後';
-    const options=kind==='packed'?(snapshot.packedPlates||[]).map(p=>({id:p.id,label:p.displayName||p.id})):snapshot.plates.map((p,i)=>({id:String(i+1),label:`${i+1} · ${p.label}`}));
+    const options=kind==='packed'?(snapshot.packedPlates||[]).map(p=>({id:p.id,label:p.displayName||p.id})):snapshot.plates.map((p,i)=>({id:String(i+1),label:`${p.sourceOrigin?.plate||i+1} · ${p.label}`}));
     $('plate').innerHTML=options.map(p=>`<option value="${esc(p.id)}">${esc(p.label)}</option>`).join('');
     if(options.some(p=>p.id===prior))$('plate').value=prior;
   }
@@ -32,7 +32,7 @@ window.PlatePackGelLinkUI = function ({getSnapshot,getState,setState,onApply}) {
       for(let c=1;c<=12;c++){
         const well=row+c;let binding=null;try{binding=core.resolve(snapshot,kind,key,well)}catch{}
         const link=binding&&gel?.rois.find(r=>r.binding?.sourcePlate===binding.sourcePlate && r.binding.sourceWell===binding.sourceWell);
-        html+=`<button type="button" data-well="${well}" aria-label="ウェル ${well}" title="${esc(binding?`元 ${binding.sourcePlate}-${binding.sourceWell}`:'検体なし')}" ${!binding||!selected?'disabled':''} class="${link?'linked':''} ${link?.id===roiId?'selected':''}">${well}<small>${link?'#'+link.id:binding?'●':'—'}</small></button>`;
+        html+=`<button type="button" data-well="${well}" aria-label="ウェル ${well}" title="${esc(binding?`元 ${core.sourceWellLabel(snapshot,binding)}`:'検体なし')}" ${!binding||!selected?'disabled':''} class="${link?'linked':''} ${link?.id===roiId?'selected':''}">${well}<small>${link?'#'+link.id:binding?'●':'—'}</small></button>`;
       }
     }
     $('grid').innerHTML=html;
@@ -53,8 +53,8 @@ window.PlatePackGelLinkUI = function ({getSnapshot,getState,setState,onApply}) {
     $('overlay').innerHTML=(gel?.rois||[]).map(r=>`<button type="button" aria-label="ROI ${r.id}" data-roi="${r.id}" class="${r.binding?'linked':''} ${r.id===roiId?'selected':''}" style="left:${100*(r.x-gel.roiWidth/2)/gel.width}%;top:${100*(r.y-gel.roiHeight/2)/gel.height}%;width:${100*gel.roiWidth/gel.width}%;height:${100*gel.roiHeight/gel.height}%"><span>${r.id}</span></button>`).join('');
     $('overlay').querySelectorAll('button').forEach(b=>b.onclick=()=>{roiId=+b.dataset.roi;render()});
     const r=selectedRoi();$('skip').checked=!!r?.skipped;$('skip').disabled=!r;
-    $('info').textContent=r?`ROI #${r.id} · ${status(r)} · 積分値 ${r.area??'不明'} · `+(r.binding?`${core.plateLabel(snapshot,r.binding)} / ${r.binding.well} → 元 ${r.binding.sourcePlate}-${r.binding.sourceWell}`:r.skipped?'空レーンとして除外':'ウェル未指定'):'';
-    $('rows').innerHTML=(gel?.rois||[]).map(r=>{const b=r.binding,error=r.skipped?'空レーン（除外）':core.bindingError(snapshot,b);return `<tr class="${r.id===roiId?'selected':''}" data-roi="${r.id}"><td><button type="button">#${r.id}</button></td><td>${status(r)}</td><td>${b?esc((b.kind==='packed'?'出力 ':'元 ')+core.plateLabel(snapshot,b)+' / '+b.well):'—'}</td><td>${b?esc(b.sourcePlate+'-'+b.sourceWell):'—'}</td><td>${esc(error||'対応済み')}</td></tr>`}).join('');
+    $('info').textContent=r?`ROI #${r.id} · ${status(r)} · 積分値 ${r.area??'不明'} · `+(r.binding?`${core.plateLabel(snapshot,r.binding)} / ${r.binding.well} → 元 ${core.sourceWellLabel(snapshot,r.binding)}`:r.skipped?'空レーンとして除外':'ウェル未指定'):'';
+    $('rows').innerHTML=(gel?.rois||[]).map(r=>{const b=r.binding,error=r.skipped?'空レーン（除外）':core.bindingError(snapshot,b);return `<tr class="${r.id===roiId?'selected':''}" data-roi="${r.id}"><td><button type="button">#${r.id}</button></td><td>${status(r)}</td><td>${b?esc((b.kind==='packed'?'出力 ':'元 ')+core.plateLabel(snapshot,b)+' / '+b.well):'—'}</td><td>${b?esc(core.sourceWellLabel(snapshot,b)):'—'}</td><td>${esc(error||'対応済み')}</td></tr>`}).join('');
     $('rows').querySelectorAll('tr').forEach(tr=>tr.querySelector('button').onclick=()=>{roiId=+tr.dataset.roi;render()});
     $('summary').textContent=gel?`${gel.rois.filter(r=>r.binding).length} / ${gel.rois.length} 対応 · 空レーン ${gel.rois.filter(r=>r.skipped).length} · 要確認 ${gel.rois.filter(r=>r.binding&&core.bindingError(snapshot,r.binding)).length}`:'';
     $('export').disabled=!gel;$('csv').disabled=!gel;$('unlink').disabled=!r?.binding&&!r?.skipped;$('undo').disabled=!undo.length;
@@ -76,7 +76,7 @@ window.PlatePackGelLinkUI = function ({getSnapshot,getState,setState,onApply}) {
   $('skip').onchange=()=>run(()=>{const s=JSON.parse(JSON.stringify(getState())),r=s.gels.find(g=>g.sha256===hash).rois.find(r=>r.id===roiId);r.skipped=$('skip').checked;if(r.skipped)r.binding=null;apply(s);message(r.skipped?'空レーンとして除外':'空レーン指定を解除しました。')});
   $('undo').onclick=()=>{if(undo.length){setState(undo.pop());render();message('直前の対応変更を戻しました。')}};
   $('export').onclick=()=>run(async()=>{const result=core.exportSession(getState(),getSnapshot(),sessions.get(hash),hash);if(onApply){onApply(result);dialog.close();return}if(await download(selectedGel().name.replace(/\.[^.]+$/,'')+'_pcr_electrophoresis.json',JSON.stringify(result,null,2),'application/json'))message('対応JSON保存済み')});
-  $('csv').onclick=()=>run(async()=>{const state=getState(),snapshot=getSnapshot();const rows=[['image','sha256','roi_number','detection','area','plate_kind','plate','well','source_plate','source_well','sample_id','mapping_status']];for(const g of state.gels)for(const r of g.rois){const b=r.binding;rows.push([g.name,g.sha256,r.id,status(r),r.area,b?.kind,core.plateLabel(snapshot,b),b?.well,b?.sourcePlate,b?.sourceWell,b?core.sampleId(state,b):'',r.skipped?'空レーン（除外）':core.bindingError(snapshot,b)||'対応済み'])}const cell=v=>{let t=String(v??'');if(typeof v!=='number'&&/^[=+@-]/.test(t))t="'"+t;return '"'+t.replace(/"/g,'""')+'"'};if(await download('PCR_ROI_mapping.csv','\ufeff'+rows.map(r=>r.map(cell).join(',')).join('\r\n'),'text/csv;charset=utf-8'))message('対応CSV保存済み')});
+  $('csv').onclick=()=>run(async()=>{const state=getState(),snapshot=getSnapshot();const rows=[['image','sha256','roi_number','detection','area','plate_kind','plate','well','source_plate','source_well','sample_id','mapping_status','source_index','source_namespace','source_uid']];for(const g of state.gels)for(const r of g.rois){const b=r.binding;rows.push([g.name,g.sha256,r.id,status(r),r.area,b?.kind,core.plateLabel(snapshot,b),b?.well,b?core.sourcePlateNumber(snapshot,b):'',b?.sourceWell,b?core.sampleId(state,b):'',r.skipped?'空レーン（除外）':core.bindingError(snapshot,b)||'対応済み',b?.sourcePlate,b?.sourceNamespace||state.namespace,b?.originUid||b?.sourceUid])}const cell=v=>{let t=String(v??'');if(typeof v!=='number'&&/^[=+@-]/.test(t))t="'"+t;return '"'+t.replace(/"/g,'""')+'"'};if(await download('PCR_ROI_mapping.csv','\ufeff'+rows.map(r=>r.map(cell).join(',')).join('\r\n'),'text/csv;charset=utf-8'))message('対応CSV保存済み')});
   function openDialog(){undo=[];if(!getState())setState(core.empty(crypto.randomUUID()));plateOptions();if(!$('plate').options.length){$('kind').value='source';plateOptions()}render();message('');dialog.showModal()};
   document.getElementById('gelLinkBtn').onclick=openDialog;
   if(onApply){$('gel').parentElement.hidden=true;$('import').hidden=true;$('export').textContent='適用';}

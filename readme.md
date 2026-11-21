@@ -187,6 +187,8 @@ Packerの「ROI対応」から、PCR Electrophoresisで保存した解析JSON、
 未検出・微弱ROIも選択でき、番号は削除・繰り上げしません。同じ泳動内の同じ元検体の重複指定は拒否します。
 実際に検体がないROIだけ「空レーン」に指定してください。未検出検体は元ウェルへ対応づけたまま扱います。
 
+複数の入力データを統合した際、`sourcePlate`は統合後の内部通し番号になります。ROI対応表・元プレート選択・対応CSVの`source_plate`には、保存された出自情報の元番号を表示します（例：内部11番でも元1番なら`1-B11`）。内部番号、出自の名前空間、元プレートUIDは別に保持し、対応CSVでは`source_index`・`source_namespace`・`source_uid`に記録します。
+
 対応は下書きの自動保存、DB保存、JSON ↓に含まれます。画像プレビューは保存しますが、
 定量用の元画素とPCR Electrophoresisの全履歴はPolymerase Chain Republicへ複製しません。
 Polymerase Chain Republicを再読み込みした後にPCR Electrophoresis用JSONを書き出す際は、その画像の元の解析JSONを再読み込みしてください。

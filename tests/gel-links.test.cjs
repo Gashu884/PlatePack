@@ -15,3 +15,23 @@ test('GelPool export keeps pixels, ROI positions, integration baseline, decision
 test('unassigned or stale mappings block export; explicitly empty lanes stay present and excluded',()=>{let s=core.bind(state(),plate(),hash,1,'source','1','B2');assert.throws(()=>core.exportSession(s,plate(),session(),hash),/ROI #2: 未指定/);s.gels[0].rois[1].skipped=true;const output=core.exportSession(s,plate(),session(),hash);assert.equal(output.config.rois.length,2);assert.equal(output.config.rois[1].decision,'exclude');s=core.bind(s,plate(),hash,2,'source','2','C3');const restored=core.exportSession(s,plate(),output,hash);assert.equal(restored.config.rois[1].decision,'auto');const changed=plate();changed.plates[0].wells=[];assert.throws(()=>core.exportSession(s,changed,session(),hash),/存在しません/);});
 test('untrusted JSON rejects duplicate ROI identities and non-image preview URLs; invalid target wells are rejected',()=>{let input=session();input.config.rois[1].id=1;assert.throws(()=>core.importSession(core.empty('project'),input),/ROI番号/);input=session();input.image.preview='https://elsewhere.example/image.png';assert.throws(()=>core.importSession(core.empty('project'),input),/プレビュー/);assert.throws(()=>core.bind(state(),plate(),hash,1,'source','1','H12'),/存在しません/);});
 test('serialized snapshot preserves linkage and namespace; unrelated workspaces do not collide',()=>{const a=core.bind(state(),plate(),hash,1,'source','1','A1');const roundtrip=JSON.parse(JSON.stringify(a));core.validate(roundtrip);const b=clone(a);b.namespace='another-workspace';assert.notEqual(core.sampleId(a,a.gels[0].rois[0].binding),core.sampleId(b,b.gels[0].rois[0].binding));assert.deepEqual(roundtrip,a);});
+function mergedSources(){
+ const editor=require('../frontend/assets/plate-editor-core.js'),grid=()=>Array.from({length:8},()=>Array(12).fill(null));
+ const prefixGrid=grid();prefixGrid[0][0]={sourcePlate:'1',sourceWell:'B11'};
+ const a={ref:'first-group',name:'First group',project_id:'p',payload:{plates:Array.from({length:10},(_,i)=>({uid:'first-'+i,label:'Plate '+(i+1),wells:['B11']})),packedPlates:[{id:'first-output',grid:prefixGrid}]}};
+ const originalGrid=grid();for(const [row,col,well] of [[0,0,'B11'],[1,0,'F3'],[0,1,'C2']])originalGrid[row][col]={sourcePlate:'1',sourceWell:well};
+ const b={ref:'second-group',name:'Second group',project_id:'p',payload:{plates:Array.from({length:18},(_,i)=>({uid:'original-'+i,label:'Plate '+(i+1),wells:i===0?['B11','F3','C2']:[]})),packedPlates:[{id:'original-output',grid:originalGrid}]}};
+ return editor.assemble([{entry:a,index:0},{entry:b,index:0}],{selectedOnly:true}).data;
+}
+test('merged workspace index 11 displays original plate 1 without changing the resolved sample',()=>{
+ const snapshot=mergedSources(),before=JSON.stringify(snapshot);
+ for(const [outputWell,sourceWell] of [['A1','B11'],['B1','F3'],['A2','C2']]){const binding=core.resolve(snapshot,'packed','original-output',outputWell);assert.equal(binding.sourcePlate,'11');assert.equal(binding.originPlate,'1');assert.equal(binding.sourceWell,sourceWell);assert.equal(core.sourcePlateNumber(snapshot,binding),'1');assert.equal(core.sourceWellLabel(snapshot,binding),'1-'+sourceWell);assert.equal(core.bindingError(snapshot,binding),'');assert.equal(core.sampleId(core.empty('workspace'),binding),'PP:second-group:original-0:'+sourceWell);}
+ assert.equal(JSON.stringify(snapshot),before);
+ const source=core.resolve(snapshot,'source','11','B11');assert.equal(core.plateLabel(snapshot,source),'1');assert.equal(core.wellLabel(snapshot,source),'1-B11');
+ const legacy=clone(source);delete legacy.originPlate;assert.equal(core.sourceWellLabel(snapshot,legacy),'1-B11');assert.equal(legacy.sourcePlate,'11');
+});
+test('same original plate number and well in two groups remain distinct after display normalization and JSON roundtrip',()=>{
+ const snapshot=mergedSources();let linked=core.bind(state(),snapshot,hash,1,'packed','first-output','A1');linked=core.bind(linked,snapshot,hash,2,'packed','original-output','A1');
+ const reopened=JSON.parse(JSON.stringify(linked)),one=reopened.gels[0].rois[0].binding,two=reopened.gels[0].rois[1].binding;core.validate(reopened);
+ assert.equal(core.sourceWellLabel(snapshot,one),'1-B11');assert.equal(core.sourceWellLabel(snapshot,two),'1-B11');assert.notEqual(one.sourcePlate,two.sourcePlate);assert.notEqual(core.sampleId(reopened,one),core.sampleId(reopened,two));assert.equal(two.sourcePlate,'11');assert.equal(two.originPlate,'1');
+});

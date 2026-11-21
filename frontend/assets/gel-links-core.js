@@ -67,7 +67,7 @@
     if (!roi) throw Error('ROIが見つかりません。');
     const b=resolve(snapshot,kind,plateKey,well);
     const duplicate=gel.rois.find(r=>r.id!==roiId && r.binding?.sourcePlate===b.sourcePlate && r.binding.sourceWell===b.sourceWell);
-    if (duplicate) throw Error(`元ウェル ${b.sourcePlate}-${b.sourceWell} はROI #${duplicate.id}に割り当て済みです。先にその対応を解除してください。`);
+    if (duplicate) throw Error(`元ウェル ${sourceWellLabel(snapshot,b)} はROI #${duplicate.id}に割り当て済みです。先にその対応を解除してください。`);
     roi.binding=b;roi.skipped=false;validate(next);return next;
   }
   function bindingError(snapshot, binding) {
@@ -78,8 +78,12 @@
     } catch(e) { return e.message; }
   }
   function sampleId(state,binding) { return `PP:${binding.sourceNamespace||state.namespace}:${binding.originUid||binding.sourceUid}:${binding.sourceWell}`; }
-  function plateLabel(snapshot,binding){return binding?.kind==='packed'?(snapshot.packedPlates||[]).find(p=>p.id===binding.plateKey)?.displayName||binding.plateKey:binding?.plateKey;}
-  function wellLabel(snapshot,binding){return binding.editedOutput&&binding.kind==='packed'?`${plateLabel(snapshot,binding)} / ${binding.well}`:`${binding.sourcePlate}-${binding.sourceWell}`;}
+  // sourcePlate is an index in a merged workspace, not the original plate
+  // number. Keep that index for lookups; use provenance for human labels.
+  function sourcePlateNumber(snapshot,binding){return String(binding?.originPlate??snapshot?.plates?.[Number(binding?.sourcePlate)-1]?.sourceOrigin?.plate??binding?.sourcePlate??'');}
+  function sourceWellLabel(snapshot,binding){return binding?sourcePlateNumber(snapshot,binding)+'-'+binding.sourceWell:'';}
+  function plateLabel(snapshot,binding){return binding?.kind==='packed'?(snapshot.packedPlates||[]).find(p=>p.id===binding.plateKey)?.displayName||binding.plateKey:binding?sourcePlateNumber(snapshot,binding):undefined;}
+  function wellLabel(snapshot,binding){return binding.editedOutput&&binding.kind==='packed'?`${plateLabel(snapshot,binding)} / ${binding.well}`:sourceWellLabel(snapshot,binding);}
   function exportSession(state,snapshot,session,hash) {
     validate(state);
     const g=state.gels.find(x=>x.sha256===hash);
@@ -98,5 +102,5 @@
     result.history ||= [];result.history.push({at:new Date().toISOString(),action:'Polymerase Chain Republic: 手動ROI・ウェル対応を適用',before,after:clone(result.config)});
     result.updatedAt=new Date().toISOString();return result;
   }
-  return {empty,validate,importSession,resolve,bind,bindingError,sampleId,exportSession,plateLabel,wellLabel};
+  return {empty,validate,importSession,resolve,bind,bindingError,sampleId,exportSession,plateLabel,wellLabel,sourcePlateNumber,sourceWellLabel};
 });
